@@ -38,6 +38,7 @@
 
           packages = {
             collect-github-reviews = pkgs.callPackage ./collect-github-reviews { };
+            cuda-check = pkgs.callPackage ./cuda-check { };
           };
 
           treefmt = {
@@ -48,12 +49,13 @@
             settings.global.excludes = [ "collect-github-reviews/__init__.py" ];
             settings.formatter.ruff-check.options = [
               "--ignore"
-              "INP001"
+              "INP001,EXE001,C901,PLR0912,PLW2901"
             ];
             programs.shellcheck.enable = true;
             programs.shfmt.enable = true;
             programs.mypy.enable = true;
             programs.mypy.directories."collect-github-reviews" = { };
+            programs.mypy.directories."cuda-check" = { };
           };
         };
     };
