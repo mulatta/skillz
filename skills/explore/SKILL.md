@@ -8,6 +8,7 @@ description: Explore codebases using ast-grep, ck, qmd, and deepwiki
 Explore and understand codebases using structural search, semantic search, and documentation tools.
 
 **Commands:**
+
 - `codebase` - Overview of project structure
 - `pattern` - Search for structural patterns (ast-grep)
 - `concept` - Search for concepts/meaning (ck semantic)
@@ -16,12 +17,12 @@ Explore and understand codebases using structural search, semantic search, and d
 
 # Analysis Tools
 
-| Tool | Source | Use Case |
-|------|--------|----------|
+| Tool     | Source | Use Case                                                                             |
+| -------- | ------ | ------------------------------------------------------------------------------------ |
 | ast-grep | Plugin | Structural patterns: "find all functions named X", "find if statements without else" |
-| ck | MCP | Semantic search: "error handling code", "authentication logic" |
-| qmd | MCP | Documentation: meeting notes, design docs, READMEs |
-| deepwiki | MCP | External libraries: React internals, nixpkgs patterns |
+| ck       | MCP    | Semantic search: "error handling code", "authentication logic"                       |
+| qmd      | MCP    | Documentation: meeting notes, design docs, READMEs                                   |
+| deepwiki | MCP    | External libraries: React internals, nixpkgs patterns                                |
 
 # Commands
 
@@ -118,13 +119,13 @@ Learn about external libraries using deepwiki.
 
 # Tool Selection Guide
 
-| Need | Tool | Example |
-|------|------|---------|
-| Find exact code structure | ast-grep | "all async functions" |
-| Find by meaning/concept | ck | "code that handles errors" |
-| Find in documentation | qmd | "design rationale" |
-| Understand external lib | deepwiki | "how does X work?" |
-| Find by keyword (exact) | ck regex_search | "TODO" |
+| Need                      | Tool            | Example                    |
+| ------------------------- | --------------- | -------------------------- |
+| Find exact code structure | ast-grep        | "all async functions"      |
+| Find by meaning/concept   | ck              | "code that handles errors" |
+| Find in documentation     | qmd             | "design rationale"         |
+| Understand external lib   | deepwiki        | "how does X work?"         |
+| Find by keyword (exact)   | ck regex_search | "TODO"                     |
 
 # ast-grep Quick Reference
 
