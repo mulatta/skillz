@@ -22,6 +22,10 @@
         inputs.treefmt-nix.flakeModule
       ];
 
+      flake = {
+        skills = ./skills;
+      };
+
       perSystem =
         {
           pkgs,
@@ -37,7 +41,7 @@
             packages;
 
           packages = {
-            collect-github-reviews = pkgs.callPackage ./collect-github-reviews { };
+            style-review = pkgs.callPackage ./style-review { };
             cuda-check = pkgs.callPackage ./cuda-check { };
           };
 
@@ -46,7 +50,7 @@
             programs.nixfmt.enable = true;
             programs.ruff.format = true;
             programs.ruff.check = true;
-            settings.global.excludes = [ "collect-github-reviews/__init__.py" ];
+            settings.global.excludes = [ ];
             settings.formatter.ruff-check.options = [
               "--ignore"
               "INP001,EXE001,C901,PLR0912,PLW2901"
@@ -54,7 +58,7 @@
             programs.shellcheck.enable = true;
             programs.shfmt.enable = true;
             programs.mypy.enable = true;
-            programs.mypy.directories."collect-github-reviews" = { };
+            programs.mypy.directories."style-review" = { };
             programs.mypy.directories."cuda-check" = { };
           };
         };

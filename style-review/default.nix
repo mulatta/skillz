@@ -1,12 +1,11 @@
 {
   lib,
   python3Packages,
-  gitMinimal,
   gh,
 }:
 
 python3Packages.buildPythonApplication {
-  pname = "collect-github-reviews";
+  pname = "style-review";
   version = "0.1.0";
   pyproject = false;
 
@@ -16,7 +15,7 @@ python3Packages.buildPythonApplication {
 
   installPhase = ''
     runHook preInstall
-    install -Dm755 collect_github_reviews.py $out/bin/collect-github-reviews
+    install -Dm755 style-review.py $out/bin/style-review
     runHook postInstall
   '';
 
@@ -24,7 +23,7 @@ python3Packages.buildPythonApplication {
 
   checkPhase = ''
     runHook preCheck
-    ruff check collect_github_reviews.py
+    ruff check style-review.py
     runHook postCheck
   '';
 
@@ -32,15 +31,12 @@ python3Packages.buildPythonApplication {
     "--prefix"
     "PATH"
     ":"
-    (lib.makeBinPath [
-      gitMinimal
-      gh
-    ])
+    (lib.makeBinPath [ gh ])
   ];
 
   meta = {
-    description = "Collect GitHub PR review comments by user or repository";
+    description = "Collect GitHub PR data for style analysis and code review";
     license = lib.licenses.mit;
-    mainProgram = "collect-github-reviews";
+    mainProgram = "style-review";
   };
 }
