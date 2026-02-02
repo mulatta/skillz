@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 """Collect GitHub PR review comments and repository style information.
 
 Modes:
