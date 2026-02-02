@@ -15,7 +15,21 @@ python3Packages.buildPythonApplication {
 
   installPhase = ''
     runHook preInstall
-    install -Dm755 style-review.py $out/bin/style-review
+
+    # Install package
+    mkdir -p $out/${python3Packages.python.sitePackages}
+    cp -r style_review $out/${python3Packages.python.sitePackages}/
+
+    # Create entry point script
+    mkdir -p $out/bin
+    cat > $out/bin/style-review << 'EOF'
+    #!${python3Packages.python.interpreter}
+    import sys
+    from style_review.cli import main
+    sys.exit(main())
+    EOF
+    chmod +x $out/bin/style-review
+
     runHook postInstall
   '';
 
@@ -23,7 +37,7 @@ python3Packages.buildPythonApplication {
 
   checkPhase = ''
     runHook preCheck
-    ruff check style-review.py
+    ruff check style_review/
     runHook postCheck
   '';
 
