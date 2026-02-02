@@ -54,7 +54,7 @@
             settings.global.excludes = [ ];
             settings.formatter.ruff-check.options = [
               "--ignore"
-              "INP001,EXE001,C901,PLR0911,PLR0912,PLR0913,PLR0915,PLW2901"
+              "INP001,EXE001,TC003,PLR0913"
             ];
             programs.shellcheck.enable = true;
             programs.shfmt.enable = true;
