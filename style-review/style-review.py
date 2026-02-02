@@ -616,6 +616,8 @@ def collect_pr(
                 f"PR #{pr_number} already exists, added {user} as {role}",
                 file=sys.stderr,
             )
+        else:
+            print(f"PR #{pr_number} already exists in database", file=sys.stderr)
         return True
 
     print(f"Fetching PR #{pr_number} from {repo}...", file=sys.stderr)
@@ -933,6 +935,58 @@ def cmd_collect(args: argparse.Namespace) -> int:
     return 1
 
 
+def format_rows(rows: list[sqlite3.Row], columns: list[str], fmt: str) -> str:
+    """Format query results in specified format."""
+    if fmt == "json":
+        data = [
+            {col: (row[col] if row[col] is not None else None) for col in columns}
+            for row in rows
+        ]
+        return json.dumps(data, indent=2)
+
+    if fmt == "csv":
+        lines = [",".join(f'"{col}"' for col in columns)]
+        for row in rows:
+            vals = []
+            for col in columns:
+                val = row[col]
+                if val is None:
+                    vals.append("")
+                elif isinstance(val, str) and ("," in val or '"' in val):
+                    vals.append(f'"{val.replace(chr(34), chr(34) + chr(34))}"')
+                else:
+                    vals.append(str(val))
+            lines.append(",".join(vals))
+        return "\n".join(lines)
+
+    if fmt == "table":
+        widths = [len(col) for col in columns]
+        for row in rows:
+            for i, col in enumerate(columns):
+                val = str(row[col]) if row[col] is not None else ""
+                widths[i] = max(widths[i], len(val))
+
+        header = " | ".join(col.ljust(widths[i]) for i, col in enumerate(columns))
+        separator = "-+-".join("-" * w for w in widths)
+
+        lines = [header, separator]
+        for row in rows:
+            line = " | ".join(
+                (str(row[col]) if row[col] is not None else "").ljust(widths[i])
+                for i, col in enumerate(columns)
+            )
+            lines.append(line)
+        return "\n".join(lines)
+
+    # tsv (default)
+    lines = ["\t".join(columns)]
+    for row in rows:
+        lines.append(
+            "\t".join(str(row[col]) if row[col] is not None else "" for col in columns)
+        )
+    return "\n".join(lines)
+
+
 def cmd_query(args: argparse.Namespace) -> int:
     """Handle query subcommand - execute SQL query."""
     base_dir = get_data_dir(args.output)
@@ -953,17 +1007,9 @@ def cmd_query(args: argparse.Namespace) -> int:
             print("No results", file=sys.stderr)
             return 0
 
-        # Print header
         columns = [desc[0] for desc in cursor.description]
-        print("\t".join(columns))
-
-        # Print rows
-        for row in rows:
-            print(
-                "\t".join(
-                    str(row[col]) if row[col] is not None else "" for col in columns
-                )
-            )
+        output = format_rows(rows, columns, args.format)
+        print(output)
 
     except sqlite3.Error as e:
         print(f"SQL Error: {e}", file=sys.stderr)
@@ -1211,6 +1257,13 @@ def main() -> int:
         help="Execute SQL query on database",
     )
     query_parser.add_argument("sql", help="SQL query to execute")
+    query_parser.add_argument(
+        "--format",
+        "-f",
+        choices=["tsv", "json", "table", "csv"],
+        default="tsv",
+        help="Output format (default: tsv)",
+    )
 
     # db subcommand
     db_parser = subparsers.add_parser(
