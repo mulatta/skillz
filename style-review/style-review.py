@@ -102,6 +102,18 @@ CREATE TABLE IF NOT EXISTS pr_files (
     PRIMARY KEY (pr_id, file_path)
 );
 
+-- Reviews (for cross-validation tracking)
+CREATE TABLE IF NOT EXISTS reviews (
+    id INTEGER PRIMARY KEY,
+    pr_id INTEGER NOT NULL REFERENCES prs(id),
+    github_id INTEGER NOT NULL,
+    reviewer TEXT NOT NULL,
+    pr_author TEXT NOT NULL,
+    state TEXT NOT NULL,
+    submitted_at TEXT,
+    UNIQUE(pr_id, github_id)
+);
+
 -- Indexes
 CREATE INDEX IF NOT EXISTS idx_prs_author ON prs(author);
 CREATE INDEX IF NOT EXISTS idx_prs_repo ON prs(repo_id);
@@ -109,6 +121,9 @@ CREATE INDEX IF NOT EXISTS idx_participants_user ON pr_participants(user);
 CREATE INDEX IF NOT EXISTS idx_participants_role ON pr_participants(user, role);
 CREATE INDEX IF NOT EXISTS idx_comments_author ON comments(author);
 CREATE INDEX IF NOT EXISTS idx_comments_type ON comments(comment_type);
+CREATE INDEX IF NOT EXISTS idx_reviews_reviewer ON reviews(reviewer);
+CREATE INDEX IF NOT EXISTS idx_reviews_author ON reviews(pr_author);
+CREATE INDEX IF NOT EXISTS idx_reviews_pair ON reviews(reviewer, pr_author);
 """
 
 
@@ -288,16 +303,18 @@ def save_docs(
     repo: str,
     pr_number: int,
     exclude_bots: bool = True,
-) -> tuple[dict[str, int], list[dict[str, Any]]]:
+) -> tuple[dict[str, int], list[dict[str, Any]], list[dict[str, Any]]]:
     """Fetch and save documentation (PR body, comments, reviews).
 
-    Returns (counts dict, list of comment metadata for DB).
+    Returns (counts dict, list of comment metadata for DB, list of review metadata for DB).
     """
     docs_dir = bundle_dir / "docs"
     docs_dir.mkdir(parents=True, exist_ok=True)
 
     counts = {"summary": 0, "comments": 0, "reviews": 0, "discussion": 0}
     comment_records: list[dict[str, Any]] = []
+    review_records: list[dict[str, Any]] = []
+    pr_author = (pr_data.get("user") or {}).get("login", "")
 
     # 1. Save PR summary (body)
     title = pr_data.get("title", "")
@@ -390,7 +407,18 @@ File: `{path}` | Line: {line} | Side: {side}
         review_body = review.get("body") or ""
         submitted_at = review.get("submitted_at", "")
 
-        # Skip empty reviews (just approvals without comments)
+        # Record all reviews for cross-validation (including empty APPROVEs)
+        review_records.append(
+            {
+                "github_id": review_id,
+                "reviewer": reviewer,
+                "pr_author": pr_author,
+                "state": review_state,
+                "submitted_at": submitted_at,
+            }
+        )
+
+        # Skip saving empty reviews to file (just approvals without comments)
         if not review_body and review_state == "APPROVED":
             continue
 
@@ -455,7 +483,7 @@ Date: {created_at}
             }
         )
 
-    return counts, comment_records
+    return counts, comment_records, review_records
 
 
 def parse_since(since: str | None) -> str | None:
@@ -670,7 +698,7 @@ def collect_pr(
                 print(f"  Saved: {filename}", file=sys.stderr)
 
     # 5. Save documentation
-    doc_counts, comment_records = save_docs(
+    doc_counts, comment_records, review_records = save_docs(
         bundle_dir, pr_data, repo, pr_number, exclude_bots
     )
 
@@ -725,14 +753,14 @@ def collect_pr(
         participant_role = "author" if role == "authored" else "reviewer"
         add_participant(conn, pr_id, user, participant_role)
 
-    # Extract reviewers from comments and add as participants
-    reviewers = set()
+    # Extract commenters from comments and add as participants
+    commenters = set()
     for comment in comment_records:
         if comment["author"] != pr_author:
-            reviewers.add(comment["author"])
+            commenters.add(comment["author"])
 
-    for reviewer in reviewers:
-        add_participant(conn, pr_id, reviewer, "reviewer")
+    for commenter in commenters:
+        add_participant(conn, pr_id, commenter, "commenter")
 
     # Insert files
     for file_rec in file_records:
@@ -766,6 +794,24 @@ def collect_pr(
                 comment["is_bot"],
             ),
         )
+
+    # Insert reviews (for cross-validation tracking)
+    for review in review_records:
+        conn.execute(
+            """INSERT OR IGNORE INTO reviews
+               (pr_id, github_id, reviewer, pr_author, state, submitted_at)
+               VALUES (?, ?, ?, ?, ?, ?)""",
+            (
+                pr_id,
+                review["github_id"],
+                review["reviewer"],
+                review["pr_author"],
+                review["state"],
+                review["submitted_at"],
+            ),
+        )
+        # Also add reviewer as participant
+        add_participant(conn, pr_id, review["reviewer"], "reviewer")
 
     conn.commit()
 
