@@ -3,6 +3,17 @@ name: crwl-cli
 description: Crawl web pages and extract markdown. Handles auth via browser profiles.
 ---
 
+# Workflow Selection
+
+Choose approach **before** crawling:
+
+| Situation | Approach |
+|-----------|----------|
+| Single page (article, docs, blog post) | `crwl-cli fetch URL` |
+| Multiple pages linked from one page (product listings, search results, index pages) | **JSON links pipeline** (see Multi-step Crawling) |
+
+**NEVER manually copy URLs from markdown output.** Use `--format json` and extract `.links` with `jq` instead. Markdown text may contain malformed or incomplete URLs, while `.links` provides structured, reliable hrefs.
+
 # Basic Usage
 
 ```bash
@@ -27,6 +38,47 @@ crwl-cli fetch https://example.com --wait-for ".loaded"
 # Batch crawl from file
 crwl-cli fetch --urls-file urls.txt --format json
 ```
+
+# Multi-step Crawling
+
+When to use: the target page **links to multiple detail pages** you need data from.
+Detect this when the page is a product listing, search results, category index, or configurator.
+
+## Steps
+
+```bash
+# 1. Crawl listing page → JSON (always use --format json for listings)
+crwl-cli fetch https://shop.example.com/products --format json > listing.json
+
+# 2. Extract detail page URLs via .links (NOT from .markdown)
+jq -r '.links.internal[] | select(.href | test("/products/")) | .href' listing.json > urls.txt
+
+# 3. Batch crawl all detail pages
+crwl-cli fetch --urls-file urls.txt --format json
+```
+
+## `links` structure (`--format json` only)
+
+```json
+{
+  "internal": [{"href": "...", "text": "...", "title": "..."}],
+  "external": [{"href": "...", "text": "...", "title": "..."}]
+}
+```
+
+## Agent decision logic
+
+1. Crawl the target URL with `--format json`
+2. Check: does `.links.internal` contain multiple URLs matching a detail page pattern?
+   - Yes → filter with `jq`, write to file, batch crawl with `--urls-file`
+   - No → use `.markdown` directly
+3. Extract needed information from each result's markdown
+
+## Anti-patterns
+
+- **Reading `.markdown` to find URLs** — unreliable, manual, and misses links hidden in JS-rendered elements. Always use `.links`.
+- **Manually constructing detail page URLs** — fragile if URL scheme changes. Let `.links` provide the canonical hrefs.
+- **Crawling detail pages one by one** — use `--urls-file` for batch crawling instead of sequential fetch calls.
 
 # Authentication Workflow
 
@@ -89,36 +141,6 @@ Cache stored at: `~/.local/share/crwl-cli/cache/`
 | md | `--format md` (default) | Filtered markdown (PruningContentFilter) | LLM consumption |
 | raw | `--format raw` | Full markdown, no filtering | Debugging, complete extraction |
 | json | `--format json` | `{url, success, status_code, markdown, links, error}` | Pipelines, batch processing |
-
-# Multi-step Crawling
-
-Extract links from a listing page, then crawl each detail page.
-Uses the `links` field from `--format json`.
-
-```bash
-# 1. Crawl listing page → extract links
-crwl-cli fetch https://shop.example.com/products --format json > listing.json
-
-# 2. Filter detail page URLs from internal links (jq example)
-jq -r '.links.internal[] | select(.href | test("/products/")) | .href' listing.json > urls.txt
-
-# 3. Batch crawl detail pages
-crwl-cli fetch --urls-file urls.txt --format json
-```
-
-`links` structure (`--format json` only):
-```json
-{
-  "internal": [{"href": "...", "text": "...", "title": "..."}],
-  "external": [{"href": "...", "text": "...", "title": "..."}]
-}
-```
-
-Agent workflow for multi-step crawling:
-1. Crawl the listing page with `--format json`
-2. Filter target URLs from `links.internal` by pattern matching
-3. Write URLs to a file, batch crawl with `--urls-file`
-4. Extract needed information from each result's markdown
 
 # Troubleshooting
 
