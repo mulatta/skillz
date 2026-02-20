@@ -1,5 +1,5 @@
 ---
-name: pareto
+name: pareto-decide
 description: Multi-criteria Pareto analysis with sweet spot detection. Use when comparing items/configs/products across multiple criteria to find optimal choices. Triggers on 'sweet spot', 'best value', 'pareto', 'compare options', '가성비', '최적', 'which config', 'trade-off'.
 argument-hint: [items or description]
 ---
