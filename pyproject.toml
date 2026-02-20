@@ -50,3 +50,7 @@ ignore_missing_imports = true
 [[tool.mypy.overrides]]
 module = "pytest.*"
 ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = "crawl4ai.*"
+ignore_missing_imports = true

@@ -6,6 +6,7 @@
     flake-parts.url = "github:hercules-ci/flake-parts";
     treefmt-nix.url = "github:numtide/treefmt-nix";
     treefmt-nix.inputs.nixpkgs.follows = "nixpkgs";
+    stacks.url = "github:mulatta/stacks.nix";
   };
 
   outputs =
@@ -29,6 +30,7 @@
       perSystem =
         {
           pkgs,
+          system,
           self',
           lib,
           ...
@@ -44,6 +46,9 @@
             context7-cli = pkgs.callPackage ./context7-cli { };
             cuda-check = pkgs.callPackage ./cuda-check { };
             style-review = pkgs.callPackage ./style-review { };
+            crwl-cli = pkgs.callPackage ./crwl-cli {
+              crawl4ai = inputs.stacks.packages.${system}.crawl4ai;
+            };
           };
 
           treefmt = {
@@ -57,6 +62,7 @@
             programs.mypy.directories."context7-cli" = { };
             programs.mypy.directories."cuda-check" = { };
             programs.mypy.directories."style-review" = { };
+            programs.mypy.directories."crwl-cli" = { };
           };
         };
     };
