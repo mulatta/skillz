@@ -46,6 +46,7 @@
             context7-cli = pkgs.callPackage ./context7-cli { };
             cuda-check = pkgs.callPackage ./cuda-check { };
             style-review = pkgs.callPackage ./style-review { };
+            pareto-decide = pkgs.callPackage ./pareto-decide { };
             crwl-cli = pkgs.callPackage ./crwl-cli {
               crawl4ai = inputs.stacks.packages.${system}.crawl4ai;
             };
@@ -63,6 +64,7 @@
             programs.mypy.directories."cuda-check" = { };
             programs.mypy.directories."style-review" = { };
             programs.mypy.directories."crwl-cli" = { };
+            programs.mypy.directories."pareto-decide" = { };
           };
         };
     };
