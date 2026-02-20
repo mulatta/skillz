@@ -50,12 +50,7 @@
             projectRootFile = "flake.nix";
             programs.nixfmt.enable = true;
             programs.ruff.format = true;
-            programs.ruff.check = true;
             settings.global.excludes = [ ];
-            settings.formatter.ruff-check.options = [
-              "--ignore"
-              "INP001,EXE001,TC003,PLR0913"
-            ];
             programs.shellcheck.enable = true;
             programs.shfmt.enable = true;
             programs.mypy.enable = true;
