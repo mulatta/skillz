@@ -68,19 +68,32 @@ Output JSON always includes `summary.pareto_ratio`. Use this to decide emphasis:
 - Focus on `pareto_front_names` — these are the clear winners
 - Explain why each dominated item is worse (use `dominated[].dominated_by[].advantages`)
 
-**pareto_ratio >= 0.5** — Too many items on frontier, sweet spots matter:
-- Focus on `sweet_spots` — items with highest `gain_score`
-- Explain `tier_transitions` — where the biggest value jumps happen
+**pareto_ratio >= 0.5** — Too many items on frontier, use deeper analysis:
+- `front_tradeoffs` — each front item's strengths/weaknesses + pairwise comparison
+- `sweet_spots` — items with highest `gain_score`
+- `segment_bests` — "best in this price range" recommendations
+- `tier_transitions` — where the biggest value jumps happen
 - gain_score > 1.0 means proportionally more improvement than sort-axis cost
 - gain_score > 1.3 is a strong sweet spot
+
+**segment_bests** — Use for "which is best at this budget?" questions:
+- Each segment shows the best item in that sort-axis range
+- Present as "In the $X-$Y range, Z is optimal because..."
+- `alternatives` lists other front items in the same range
+
+**weighted_ranking** — Available when no sort axis (no `--sort-by`, no auto-detect):
+- Composite score ranking across all items
+- Use when no natural investment axis exists
 
 **traps exist** — Always warn:
 - Items that look similar but are strictly worse on key metrics
 - Recommend the dominating alternative
 
-## `--sort-by` Judgment
+## `--sort-by` and Auto-detection
 
-Use `--sort-by` when items have a natural "investment axis" — something you spend more of to get other things:
+**Auto-detection**: When `--sort-by` is omitted and exactly one `-m` (minimize) criterion exists, it is automatically used as the sort axis. stderr shows `"Auto-detected sort-by: <field>"`. This enables sweet spots, segment bests, and tier transitions without explicit `--sort-by`.
+
+Use `--sort-by` explicitly when items have a natural "investment axis" — something you spend more of to get other things:
 
 | Axis | Direction | Example |
 |------|-----------|---------|
@@ -90,7 +103,7 @@ Use `--sort-by` when items have a natural "investment axis" — something you sp
 | latency | desc | Lower is better, more investment to reduce |
 | learning_curve | asc | Language/framework comparison |
 
-Omit `--sort-by` when no clear investment axis exists (e.g., comparing programming paradigms on abstract criteria).
+Omit `--sort-by` when no clear investment axis exists (e.g., comparing programming paradigms on abstract criteria). In that case, `weighted_ranking` provides a composite-score-based ranking.
 
 ## Weight Guidelines
 
@@ -115,6 +128,7 @@ Criteria (flat mode):
 
 Analysis:
   --sort-by FIELD   Investment axis (enables sweet spots/traps/transitions)
+                    Auto-detected when exactly one -m criterion exists
   --sort-dir DIR    asc (default) or desc
   --weights W       "field:weight,..." overrides
   --threshold T     Sweet spot gain_score threshold (default: 0.85)
@@ -124,3 +138,17 @@ Output:
   -f, --format      json (default), table, markdown, csv
   --name-field      Item name field (default: "name")
 ```
+
+## Output Keys
+
+| Key | When | Description |
+|-----|------|-------------|
+| `pareto_front` | always | Indices of non-dominated items |
+| `dominated` | always | Dominated items with dominators |
+| `front_tradeoffs` | front >= 2 | Per-item strengths/weaknesses + pairwise trade-offs |
+| `sweet_spots` | sort axis present | High gain_score items along sort axis |
+| `segment_bests` | sort axis present | Best item per equal-width range of sort axis |
+| `tier_transitions` | sort axis present | Sequential jumps along sort axis |
+| `traps` | always checked | Items close on sort axis but strictly worse |
+| `weighted_ranking` | no sort axis | All items ranked by composite score |
+| `sort_field_auto_detected` | auto-detect | `true` when sort field was auto-detected |

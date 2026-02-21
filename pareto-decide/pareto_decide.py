@@ -27,6 +27,7 @@ import argparse
 import csv
 import io
 import json
+import math
 import sys
 from typing import Any
 
@@ -267,6 +268,52 @@ def compute_dominated(
             }
         )
     return result
+
+
+# ---------------------------------------------------------------------------
+# Normalization helpers
+# ---------------------------------------------------------------------------
+
+
+def _normalize_value(
+    value: float, min_val: float, max_val: float, direction: str
+) -> float:
+    """Normalize to 0-1 range. For minimize, invert so higher = better."""
+    if max_val == min_val:
+        return 0.5
+    norm = (value - min_val) / (max_val - min_val)
+    if direction == "minimize":
+        norm = 1.0 - norm
+    return norm
+
+
+def _compute_composite_score(
+    config: dict[str, Any],
+    criteria: list[dict[str, Any]],
+    min_max: dict[str, tuple[float, float]],
+) -> float:
+    """Weighted composite score (0-1) using normalized criterion values."""
+    total_weight = 0.0
+    weighted_sum = 0.0
+    for c in criteria:
+        mn, mx = min_max[c["name"]]
+        val = config.get(c["name"], 0)
+        norm = _normalize_value(val, mn, mx, c["direction"])
+        w = c.get("weight", 1.0)
+        weighted_sum += w * norm
+        total_weight += w
+    return round(weighted_sum / total_weight, 4) if total_weight > 0 else 0.0
+
+
+def _build_min_max(
+    configs: list[dict[str, Any]], criteria: list[dict[str, Any]]
+) -> dict[str, tuple[float, float]]:
+    """Compute min/max per criterion across all configs."""
+    mm: dict[str, tuple[float, float]] = {}
+    for c in criteria:
+        vals = [cfg.get(c["name"], 0) for cfg in configs]
+        mm[c["name"]] = (min(vals), max(vals))
+    return mm
 
 
 # ---------------------------------------------------------------------------
@@ -557,6 +604,188 @@ def compute_tier_transitions(
 
 
 # ---------------------------------------------------------------------------
+# Front trade-offs, auto-detect, weighted ranking, segment bests
+# ---------------------------------------------------------------------------
+
+
+def compute_front_tradeoffs(
+    configs: list[dict[str, Any]],
+    criteria: list[dict[str, Any]],
+    front: list[int],
+    name_field: str,
+) -> list[dict[str, Any]]:
+    """Per-item strengths/weaknesses + pairwise trade-off summary for front items."""
+    if len(front) < 2:
+        return []
+
+    min_max = _build_min_max(configs, criteria)
+    items: list[dict[str, Any]] = []
+
+    for idx in front:
+        cfg = configs[idx]
+        strengths: list[str] = []
+        weaknesses: list[str] = []
+        for c in criteria:
+            mn, mx = min_max[c["name"]]
+            norm = _normalize_value(cfg.get(c["name"], 0), mn, mx, c["direction"])
+            if norm >= 0.8:
+                strengths.append(c["name"])
+            elif norm <= 0.2:
+                weaknesses.append(c["name"])
+        items.append(
+            {
+                "index": idx,
+                "name": cfg.get(name_field, f"#{idx}"),
+                "strengths": strengths,
+                "weaknesses": weaknesses,
+            }
+        )
+
+    # Pairwise trade-offs
+    tradeoffs: list[dict[str, Any]] = []
+    for i_pos in range(len(front)):
+        for j_pos in range(i_pos + 1, len(front)):
+            a_idx, b_idx = front[i_pos], front[j_pos]
+            a, b = configs[a_idx], configs[b_idx]
+            a_better: list[str] = []
+            b_better: list[str] = []
+            for c in criteria:
+                va, vb = a.get(c["name"], 0), b.get(c["name"], 0)
+                if c["direction"] == "maximize":
+                    if va > vb:
+                        a_better.append(c["name"])
+                    elif vb > va:
+                        b_better.append(c["name"])
+                elif va < vb:
+                    a_better.append(c["name"])
+                elif vb < va:
+                    b_better.append(c["name"])
+            if a_better or b_better:
+                tradeoffs.append(
+                    {
+                        "a": a.get(name_field, f"#{a_idx}"),
+                        "b": b.get(name_field, f"#{b_idx}"),
+                        "a_better_at": a_better,
+                        "b_better_at": b_better,
+                    }
+                )
+
+    return [{"items": items, "pairwise": tradeoffs}]
+
+
+def _auto_detect_sort_field(
+    criteria: list[dict[str, Any]],
+) -> tuple[str | None, str]:
+    """If exactly one minimize criterion, use it as sort axis (asc)."""
+    minimize_criteria = [c for c in criteria if c["direction"] == "minimize"]
+    if len(minimize_criteria) == 1:
+        return minimize_criteria[0]["name"], "asc"
+    return None, "asc"
+
+
+def compute_weighted_ranking(
+    configs: list[dict[str, Any]],
+    criteria: list[dict[str, Any]],
+    name_field: str,
+) -> list[dict[str, Any]]:
+    """Rank all items by composite score. Fallback when no sort axis."""
+    min_max = _build_min_max(configs, criteria)
+    ranked: list[dict[str, Any]] = []
+    for i, cfg in enumerate(configs):
+        score = _compute_composite_score(cfg, criteria, min_max)
+        ranked.append(
+            {
+                "index": i,
+                "name": cfg.get(name_field, f"#{i}"),
+                "composite_score": score,
+            }
+        )
+    ranked.sort(key=lambda r: r["composite_score"], reverse=True)
+    for rank, item in enumerate(ranked, 1):
+        item["rank"] = rank
+    return ranked
+
+
+def compute_segment_bests(
+    configs: list[dict[str, Any]],
+    criteria: list[dict[str, Any]],
+    sort_field: str,
+    sort_direction: str,
+    name_field: str,
+    num_segments: int | None = None,
+) -> list[dict[str, Any]]:
+    """Split sort axis into equal-width segments, find best per segment."""
+    vals = [cfg.get(sort_field, 0) for cfg in configs]
+    lo, hi = min(vals), max(vals)
+    if lo == hi:
+        return []
+
+    n = len(configs)
+    if num_segments is None:
+        num_segments = max(3, min(8, int(math.sqrt(n))))
+
+    width = (hi - lo) / num_segments
+    min_max = _build_min_max(configs, criteria)
+    non_sort_criteria = [c for c in criteria if c["name"] != sort_field]
+
+    segments: list[dict[str, Any]] = []
+    for seg_idx in range(num_segments):
+        seg_lo = lo + seg_idx * width
+        seg_hi = seg_lo + width
+        # Include upper bound for last segment
+        indices = [
+            i
+            for i, v in enumerate(vals)
+            if (seg_lo <= v < seg_hi) or (seg_idx == num_segments - 1 and v == seg_hi)
+        ]
+        if not indices:
+            continue
+
+        # Local pareto within segment
+        local_configs = [configs[i] for i in indices]
+        local_front_local = (
+            compute_pareto_front(local_configs, non_sort_criteria)
+            if non_sort_criteria
+            else list(range(len(indices)))
+        )
+        local_front_global = [indices[li] for li in local_front_local]
+
+        # Best by composite score among local front
+        best_idx = max(
+            local_front_global,
+            key=lambda i: _compute_composite_score(
+                configs[i], non_sort_criteria or criteria, min_max
+            ),
+        )
+        best_score = _compute_composite_score(
+            configs[best_idx], non_sort_criteria or criteria, min_max
+        )
+
+        alternatives = [
+            configs[i].get(name_field, f"#{i}")
+            for i in local_front_global
+            if i != best_idx
+        ]
+
+        seg_label = f"{seg_lo:.4g}-{seg_hi:.4g}"
+        segments.append(
+            {
+                "range": seg_label,
+                "range_low": round(seg_lo, 4),
+                "range_high": round(seg_hi, 4),
+                "best_index": best_idx,
+                "best": configs[best_idx].get(name_field, f"#{best_idx}"),
+                "composite_score": best_score,
+                "alternatives": alternatives,
+                "item_count": len(indices),
+                "reason": f"Best composite score ({best_score:.2f}) in {sort_field} range {seg_label}",
+            }
+        )
+
+    return segments
+
+
+# ---------------------------------------------------------------------------
 # Analysis pipeline
 # ---------------------------------------------------------------------------
 
@@ -570,7 +799,14 @@ def analyze(
     tolerance: float = 0.05,
     name_field: str = "name",
 ) -> dict[str, Any]:
-    """Run full analysis. Pareto always; marginal gain only with sort_field."""
+    """Run full analysis pipeline.
+
+    1. Pareto front + dominated (always)
+    2. Front trade-offs (front >= 2)
+    3. Auto-detect sort_field if not provided
+    4. With sort_field: sweet_spots + traps + transitions + segment_bests
+    5. Without sort_field: traps + weighted_ranking
+    """
     for i, cfg in enumerate(configs):
         if name_field not in cfg:
             cfg[name_field] = f"#{i}"
@@ -590,6 +826,21 @@ def analyze(
         "criteria_used": criteria,
     }
 
+    # Front trade-offs (always when front >= 2)
+    if len(front) >= 2:
+        ft = compute_front_tradeoffs(configs, criteria, front, name_field)
+        result["front_tradeoffs"] = ft
+
+    # Auto-detect sort_field
+    sort_field_auto = False
+    if not sort_field:
+        detected, detected_dir = _auto_detect_sort_field(criteria)
+        if detected:
+            sort_field = detected
+            sort_direction = detected_dir
+            sort_field_auto = True
+            result["sort_field_auto_detected"] = True
+
     if sort_field:
         sweet_spots = detect_sweet_spots(
             configs, criteria, sort_field, sort_direction, threshold, name_field
@@ -598,18 +849,28 @@ def analyze(
         transitions = compute_tier_transitions(
             configs, criteria, sort_field, sort_direction, name_field
         )
+        segment_bests = compute_segment_bests(
+            configs, criteria, sort_field, sort_direction, name_field
+        )
         result["summary"]["sweet_spots_count"] = len(sweet_spots)
         result["summary"]["traps_count"] = len(traps)
+        result["summary"]["segment_count"] = len(segment_bests)
         result["sort_field"] = sort_field
         result["sort_direction"] = sort_direction
+        if sort_field_auto:
+            result["sort_field_auto_detected"] = True
         result["sweet_spots"] = sweet_spots
         result["traps"] = traps
         result["tier_transitions"] = transitions
+        result["segment_bests"] = segment_bests
     else:
         traps = detect_traps(configs, criteria, None, tolerance, name_field)
         if traps:
             result["summary"]["traps_count"] = len(traps)
             result["traps"] = traps
+        # Weighted ranking fallback
+        ranking = compute_weighted_ranking(configs, criteria, name_field)
+        result["weighted_ranking"] = ranking
 
     return result
 
@@ -652,12 +913,53 @@ def format_table(
         for row in rows:
             lines.append(" | ".join(v.ljust(w) for v, w in zip(row, widths)))
 
+    if result.get("front_tradeoffs"):
+        ft = result["front_tradeoffs"][0]
+        lines.append("")
+        lines.append("== Front Trade-offs ==")
+        for item in ft["items"]:
+            parts = []
+            if item["strengths"]:
+                parts.append(f"strong: {', '.join(item['strengths'])}")
+            if item["weaknesses"]:
+                parts.append(f"weak: {', '.join(item['weaknesses'])}")
+            lines.append(
+                f"  {item['name']}: {'; '.join(parts) if parts else 'balanced'}"
+            )
+        for pw in ft["pairwise"][:5]:
+            a_at = ", ".join(pw["a_better_at"]) if pw["a_better_at"] else "-"
+            b_at = ", ".join(pw["b_better_at"]) if pw["b_better_at"] else "-"
+            lines.append(
+                f"  {pw['a']} vs {pw['b']}: {pw['a']}>{a_at} | {pw['b']}>{b_at}"
+            )
+
     if result.get("sweet_spots"):
         lines.append("")
         lines.append("== Sweet Spots ==")
         for ss in result["sweet_spots"][:5]:
             lines.append(
                 f"  {ss['name']} (gain: {ss['gain_score']:.2f}) — {ss['reason']}"
+            )
+
+    if result.get("segment_bests"):
+        lines.append("")
+        lines.append("== Best per Segment ==")
+        for seg in result["segment_bests"]:
+            alt = (
+                f" (alt: {', '.join(seg['alternatives'])})"
+                if seg["alternatives"]
+                else ""
+            )
+            lines.append(
+                f"  [{seg['range']}] {seg['best']} (score: {seg['composite_score']:.2f}){alt}"
+            )
+
+    if result.get("weighted_ranking"):
+        lines.append("")
+        lines.append("== Weighted Ranking ==")
+        for wr in result["weighted_ranking"][:10]:
+            lines.append(
+                f"  #{wr['rank']} {wr['name']} (score: {wr['composite_score']:.2f})"
             )
 
     if result.get("traps"):
@@ -710,6 +1012,27 @@ def format_markdown(
             vals = [str(configs[i].get(c, "")) for c in cols]
             lines.append("| " + " | ".join(vals) + " |")
 
+    if result.get("front_tradeoffs"):
+        ft = result["front_tradeoffs"][0]
+        lines.append("")
+        lines.append("## Front Trade-offs")
+        lines.append("")
+        lines.append("| Item | Strengths | Weaknesses |")
+        lines.append("| --- | --- | --- |")
+        for item in ft["items"]:
+            s = ", ".join(item["strengths"]) if item["strengths"] else "-"
+            w = ", ".join(item["weaknesses"]) if item["weaknesses"] else "-"
+            lines.append(f"| {item['name']} | {s} | {w} |")
+        if ft["pairwise"]:
+            lines.append("")
+            for pw in ft["pairwise"][:5]:
+                a_at = ", ".join(pw["a_better_at"]) if pw["a_better_at"] else "-"
+                b_at = ", ".join(pw["b_better_at"]) if pw["b_better_at"] else "-"
+                lines.append(
+                    f"- **{pw['a']}** vs **{pw['b']}**: "
+                    f"{pw['a']} wins on {a_at}; {pw['b']} wins on {b_at}"
+                )
+
     if result.get("sweet_spots"):
         lines.append("")
         lines.append("## Sweet Spots")
@@ -720,6 +1043,30 @@ def format_markdown(
             )
             lines.append(f"   vs {ss['compared_to_name']}: {ss['reason']}")
             lines.append("")
+
+    if result.get("segment_bests"):
+        lines.append("")
+        lines.append("## Best per Segment")
+        lines.append("")
+        lines.append("| Range | Best | Score | Alternatives | Items |")
+        lines.append("| --- | --- | --- | --- | --- |")
+        for seg in result["segment_bests"]:
+            alt = ", ".join(seg["alternatives"]) if seg["alternatives"] else "-"
+            lines.append(
+                f"| {seg['range']} | {seg['best']} | "
+                f"{seg['composite_score']:.2f} | {alt} | {seg['item_count']} |"
+            )
+
+    if result.get("weighted_ranking"):
+        lines.append("")
+        lines.append("## Weighted Ranking")
+        lines.append("")
+        lines.append("| Rank | Item | Composite Score |")
+        lines.append("| --- | --- | --- |")
+        for wr in result["weighted_ranking"][:10]:
+            lines.append(
+                f"| {wr['rank']} | {wr['name']} | {wr['composite_score']:.2f} |"
+            )
 
     if result.get("traps"):
         lines.append("")
@@ -851,16 +1198,23 @@ def main() -> int:
         print(format_csv_output(result, configs))
 
     ps = result["summary"]
+    if result.get("sort_field_auto_detected"):
+        print(
+            f"Auto-detected sort-by: {result['sort_field']}",
+            file=sys.stderr,
+        )
     print(
         f"Pareto: {ps['pareto_count']}/{ps['total']} ({ps['pareto_ratio']:.0%})",
         file=sys.stderr,
     )
     if "sweet_spots_count" in ps:
-        print(
-            f"Sweet spots: {ps['sweet_spots_count']}, "
+        parts = [
+            f"Sweet spots: {ps['sweet_spots_count']}",
             f"Traps: {ps.get('traps_count', 0)}",
-            file=sys.stderr,
-        )
+        ]
+        if "segment_count" in ps:
+            parts.append(f"Segments: {ps['segment_count']}")
+        print(", ".join(parts), file=sys.stderr)
 
     return 0
 
