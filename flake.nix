@@ -47,6 +47,7 @@
             cuda-check = pkgs.callPackage ./cuda-check { };
             style-review = pkgs.callPackage ./style-review { };
             pareto-decide = pkgs.callPackage ./pareto-decide { };
+            pexpect-cli = pkgs.callPackage ./pexpect-cli { };
             crwl-cli = pkgs.callPackage ./crwl-cli {
               crawl4ai = inputs.stacks.packages.${system}.crawl4ai;
             };
@@ -65,6 +66,7 @@
             programs.mypy.directories."style-review" = { };
             programs.mypy.directories."crwl-cli" = { };
             programs.mypy.directories."pareto-decide" = { };
+            programs.mypy.directories."pexpect-cli" = { };
           };
         };
     };
