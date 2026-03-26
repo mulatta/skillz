@@ -7,6 +7,8 @@
     treefmt-nix.url = "github:numtide/treefmt-nix";
     treefmt-nix.inputs.nixpkgs.follows = "nixpkgs";
     stacks.url = "github:mulatta/stacks.nix";
+    scientific-skills.url = "github:K-Dense-AI/claude-scientific-skills";
+    scientific-skills.flake = false;
   };
 
   outputs =
@@ -25,6 +27,7 @@
 
       flake = {
         skills = ./skills;
+        homeManagerModules.default = import ./home-manager.nix { inherit inputs; };
       };
 
       perSystem =
