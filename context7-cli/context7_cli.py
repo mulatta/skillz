@@ -23,7 +23,7 @@ Environment:
 
 Config file (~/.config/context7/config.json):
     {
-        "password_command": "rbw get context7-api-key",
+        "password_command": "rbw get context7-api",
         "api_key": "ctx7sk..."
     }
 
