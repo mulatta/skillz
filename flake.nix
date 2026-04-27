@@ -46,6 +46,7 @@
 
           packages = {
             context7-cli = pkgs.callPackage ./context7-cli { };
+            calendar-cli = pkgs.callPackage ./calendar-cli { };
             cuda-check = pkgs.callPackage ./cuda-check { };
             style-review = pkgs.callPackage ./style-review { };
             pareto-decide = pkgs.callPackage ./pareto-decide { };
@@ -53,23 +54,44 @@
             crwl-cli = pkgs.callPackage ./crwl-cli {
               crawl4ai = inputs.stacks.packages.${system}.crawl4ai;
             };
+            n8n-cli = pkgs.callPackage ./n8n-cli { };
           };
 
-          treefmt = {
-            projectRootFile = "flake.nix";
-            programs.nixfmt.enable = true;
-            programs.ruff.format = true;
-            settings.global.excludes = [ ];
-            programs.shellcheck.enable = true;
-            programs.shfmt.enable = true;
-            programs.mypy.enable = true;
-            programs.mypy.directories."context7-cli" = { };
-            programs.mypy.directories."cuda-check" = { };
-            programs.mypy.directories."style-review" = { };
-            programs.mypy.directories."crwl-cli" = { };
-            programs.mypy.directories."pareto-decide" = { };
-            programs.mypy.directories."pexpect-cli" = { };
-          };
+          treefmt =
+            let
+              types-icalendar = pkgs.python3.pkgs.callPackage ./calendar-cli/types-icalendar.nix {
+                python = pkgs.python3;
+              };
+            in
+            {
+              projectRootFile = "flake.nix";
+              programs.nixfmt.enable = true;
+              programs.ruff.format = true;
+              settings.global.excludes = [ ];
+              programs.shellcheck.enable = true;
+              programs.shfmt.enable = true;
+              programs.mypy.enable = true;
+              programs.mypy.directories."context7-cli" = { };
+              programs.mypy.directories."calendar-cli" = {
+                extraPythonPackages = with pkgs.python3.pkgs; [
+                  icalendar
+                  pytest
+                  python-dateutil
+                  types-icalendar
+                  types-python-dateutil
+                ];
+              };
+              programs.mypy.directories."cuda-check" = { };
+              programs.mypy.directories."style-review" = { };
+              programs.mypy.directories."crwl-cli" = { };
+              programs.mypy.directories."pareto-decide" = { };
+              programs.mypy.directories."pexpect-cli" = { };
+              programs.mypy.directories."n8n-cli" = {
+                extraPythonPackages = with pkgs.python3.pkgs; [
+                  pytest
+                ];
+              };
+            };
         };
     };
 }
