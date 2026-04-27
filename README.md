@@ -22,9 +22,7 @@ skillz/
 - `context7-cli` - fetch up-to-date library docs from Context7
 - `crwl-cli` - crawl web pages and extract markdown
 - `n8n-cli` - inspect and manage n8n workflows/API objects
-- `pareto-decide` - compare options with Pareto analysis
 - `pexpect-cli` - automate interactive terminal applications
-- `style-review` - inspect GitHub PR data for style analysis
 
 ## Usage
 

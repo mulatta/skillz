@@ -48,8 +48,6 @@
             context7-cli = pkgs.callPackage ./context7-cli { };
             calendar-cli = pkgs.callPackage ./calendar-cli { };
             cuda-check = pkgs.callPackage ./cuda-check { };
-            style-review = pkgs.callPackage ./style-review { };
-            pareto-decide = pkgs.callPackage ./pareto-decide { };
             pexpect-cli = pkgs.callPackage ./pexpect-cli { };
             crwl-cli = pkgs.callPackage ./crwl-cli {
               crawl4ai = inputs.stacks.packages.${system}.crawl4ai;
@@ -82,9 +80,7 @@
                 ];
               };
               programs.mypy.directories."cuda-check" = { };
-              programs.mypy.directories."style-review" = { };
               programs.mypy.directories."crwl-cli" = { };
-              programs.mypy.directories."pareto-decide" = { };
               programs.mypy.directories."pexpect-cli" = { };
               programs.mypy.directories."n8n-cli" = {
                 extraPythonPackages = with pkgs.python3.pkgs; [

@@ -11,9 +11,7 @@ let
   cliSkills = [
     "context7-cli"
     "crwl-cli"
-    "pareto-decide"
     "pexpect-cli"
-    "style-review"
   ];
 
   # External skill sources (no CLI package, just skill definitions)
