@@ -28,6 +28,11 @@ python3Packages.buildPythonApplication {
     patchShebangs bin/
   '';
 
+  postInstall = ''
+    mkdir -p $out/share/skills
+    cp -r ${../skills/pexpect-cli} $out/share/skills/pexpect-cli
+  '';
+
   preCheck = ''
     export PATH=$out/bin:${pueue}/bin:$PATH
   '';

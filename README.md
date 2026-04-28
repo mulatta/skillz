@@ -7,6 +7,7 @@ LLM-useful CLI tools and skills.
 ```
 skillz/
 ├── flake.nix           # Nix flake (packages, checks, treefmt)
+├── nix/                # Nix modules, checks, package registry, treefmt
 ├── pyproject.toml      # Python tooling config (ruff, mypy)
 ├── skills/             # Claude Code skills (SKILL.md files)
 │   └── <skill-name>/
@@ -44,12 +45,14 @@ nix flake check
 
 1. Create `<tool-name>/` directory with source code
 2. Add `<tool-name>/default.nix` for packaging
-3. Register in `flake.nix` under `packages`
+3. Register the package in `nix/packages.nix`
+4. Register the installable skill in `nix/skills.nix`
 
 ## Adding a Skill
 
 1. Create `skills/<skill-name>/SKILL.md`
-2. Follow the SKILL.md format (YAML frontmatter + markdown body)
+2. For CLI-backed skills, install the skill directory from the package output at `$out/share/skills/<skill-name>/`
+3. Follow the SKILL.md format (YAML frontmatter + markdown body)
 
 ```markdown
 ---

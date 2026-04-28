@@ -16,6 +16,8 @@ python3Packages.buildPythonApplication {
   installPhase = ''
     runHook preInstall
     install -Dm755 crawl.py $out/bin/crwl-cli
+    mkdir -p $out/share/skills
+    cp -r ${../skills/crwl-cli} $out/share/skills/crwl-cli
     runHook postInstall
   '';
 

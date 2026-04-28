@@ -12,7 +12,12 @@
   };
 
   outputs =
-    inputs@{ flake-parts, ... }:
+    inputs@{
+      self,
+      flake-parts,
+      nixpkgs,
+      ...
+    }:
     flake-parts.lib.mkFlake { inherit inputs; } {
       systems = [
         "x86_64-linux"
@@ -26,7 +31,15 @@
 
       flake = {
         skills = ./skills;
-        homeManagerModules.default = import ./home-manager.nix { inherit inputs; };
+        homeModules =
+          import ./nix/home-modules.nix {
+            inherit self inputs;
+            lib = nixpkgs.lib;
+          }
+          // {
+            default = import ./nix/home-manager.nix { inherit inputs; };
+          };
+        homeManagerModules.default = import ./nix/home-manager.nix { inherit inputs; };
       };
 
       perSystem =
@@ -38,56 +51,16 @@
           ...
         }:
         {
-          checks =
-            let
-              packages = lib.mapAttrs' (n: lib.nameValuePair "package-${n}") self'.packages;
-            in
-            packages;
-
-          packages = {
-            context7-cli = pkgs.callPackage ./context7-cli { };
-            calendar-cli = pkgs.callPackage ./calendar-cli { };
-            cuda-check = pkgs.callPackage ./cuda-check { };
-            pexpect-cli = pkgs.callPackage ./pexpect-cli { };
-            crwl-cli = pkgs.callPackage ./crwl-cli {
-              crawl4ai = inputs.stacks.packages.${system}.crawl4ai;
-            };
-            n8n-cli = pkgs.callPackage ./n8n-cli { };
+          checks = import ./nix/checks.nix {
+            inherit lib;
+            packages = self'.packages;
           };
 
-          treefmt =
-            let
-              types-icalendar = pkgs.python3.pkgs.callPackage ./calendar-cli/types-icalendar.nix {
-                python = pkgs.python3;
-              };
-            in
-            {
-              projectRootFile = "flake.nix";
-              programs.nixfmt.enable = true;
-              programs.ruff.format = true;
-              settings.global.excludes = [ ];
-              programs.shellcheck.enable = true;
-              programs.shfmt.enable = true;
-              programs.mypy.enable = true;
-              programs.mypy.directories."context7-cli" = { };
-              programs.mypy.directories."calendar-cli" = {
-                extraPythonPackages = with pkgs.python3.pkgs; [
-                  icalendar
-                  pytest
-                  python-dateutil
-                  types-icalendar
-                  types-python-dateutil
-                ];
-              };
-              programs.mypy.directories."cuda-check" = { };
-              programs.mypy.directories."crwl-cli" = { };
-              programs.mypy.directories."pexpect-cli" = { };
-              programs.mypy.directories."n8n-cli" = {
-                extraPythonPackages = with pkgs.python3.pkgs; [
-                  pytest
-                ];
-              };
-            };
+          packages = pkgs.callPackages ./nix/packages.nix {
+            crawl4ai = inputs.stacks.packages.${system}.crawl4ai;
+          };
+
+          treefmt = import ./nix/treefmt.nix { inherit pkgs; };
         };
     };
 }

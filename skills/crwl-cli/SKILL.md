@@ -7,9 +7,9 @@ description: Crawl web pages and extract markdown. Handles auth via browser prof
 
 Choose approach **before** crawling:
 
-| Situation | Approach |
-|-----------|----------|
-| Single page (article, docs, blog post) | `crwl-cli fetch URL` |
+| Situation                                                                           | Approach                                          |
+| ----------------------------------------------------------------------------------- | ------------------------------------------------- |
+| Single page (article, docs, blog post)                                              | `crwl-cli fetch URL`                              |
 | Multiple pages linked from one page (product listings, search results, index pages) | **JSON links pipeline** (see Multi-step Crawling) |
 
 **NEVER manually copy URLs from markdown output.** Use `--format json` and extract `.links` with `jq` instead. Markdown text may contain malformed or incomplete URLs, while `.links` provides structured, reliable hrefs.
@@ -61,8 +61,8 @@ crwl-cli fetch --urls-file urls.txt --format json
 
 ```json
 {
-  "internal": [{"href": "...", "text": "...", "title": "..."}],
-  "external": [{"href": "...", "text": "...", "title": "..."}]
+  "internal": [{ "href": "...", "text": "...", "title": "..." }],
+  "external": [{ "href": "...", "text": "...", "title": "..." }]
 }
 ```
 
@@ -85,15 +85,19 @@ crwl-cli fetch --urls-file urls.txt --format json
 When crawl output contains login prompts ("sign in", "log in", 403/401), follow these steps:
 
 1. **Create a profile** — opens Chromium for manual login (**requires GUI display; not available in SSH/headless environments**):
+
    ```bash
    crwl-cli profile create github
    ```
+
    Log in to the site in the browser window, then press `q` in terminal to save.
 
 2. **Verify the profile works:**
+
    ```bash
    crwl-cli profile check github https://github.com/settings/profile
    ```
+
    Check that the preview shows authenticated content.
 
 3. **Crawl with the profile:**
@@ -104,6 +108,7 @@ When crawl output contains login prompts ("sign in", "log in", 403/401), follow 
 ## Auth Detection Heuristics
 
 Re-crawl with a profile when the result contains:
+
 - Keywords: "sign in", "log in", "password", "authentication required"
 - HTTP status: 401, 403
 - Markdown is unexpectedly short (<100 chars) for a known content-rich page
@@ -136,19 +141,19 @@ Cache stored at: `~/.local/share/crwl-cli/cache/`
 
 # Output Formats
 
-| Format | Flag | Content | Use Case |
-|--------|------|---------|----------|
-| md | `--format md` (default) | Filtered markdown (PruningContentFilter) | LLM consumption |
-| raw | `--format raw` | Full markdown, no filtering | Debugging, complete extraction |
-| json | `--format json` | `{url, success, status_code, markdown, links, error}` | Pipelines, batch processing |
+| Format | Flag                    | Content                                               | Use Case                       |
+| ------ | ----------------------- | ----------------------------------------------------- | ------------------------------ |
+| md     | `--format md` (default) | Filtered markdown (PruningContentFilter)              | LLM consumption                |
+| raw    | `--format raw`          | Full markdown, no filtering                           | Debugging, complete extraction |
+| json   | `--format json`         | `{url, success, status_code, markdown, links, error}` | Pipelines, batch processing    |
 
 # Troubleshooting
 
-| Problem | Solution |
-|---------|----------|
-| Empty markdown | Add `--wait-for <selector>` for JS-rendered content |
-| Timeout | Increase `--timeout 60000` |
-| Too much noise | Use `--css <selector>` to scope extraction |
-| Images slow things down | Use `--text-mode` |
-| Auth wall | Create a profile: `crwl-cli profile create <name>` |
-| Stale session | Re-check: `crwl-cli profile check <name> <url>` |
+| Problem                 | Solution                                            |
+| ----------------------- | --------------------------------------------------- |
+| Empty markdown          | Add `--wait-for <selector>` for JS-rendered content |
+| Timeout                 | Increase `--timeout 60000`                          |
+| Too much noise          | Use `--css <selector>` to scope extraction          |
+| Images slow things down | Use `--text-mode`                                   |
+| Auth wall               | Create a profile: `crwl-cli profile create <name>`  |
+| Stale session           | Re-check: `crwl-cli profile check <name> <url>`     |

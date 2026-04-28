@@ -9,7 +9,7 @@ import hashlib
 import json
 import shutil
 import sys
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
@@ -145,7 +145,7 @@ def _write_cache(url: str, entry: dict[str, Any], result: Any) -> None:
     meta = {
         "url": url,
         "status_code": entry["status_code"],
-        "crawled_at": datetime.now(tz=timezone.utc).isoformat(),
+        "crawled_at": datetime.now(tz=UTC).isoformat(),
     }
     (CACHE_DIR / f"{h}.meta.json").write_text(json.dumps(meta, indent=2))
     if result.screenshot:
@@ -219,7 +219,7 @@ def do_profile_list(_args: argparse.Namespace) -> int:
     for p in profiles:
         if p.is_dir():
             stat = p.stat()
-            mtime = datetime.fromtimestamp(stat.st_mtime, tz=timezone.utc)
+            mtime = datetime.fromtimestamp(stat.st_mtime, tz=UTC)
             print(f"  {p.name:20s}  {mtime:%Y-%m-%d %H:%M}")
     return 0
 
@@ -304,7 +304,7 @@ def do_cache_clear(args: argparse.Namespace) -> int:
         print("Cache is already empty.")
         return 0
 
-    now = datetime.now(tz=timezone.utc)
+    now = datetime.now(tz=UTC)
     removed = 0
 
     for meta_path in list(CACHE_DIR.glob("*.meta.json")):
