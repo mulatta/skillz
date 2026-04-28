@@ -9,6 +9,7 @@ let
 
   # Skills that have a matching CLI package
   cliSkills = [
+    "calendar-cli"
     "context7-cli"
     "crwl-cli"
     "pexpect-cli"
