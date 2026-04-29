@@ -6,6 +6,7 @@ from __future__ import annotations
 import argparse
 import asyncio
 import base64
+import contextlib
 import hashlib
 import importlib
 import json
@@ -176,20 +177,21 @@ async def do_fetch(args: argparse.Namespace) -> int:
         print(str(exc), file=sys.stderr)
         return 1
 
-    crawl4ai = importlib.import_module("crawl4ai")
-    async_web_crawler = cast("Callable[..., WebCrawler]", crawl4ai.AsyncWebCrawler)
-
     results: list[dict[str, object]] = []
-    async with async_web_crawler(config=browser_cfg) as crawler:
-        for url in urls:
-            result = await crawler.arun(url, config=run_cfg)
-            entry = _build_result(url, result, args)
-            results.append(entry)
+    with contextlib.redirect_stdout(sys.stderr):
+        crawl4ai = importlib.import_module("crawl4ai")
+        async_web_crawler = cast("Callable[..., WebCrawler]", crawl4ai.AsyncWebCrawler)
 
-            if args.cache and result.success:
-                _write_cache(url, entry, result)
-            elif args.screenshot and result.success and result.screenshot:
-                entry["screenshot_path"] = _write_screenshot(url, result.screenshot)
+        async with async_web_crawler(config=browser_cfg) as crawler:
+            for url in urls:
+                result = await crawler.arun(url, config=run_cfg)
+                entry = _build_result(url, result, args)
+                results.append(entry)
+
+                if args.cache and result.success:
+                    _write_cache(url, entry, result)
+                elif args.screenshot and result.success and result.screenshot:
+                    entry["screenshot_path"] = _write_screenshot(url, result.screenshot)
 
     return _output_results(results, args)
 
