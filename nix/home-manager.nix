@@ -10,21 +10,16 @@ let
   registry = import ./skills.nix { inherit inputs; };
 
   allSkills = builtins.attrNames registry;
-  defaultSkills = builtins.filter (name: (registry.${name}.package or name) != null) allSkills;
+  defaultSkills = allSkills;
 
   skillPackage =
     name:
     let
       packageName = registry.${name}.package or name;
     in
-    if packageName == null then null else cfg.package.${packageName};
+    cfg.package.${packageName};
 
-  skillSource =
-    name:
-    let
-      package = skillPackage name;
-    in
-    registry.${name}.source or "${package}/share/skills/${name}";
+  skillSource = name: "${skillPackage name}/share/skills/${name}";
 in
 {
   imports = [ ./home-manager-common.nix ];
@@ -46,7 +41,6 @@ in
         "context7-cli"
         "n8n-cli"
         "pexpect-cli"
-        "scientific"
       ];
     };
 
@@ -70,7 +64,7 @@ in
       cfg.skillsSrc != null
     ) "programs.skillz.skillsSrc is deprecated and ignored; skill files now ship inside the packages.";
 
-    home.packages = builtins.filter (p: p != null) (map skillPackage cfg.skills);
+    home.packages = map skillPackage cfg.skills;
 
     home.file = lib.listToAttrs (
       lib.concatMap (

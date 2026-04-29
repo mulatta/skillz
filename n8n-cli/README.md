@@ -44,7 +44,7 @@ Priority: environment variables > `*_command` > direct values.
 
 ## Usage
 
-See [SKILL.md](../skills/n8n-cli/SKILL.md) for full command reference.
+See [SKILL.md](./skills/SKILL.md) for full command reference.
 
 ```bash
 n8n-cli --help

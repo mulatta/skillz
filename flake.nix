@@ -6,8 +6,6 @@
     flake-parts.url = "github:hercules-ci/flake-parts";
     treefmt-nix.url = "github:numtide/treefmt-nix";
     treefmt-nix.inputs.nixpkgs.follows = "nixpkgs";
-    scientific-skills.url = "github:K-Dense-AI/claude-scientific-skills";
-    scientific-skills.flake = false;
   };
 
   outputs =
@@ -29,7 +27,6 @@
       ];
 
       flake = {
-        skills = ./skills;
         homeModules =
           import ./nix/home-modules.nix {
             inherit self inputs;

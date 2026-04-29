@@ -9,11 +9,10 @@ skillz/
 ├── flake.nix           # Nix flake (packages, checks, treefmt)
 ├── nix/                # Nix modules, checks, package registry, treefmt
 ├── pyproject.toml      # Python tooling config (ruff, mypy)
-├── skills/             # Claude Code skills (SKILL.md files)
-│   └── <skill-name>/
-│       └── SKILL.md
 └── <tool-name>/        # CLI tools (packaged via Nix)
     ├── default.nix
+    ├── skills/         # Claude Code skill shipped by the package
+    │   └── SKILL.md
     └── ...
 ```
 
@@ -44,15 +43,18 @@ nix flake check
 ## Adding a CLI Tool
 
 1. Create `<tool-name>/` directory with source code
-2. Add `<tool-name>/default.nix` for packaging
-3. Register the package in `nix/packages.nix`
-4. Register the installable skill in `nix/skills.nix`
+2. Create `<tool-name>/skills/SKILL.md`
+3. Add `<tool-name>/default.nix` for packaging
+4. Install `<tool-name>/skills` to `$out/share/skills/<tool-name>/`
+5. Register the package in `nix/packages.nix`
+6. Register the installable skill in `nix/skills.nix`
 
 ## Adding a Skill
 
-1. Create `skills/<skill-name>/SKILL.md`
-2. For CLI-backed skills, install the skill directory from the package output at `$out/share/skills/<skill-name>/`
-3. Follow the SKILL.md format (YAML frontmatter + markdown body)
+Standalone top-level skill directories are not used. Add skill definitions under
+`<tool-name>/skills/` and ship them from the corresponding package.
+
+Follow the SKILL.md format (YAML frontmatter + markdown body):
 
 ```markdown
 ---
