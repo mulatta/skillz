@@ -1,23 +1,49 @@
 #!/usr/bin/env python3
-"""Crawl web pages and extract markdown for LLM consumption."""
+"""Crawl public web pages and extract markdown for LLM consumption."""
 
 from __future__ import annotations
 
 import argparse
 import asyncio
+import base64
 import hashlib
+import importlib
 import json
-import shutil
 import sys
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Protocol, Self, cast
+
+if TYPE_CHECKING:
+    from collections.abc import Callable, Mapping, Sequence
 
 DATA_DIR = Path.home() / ".local" / "share" / "crwl-cli"
-PROFILES_DIR = DATA_DIR / "profiles"
 CACHE_DIR = DATA_DIR / "cache"
+SCREENSHOT_DIR = DATA_DIR / "screenshots"
 
 DEFAULT_EXCLUDE_TAGS = ["nav", "footer", "script", "style"]
+
+
+class MarkdownResult(Protocol):
+    raw_markdown: str | None
+    fit_markdown: str | None
+
+
+class CrawlResult(Protocol):
+    success: bool
+    markdown: MarkdownResult | None
+    status_code: int | None
+    error_message: str | None
+    links: Mapping[str, Sequence[Mapping[str, object]]] | None
+    screenshot: str | None
+
+
+class WebCrawler(Protocol):
+    async def __aenter__(self) -> Self: ...
+
+    async def __aexit__(self, exc_type: object, exc: object, tb: object) -> None: ...
+
+    async def arun(self, url: str, config: object) -> CrawlResult: ...
 
 
 def url_hash(url: str) -> str:
@@ -25,38 +51,83 @@ def url_hash(url: str) -> str:
     return hashlib.sha256(url.encode()).hexdigest()[:16]
 
 
+def parse_viewport(value: str) -> tuple[int, int]:
+    """Parse WIDTHxHEIGHT viewport value."""
+    try:
+        width_raw, height_raw = value.lower().split("x", 1)
+        width = int(width_raw)
+        height = int(height_raw)
+    except ValueError as exc:
+        msg = "viewport must be WIDTHxHEIGHT, e.g. 1920x1080"
+        raise argparse.ArgumentTypeError(msg) from exc
+
+    if width <= 0 or height <= 0:
+        msg = "viewport dimensions must be positive integers"
+        raise argparse.ArgumentTypeError(msg)
+    return width, height
+
+
 # -- fetch -----------------------------------------------------------------
 
 
-async def do_fetch(args: argparse.Namespace) -> int:
-    """Crawl a URL and output markdown."""
-    from crawl4ai import AsyncWebCrawler
-    from crawl4ai.async_configs import BrowserConfig, CacheMode, CrawlerRunConfig
-    from crawl4ai.content_filter_strategy import PruningContentFilter
-    from crawl4ai.markdown_generation_strategy import DefaultMarkdownGenerator
-
-    urls: list[str] = []
+def _read_urls(args: argparse.Namespace) -> list[str]:
+    """Read crawl URL(s) from arguments."""
     if args.urls_file:
-        urls = [
+        return [
             line.strip()
             for line in Path(args.urls_file).read_text().splitlines()
             if line.strip() and not line.strip().startswith("#")
         ]
-    else:
-        urls = [args.url]
+    return [args.url]
 
-    if not urls:
-        print("Error: no URLs to crawl", file=sys.stderr)
-        return 1
 
-    profile_path: str | None = None
-    if args.profile:
-        p = PROFILES_DIR / args.profile
-        if not p.exists():
-            print(f"Error: profile '{args.profile}' not found", file=sys.stderr)
-            print(f"  Run: crwl-cli profile create {args.profile}", file=sys.stderr)
-            return 1
-        profile_path = str(p)
+def _build_browser_config(args: argparse.Namespace) -> object:
+    """Build Crawl4AI BrowserConfig from safe headless CLI flags."""
+    async_configs = importlib.import_module("crawl4ai.async_configs")
+    browser_config = cast("Callable[..., object]", async_configs.BrowserConfig)
+
+    kwargs: dict[str, object] = {
+        "browser_type": "chromium",
+        "headless": True,
+        "verbose": False,
+        "text_mode": args.text_mode,
+        "enable_stealth": args.stealth,
+        "ignore_https_errors": args.ignore_https_errors,
+    }
+
+    if args.user_agent_mode == "random":
+        kwargs["user_agent_mode"] = "random"
+
+    if args.viewport:
+        width, height = args.viewport
+        kwargs["viewport_width"] = width
+        kwargs["viewport_height"] = height
+
+    try:
+        return browser_config(**kwargs)
+    except TypeError as exc:
+        msg = f"Error: unsupported Crawl4AI browser option: {exc}"
+        raise RuntimeError(msg) from exc
+
+
+def _build_run_config(args: argparse.Namespace) -> object:
+    """Build Crawl4AI CrawlerRunConfig from safe extraction flags."""
+    async_configs = importlib.import_module("crawl4ai.async_configs")
+    content_filter_strategy = importlib.import_module(
+        "crawl4ai.content_filter_strategy"
+    )
+    markdown_generation_strategy = importlib.import_module(
+        "crawl4ai.markdown_generation_strategy"
+    )
+    cache_mode_cls = async_configs.CacheMode
+    crawler_run_config = cast("Callable[..., object]", async_configs.CrawlerRunConfig)
+    pruning_content_filter = cast(
+        "Callable[..., object]", content_filter_strategy.PruningContentFilter
+    )
+    default_markdown_generator = cast(
+        "Callable[..., object]",
+        markdown_generation_strategy.DefaultMarkdownGenerator,
+    )
 
     exclude_tags = (
         [t.strip() for t in args.exclude_tags.split(",")]
@@ -64,35 +135,51 @@ async def do_fetch(args: argparse.Namespace) -> int:
         else DEFAULT_EXCLUDE_TAGS
     )
 
-    browser_cfg = BrowserConfig(
-        browser_type="chromium",
-        headless=True,
-        verbose=False,
-        text_mode=args.text_mode,
-        user_data_dir=profile_path,
-        use_managed_browser=bool(profile_path),
+    md_gen = default_markdown_generator(
+        content_filter=pruning_content_filter(threshold=0.45),
     )
 
-    md_gen = DefaultMarkdownGenerator(
-        content_filter=PruningContentFilter(threshold=0.45),
-    )
+    cache_mode = cache_mode_cls.ENABLED if args.cache else cache_mode_cls.BYPASS
 
-    cache_mode = CacheMode.ENABLED if args.cache else CacheMode.BYPASS
+    kwargs: dict[str, object] = {
+        "verbose": False,
+        "cache_mode": cache_mode,
+        "markdown_generator": md_gen,
+        "css_selector": args.css or None,
+        "excluded_tags": exclude_tags,
+        "word_count_threshold": 15,
+        "wait_for": f"css:{args.wait_for}" if args.wait_for else None,
+        "page_timeout": args.timeout,
+        "screenshot": args.screenshot,
+        "scan_full_page": args.scan_full_page,
+    }
 
-    run_cfg = CrawlerRunConfig(
-        verbose=False,
-        cache_mode=cache_mode,
-        markdown_generator=md_gen,
-        css_selector=args.css if args.css else None,
-        excluded_tags=exclude_tags,
-        word_count_threshold=15,
-        wait_for=f"css:{args.wait_for}" if args.wait_for else None,
-        page_timeout=args.timeout,
-        screenshot=args.screenshot,
-    )
+    try:
+        return crawler_run_config(**kwargs)
+    except TypeError as exc:
+        msg = f"Error: unsupported Crawl4AI crawler option: {exc}"
+        raise RuntimeError(msg) from exc
 
-    results: list[dict[str, Any]] = []
-    async with AsyncWebCrawler(config=browser_cfg) as crawler:
+
+async def do_fetch(args: argparse.Namespace) -> int:
+    """Crawl URL(s) and output markdown or JSON."""
+    urls = _read_urls(args)
+    if not urls:
+        print("Error: no URLs to crawl", file=sys.stderr)
+        return 1
+
+    try:
+        browser_cfg = _build_browser_config(args)
+        run_cfg = _build_run_config(args)
+    except RuntimeError as exc:
+        print(str(exc), file=sys.stderr)
+        return 1
+
+    crawl4ai = importlib.import_module("crawl4ai")
+    async_web_crawler = cast("Callable[..., WebCrawler]", crawl4ai.AsyncWebCrawler)
+
+    results: list[dict[str, object]] = []
+    async with async_web_crawler(config=browser_cfg) as crawler:
         for url in urls:
             result = await crawler.arun(url, config=run_cfg)
             entry = _build_result(url, result, args)
@@ -100,11 +187,15 @@ async def do_fetch(args: argparse.Namespace) -> int:
 
             if args.cache and result.success:
                 _write_cache(url, entry, result)
+            elif args.screenshot and result.success and result.screenshot:
+                entry["screenshot_path"] = _write_screenshot(url, result.screenshot)
 
     return _output_results(results, args)
 
 
-def _build_result(url: str, result: Any, args: argparse.Namespace) -> dict[str, Any]:
+def _build_result(
+    url: str, result: CrawlResult, args: argparse.Namespace
+) -> dict[str, object]:
     """Build a result dict from a CrawlResult."""
     md = ""
     if result.success and result.markdown:
@@ -113,7 +204,7 @@ def _build_result(url: str, result: Any, args: argparse.Namespace) -> dict[str, 
         else:
             md = result.markdown.fit_markdown or result.markdown.raw_markdown or ""
 
-    entry: dict[str, Any] = {
+    entry: dict[str, object] = {
         "url": url,
         "success": result.success,
         "status_code": result.status_code,
@@ -125,7 +216,7 @@ def _build_result(url: str, result: Any, args: argparse.Namespace) -> dict[str, 
         entry["links"] = {
             k: [
                 {
-                    "href": link["href"],
+                    "href": str(link["href"]),
                     "text": link.get("text", ""),
                     "title": link.get("title", ""),
                 }
@@ -137,29 +228,37 @@ def _build_result(url: str, result: Any, args: argparse.Namespace) -> dict[str, 
     return entry
 
 
-def _write_cache(url: str, entry: dict[str, Any], result: Any) -> None:
+def _write_screenshot(url: str, screenshot: str) -> str:
+    """Write a base64 PNG screenshot and return its path."""
+    SCREENSHOT_DIR.mkdir(parents=True, exist_ok=True)
+    path = SCREENSHOT_DIR / f"{url_hash(url)}.png"
+    path.write_bytes(base64.b64decode(screenshot))
+    return str(path)
+
+
+def _write_cache(url: str, entry: dict[str, object], result: CrawlResult) -> None:
     """Write crawl result to file cache."""
     CACHE_DIR.mkdir(parents=True, exist_ok=True)
     h = url_hash(url)
-    (CACHE_DIR / f"{h}.md").write_text(entry["markdown"])
+    (CACHE_DIR / f"{h}.md").write_text(str(entry["markdown"]))
     meta = {
         "url": url,
         "status_code": entry["status_code"],
         "crawled_at": datetime.now(tz=UTC).isoformat(),
     }
+    if result.screenshot:
+        meta["screenshot_path"] = str(CACHE_DIR / f"{h}.png")
     (CACHE_DIR / f"{h}.meta.json").write_text(json.dumps(meta, indent=2))
     if result.screenshot:
-        import base64
-
-        png = base64.b64decode(result.screenshot)
-        (CACHE_DIR / f"{h}.png").write_bytes(png)
+        (CACHE_DIR / f"{h}.png").write_bytes(base64.b64decode(result.screenshot))
+        entry["screenshot_path"] = meta["screenshot_path"]
 
 
-def _output_results(results: list[dict[str, Any]], args: argparse.Namespace) -> int:
+def _output_results(results: list[dict[str, object]], args: argparse.Namespace) -> int:
     """Output results in the requested format."""
     failed = 0
     for entry in results:
-        if not entry["success"]:
+        if not bool(entry["success"]):
             print(
                 f"Error: {entry['url']}: {entry['error']}",
                 file=sys.stderr,
@@ -173,105 +272,11 @@ def _output_results(results: list[dict[str, Any]], args: argparse.Namespace) -> 
             # md or raw
             if len(results) > 1:
                 print(f"--- {entry['url']} ---")
-            print(entry["markdown"])
+            print(str(entry["markdown"]))
+            if entry.get("screenshot_path"):
+                print(f"\nScreenshot: {entry['screenshot_path']}", file=sys.stderr)
 
     return 1 if failed == len(results) else 0
-
-
-# -- profile ---------------------------------------------------------------
-
-
-async def do_profile_create(args: argparse.Namespace) -> int:
-    """Create a browser profile interactively."""
-    from crawl4ai import BrowserProfiler
-
-    PROFILES_DIR.mkdir(parents=True, exist_ok=True)
-    dest = PROFILES_DIR / args.name
-    if dest.exists():
-        print(f"Error: profile '{args.name}' already exists", file=sys.stderr)
-        return 1
-
-    profiler = BrowserProfiler()
-    profile_path: str = await profiler.create_profile(profile_name=args.name)
-
-    # Move from default crawl4ai location to our XDG path
-    src = Path(profile_path)
-    if src != dest and src.exists():
-        shutil.move(str(src), str(dest))
-        print(f"Profile '{args.name}' saved to {dest}")
-    else:
-        print(f"Profile '{args.name}' at {profile_path}")
-
-    return 0
-
-
-def do_profile_list(_args: argparse.Namespace) -> int:
-    """List available browser profiles."""
-    if not PROFILES_DIR.exists():
-        print("No profiles found.")
-        return 0
-
-    profiles = sorted(PROFILES_DIR.iterdir())
-    if not profiles:
-        print("No profiles found.")
-        return 0
-
-    for p in profiles:
-        if p.is_dir():
-            stat = p.stat()
-            mtime = datetime.fromtimestamp(stat.st_mtime, tz=UTC)
-            print(f"  {p.name:20s}  {mtime:%Y-%m-%d %H:%M}")
-    return 0
-
-
-def do_profile_delete(args: argparse.Namespace) -> int:
-    """Delete a browser profile."""
-    p = PROFILES_DIR / args.name
-    if not p.exists():
-        print(f"Error: profile '{args.name}' not found", file=sys.stderr)
-        return 1
-    shutil.rmtree(p)
-    print(f"Deleted profile '{args.name}'")
-    return 0
-
-
-async def do_profile_check(args: argparse.Namespace) -> int:
-    """Test a profile by crawling a URL and showing a preview."""
-    from crawl4ai import AsyncWebCrawler
-    from crawl4ai.async_configs import BrowserConfig, CacheMode, CrawlerRunConfig
-
-    p = PROFILES_DIR / args.name
-    if not p.exists():
-        print(f"Error: profile '{args.name}' not found", file=sys.stderr)
-        return 1
-
-    browser_cfg = BrowserConfig(
-        browser_type="chromium",
-        headless=True,
-        verbose=False,
-        user_data_dir=str(p),
-        use_managed_browser=True,
-    )
-    run_cfg = CrawlerRunConfig(verbose=False, cache_mode=CacheMode.BYPASS)
-
-    async with AsyncWebCrawler(config=browser_cfg) as crawler:
-        result = await crawler.arun(args.url, config=run_cfg)
-
-    if not result.success:
-        print(f"Error: {result.error_message}", file=sys.stderr)
-        return 1
-
-    md = ""
-    if result.markdown:
-        md = result.markdown.fit_markdown or result.markdown.raw_markdown or ""
-
-    preview = md[:500]
-    print(f"Status: {result.status_code}")
-    print(f"Preview ({len(md)} chars total):")
-    print(preview)
-    if len(md) > 500:
-        print("...")
-    return 0
 
 
 # -- cache ------------------------------------------------------------------
@@ -333,15 +338,14 @@ def build_parser() -> argparse.ArgumentParser:
     """Build the argument parser."""
     parser = argparse.ArgumentParser(
         prog="crwl-cli",
-        description="Crawl web pages and extract markdown for LLM consumption",
+        description="Headless public web crawler for LLM-readable markdown",
     )
     sub = parser.add_subparsers(dest="command")
 
     # -- fetch
-    fetch = sub.add_parser("fetch", help="Crawl URL(s) and extract markdown")
-    fetch.add_argument("url", nargs="?", help="URL to crawl")
+    fetch = sub.add_parser("fetch", help="Crawl public URL(s) and extract markdown")
+    fetch.add_argument("url", nargs="?", help="Public URL to crawl")
     fetch.add_argument("--urls-file", help="File with URLs (one per line)")
-    fetch.add_argument("--profile", help="Browser profile name for auth")
     fetch.add_argument(
         "--format",
         choices=["md", "json", "raw"],
@@ -354,6 +358,11 @@ def build_parser() -> argparse.ArgumentParser:
         help="Comma-separated tags to exclude (default: nav,footer,script,style)",
     )
     fetch.add_argument("--wait-for", help="CSS selector to wait for before extraction")
+    fetch.add_argument(
+        "--scan-full-page",
+        action="store_true",
+        help="Scroll through full page before extraction",
+    )
     fetch.add_argument("--cache", action="store_true", help="Enable caching")
     fetch.add_argument(
         "--timeout", type=int, default=30000, help="Page timeout in ms (default: 30000)"
@@ -362,22 +371,28 @@ def build_parser() -> argparse.ArgumentParser:
     fetch.add_argument(
         "--text-mode", action="store_true", help="Disable images for speed"
     )
-
-    # -- profile
-    profile = sub.add_parser("profile", help="Manage browser profiles")
-    profile_sub = profile.add_subparsers(dest="profile_command")
-
-    pc = profile_sub.add_parser("create", help="Create a browser profile")
-    pc.add_argument("name", help="Profile name")
-
-    profile_sub.add_parser("list", help="List profiles")
-
-    pd = profile_sub.add_parser("delete", help="Delete a profile")
-    pd.add_argument("name", help="Profile name")
-
-    pck = profile_sub.add_parser("check", help="Test profile with a URL")
-    pck.add_argument("name", help="Profile name")
-    pck.add_argument("url", help="URL to test")
+    fetch.add_argument(
+        "--stealth",
+        action="store_true",
+        help="Enable Crawl4AI/Playwright stealth mode",
+    )
+    fetch.add_argument(
+        "--user-agent-mode",
+        choices=["default", "random"],
+        default="default",
+        help="User agent mode (default: default)",
+    )
+    fetch.add_argument(
+        "--viewport",
+        type=parse_viewport,
+        metavar="WIDTHxHEIGHT",
+        help="Browser viewport, e.g. 1920x1080",
+    )
+    fetch.add_argument(
+        "--ignore-https-errors",
+        action="store_true",
+        help="Ignore invalid TLS certificates",
+    )
 
     # -- cache
     cache = sub.add_parser("cache", help="Manage crawl cache")
@@ -404,17 +419,6 @@ def main() -> int:
         if not args.url and not args.urls_file:
             parser.error("provide a URL or --urls-file")
         return asyncio.run(do_fetch(args))
-
-    if args.command == "profile":
-        if args.profile_command == "create":
-            return asyncio.run(do_profile_create(args))
-        if args.profile_command == "list":
-            return do_profile_list(args)
-        if args.profile_command == "delete":
-            return do_profile_delete(args)
-        if args.profile_command == "check":
-            return asyncio.run(do_profile_check(args))
-        parser.error("profile subcommand required")
 
     if args.command == "cache":
         if args.cache_command == "list":
