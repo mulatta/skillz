@@ -25,7 +25,7 @@ __all__ = ["cached_collect_events"]
 
 log = logging.getLogger(__name__)
 
-_SCHEMA_VERSION = 3
+_SCHEMA_VERSION = 4
 
 _CREATE_SQL = """\
 CREATE TABLE IF NOT EXISTS meta (
@@ -51,6 +51,7 @@ CREATE TABLE IF NOT EXISTS events (
     description   TEXT    NOT NULL DEFAULT '',
     rrule         TEXT    NOT NULL DEFAULT '',
     url           TEXT    NOT NULL DEFAULT '',
+    attachments   TEXT    NOT NULL DEFAULT '[]',
     organizer     TEXT    NOT NULL DEFAULT '',
     status        TEXT    NOT NULL DEFAULT '',
     recurrence_id TEXT,
@@ -131,6 +132,7 @@ def _event_to_row(ev: CalendarEvent) -> tuple[object, ...]:
         ev.description,
         ev.rrule,
         ev.url,
+        json.dumps(ev.attachments),
         ev.organizer,
         ev.status,
         _dt_to_str(ev.recurrence_id) if ev.recurrence_id is not None else None,
@@ -172,6 +174,7 @@ def _row_to_event(row: sqlite3.Row) -> CalendarEvent:
         filepath=Path(row["path"]),
         alarm_minutes=json.loads(row["alarm_minutes"]),
         url=row["url"],
+        attachments=json.loads(row["attachments"]),
         organizer=row["organizer"],
         attendees=attendees,
         status=row["status"],
@@ -316,9 +319,9 @@ def _find_changes(
 _INSERT_EVENT_SQL = """
     INSERT INTO events (
         path, calendar, uid, summary, dtstart, dtend,
-        is_all_day, location, description, rrule, url, organizer,
+        is_all_day, location, description, rrule, url, attachments, organizer,
         status, recurrence_id, alarm_minutes, attendees, exdates, rdates
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 """
 
 

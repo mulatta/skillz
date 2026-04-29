@@ -130,6 +130,15 @@ def _parse_attendees(component: Component) -> list[Attendee]:
     return attendees
 
 
+def _parse_attachments(component: Component) -> list[str]:
+    """Extract ATTACH property values from a VEVENT."""
+    raw = component.get("attach")
+    if raw is None:
+        return []
+    items = raw if isinstance(raw, list) else [raw]
+    return [str(item) for item in items]
+
+
 def read_event_file(path: Path, calendar_name: str) -> list[CalendarEvent]:
     """Parse a single .ics file and return CalendarEvent(s)."""
     events: list[CalendarEvent] = []
@@ -156,6 +165,7 @@ def read_event_file(path: Path, calendar_name: str) -> list[CalendarEvent]:
         rrule = _parse_rrule(component)
         alarms = _parse_alarm_minutes(component)
         url = str(component.get("url", ""))
+        attachments = _parse_attachments(component)
         organizer = _parse_organizer(component)
         attendees = _parse_attendees(component)
         status = str(component.get("status", ""))
@@ -175,6 +185,7 @@ def read_event_file(path: Path, calendar_name: str) -> list[CalendarEvent]:
                 filepath=path,
                 alarm_minutes=alarms,
                 url=url,
+                attachments=attachments,
                 organizer=organizer,
                 attendees=attendees,
                 status=status,

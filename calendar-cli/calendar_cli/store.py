@@ -251,6 +251,7 @@ def _expand_recurring(
                 filepath=ev.filepath,
                 alarm_minutes=ev.alarm_minutes,
                 url=ev.url,
+                attachments=ev.attachments,
                 organizer=ev.organizer,
                 attendees=ev.attendees,
                 status=ev.status,
@@ -531,6 +532,8 @@ def _build_ics(  # noqa: PLR0913
     description: str = "",
     rrule: str = "",
     alarm_minutes: list[int] | None = None,
+    url: str = "",
+    attachments: list[str] | None = None,
     sequence: int = 0,
 ) -> bytes:
     """Build a minimal VCALENDAR with one VEVENT."""
@@ -551,6 +554,10 @@ def _build_ics(  # noqa: PLR0913
         event.add("location", location)
     if description:
         event.add("description", description)
+    if url:
+        event.add("url", url)
+    for attachment in attachments or []:
+        event.add("attach", attachment)
     if rrule:
         event.add("rrule", parse_rrule_string(rrule))
 
@@ -578,6 +585,8 @@ def create_event(  # noqa: PLR0913
     description: str = "",
     rrule: str = "",
     alarm_minutes: list[int] | None = None,
+    url: str = "",
+    attachments: list[str] | None = None,
 ) -> CalendarEvent:
     """Create a new event in the local store.
 
@@ -604,6 +613,8 @@ def create_event(  # noqa: PLR0913
         description=description,
         rrule=rrule,
         alarm_minutes=alarm_minutes,
+        url=url,
+        attachments=attachments,
     )
 
     filepath = cal_dir / f"{uid_to_filename(uid)}.ics"
@@ -620,6 +631,8 @@ def create_event(  # noqa: PLR0913
         rrule=rrule,
         filepath=filepath,
         alarm_minutes=alarm_minutes or [],
+        url=url,
+        attachments=attachments or [],
     )
 
 
@@ -639,6 +652,23 @@ def delete_event(
     return True
 
 
+def _patch_reference_props(
+    component: Component, url: str | None, attachments: list[str] | None
+) -> None:
+    """Patch structured reference fields on a VEVENT."""
+    if url is not None:
+        if "url" in component:
+            del component["url"]
+        if url:
+            component.add("url", url)
+    if attachments is None:
+        return
+    if "attach" in component:
+        del component["attach"]
+    for attachment in attachments:
+        component.add("attach", attachment)
+
+
 def _patch_vevent(  # noqa: PLR0913, C901
     filepath: Path,
     uid: str,
@@ -650,6 +680,8 @@ def _patch_vevent(  # noqa: PLR0913, C901
     description: str | None = None,
     rrule: str | None = None,
     alarm_minutes: list[int] | None = None,
+    url: str | None = None,
+    attachments: list[str] | None = None,
 ) -> bytes:
     """Patch a VEVENT in-place, preserving all unmodified properties.
 
@@ -680,6 +712,7 @@ def _patch_vevent(  # noqa: PLR0913, C901
         _patch_prop(component, "summary", summary)
         _patch_prop(component, "location", location)
         _patch_prop(component, "description", description)
+        _patch_reference_props(component, url, attachments)
 
         # Patch time properties
         if dtstart is not None:
@@ -741,6 +774,8 @@ def update_event(  # noqa: PLR0913
     description: str | None = None,
     rrule: str | None = None,
     alarm_minutes: list[int] | None = None,
+    url: str | None = None,
+    attachments: list[str] | None = None,
 ) -> CalendarEvent | None:
     """Update an existing event. Only provided fields are changed.
 
@@ -762,6 +797,8 @@ def update_event(  # noqa: PLR0913
         description=description,
         rrule=rrule,
         alarm_minutes=alarm_minutes,
+        url=url,
+        attachments=attachments,
     )
 
     atomic_write(ev.filepath, ics_data)

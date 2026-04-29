@@ -142,6 +142,8 @@ def test_cache_preserves_all_fields(tmp_path: Path) -> None:
                     "LOCATION:Conference Room",
                     "DESCRIPTION:Important meeting",
                     "URL:https://example.com",
+                    "ATTACH:https://example.com/agenda.pdf",
+                    "ATTACH:file:///home/seungwon/notes.md",
                     "STATUS:CONFIRMED",
                     "ORGANIZER;CN=Boss:mailto:boss@example.com",
                     "ATTENDEE;PARTSTAT=ACCEPTED;CN=Alice:mailto:alice@example.com",
@@ -171,6 +173,10 @@ def test_cache_preserves_all_fields(tmp_path: Path) -> None:
     assert ev.location == "Conference Room"
     assert ev.description == "Important meeting"
     assert ev.url == "https://example.com"
+    assert ev.attachments == [
+        "https://example.com/agenda.pdf",
+        "file:///home/seungwon/notes.md",
+    ]
     assert ev.status == "CONFIRMED"
     assert "Boss" in ev.organizer
     assert len(ev.attendees) == 1
@@ -189,6 +195,7 @@ def test_cache_preserves_all_fields(tmp_path: Path) -> None:
     assert ev2.summary == ev.summary
     assert ev2.location == ev.location
     assert ev2.rrule == ev.rrule
+    assert ev2.attachments == ev.attachments
     assert len(ev2.exdates) == len(ev.exdates)
     assert len(ev2.rdates) == len(ev.rdates)
     assert ev2.alarm_minutes == ev.alarm_minutes

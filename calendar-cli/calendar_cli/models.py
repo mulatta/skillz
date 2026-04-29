@@ -65,6 +65,7 @@ class CalendarEvent:
     filepath: Path
     alarm_minutes: list[int] = field(default_factory=list)
     url: str = ""
+    attachments: list[str] = field(default_factory=list)
     organizer: str = ""
     attendees: list[Attendee] = field(default_factory=list)
     status: str = ""  # CONFIRMED, TENTATIVE, CANCELLED
