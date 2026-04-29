@@ -180,6 +180,110 @@ def test_new_all_day_event(cal_dir: str, capsys: pytest.CaptureFixture[str]) -> 
     assert "2025-12-25" in out
 
 
+def test_new_event_url_and_attachments(cal_dir: str) -> None:
+    result = run_cli(
+        cal_dir,
+        "new",
+        "Reference CLI",
+        "--start",
+        "2025-05-01T10:00",
+        "--timezone",
+        "Europe/Berlin",
+        "-c",
+        "personal",
+        "--description",
+        "Short note",
+        "--url",
+        "https://example.com/source",
+        "--attach",
+        "https://example.com/agenda.pdf",
+        "--attach",
+        "file:///home/seungwon/notes.md",
+    )
+    assert result == 0
+
+    events = store.search_events("Reference CLI", calendars_dir=cal_dir)
+    assert len(events) == 1
+    assert events[0].description == "Short note"
+    assert events[0].url == "https://example.com/source"
+    assert events[0].attachments == [
+        "https://example.com/agenda.pdf",
+        "file:///home/seungwon/notes.md",
+    ]
+
+
+def test_edit_event_url_and_attachments(cal_dir: str) -> None:
+    start = datetime(2025, 5, 1, 10, 0, tzinfo=UTC)
+    end = datetime(2025, 5, 1, 11, 0, tzinfo=UTC)
+    ev = store.create_event(
+        summary="Edit References",
+        dtstart=start,
+        dtend=end,
+        calendar_name="personal",
+        calendars_dir=cal_dir,
+        url="https://old.example/source",
+        attachments=["https://old.example/old.pdf"],
+    )
+
+    result = run_cli(
+        cal_dir,
+        "edit",
+        ev.uid,
+        "--url",
+        "https://new.example/source",
+        "--attach",
+        "https://new.example/template.zip",
+        "--attach",
+        "file:///home/seungwon/papers/draft.pdf",
+    )
+    assert result == 0
+
+    updated = store.get_event(ev.uid, cal_dir)
+    assert updated is not None
+    assert updated.url == "https://new.example/source"
+    assert updated.attachments == [
+        "https://new.example/template.zip",
+        "file:///home/seungwon/papers/draft.pdf",
+    ]
+
+
+def test_edit_event_clear_url_and_attachments(cal_dir: str) -> None:
+    start = datetime(2025, 5, 1, 10, 0, tzinfo=UTC)
+    end = datetime(2025, 5, 1, 11, 0, tzinfo=UTC)
+    ev = store.create_event(
+        summary="Clear References",
+        dtstart=start,
+        dtend=end,
+        calendar_name="personal",
+        calendars_dir=cal_dir,
+        url="https://old.example/source",
+        attachments=["https://old.example/old.pdf"],
+    )
+
+    result = run_cli(cal_dir, "edit", ev.uid, "--clear-url", "--clear-attach")
+    assert result == 0
+
+    updated = store.get_event(ev.uid, cal_dir)
+    assert updated is not None
+    assert updated.url == ""
+    assert updated.attachments == []
+
+
+def test_edit_event_rejects_reference_clear_conflicts(
+    cal_dir: str, capsys: pytest.CaptureFixture[str]
+) -> None:
+    result = run_cli(
+        cal_dir,
+        "edit",
+        "meeting-uid",
+        "--url",
+        "https://example.com/source",
+        "--clear-url",
+    )
+    assert result == 1
+    assert "cannot be used with" in capsys.readouterr().err
+
+
 def test_case_insensitive_calendar(
     cal_dir: str, capsys: pytest.CaptureFixture[str]
 ) -> None:

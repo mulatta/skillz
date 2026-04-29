@@ -24,6 +24,25 @@ email, and replying to invitations with RSVP responses (via msmtp).
 | `import`    | Import invites, process RSVP replies & cancellations   |
 | `reply`     | RSVP to a calendar invitation                          |
 
+## Structured references
+
+`new` and `edit` support iCalendar reference fields:
+
+```sh
+calendar-cli new "Deadline" --start 2025-04-01 --all-day -c academic \
+  --description "Submit after advisor sign-off" \
+  --url "https://example.org/source" \
+  --attach "file:///home/user/forms/form.pdf"
+
+calendar-cli edit <uid> --url "https://example.org/new-source" \
+  --attach "https://example.org/doc.pdf"
+calendar-cli edit <uid> --clear-url --clear-attach
+```
+
+Use `DESCRIPTION` for short notes, `URL` for the primary source, and repeated
+`ATTACH` values for related documents or files. `show <uid>` displays all of
+these fields.
+
 ## Requirements
 
 - Python 3.13+

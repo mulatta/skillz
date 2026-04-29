@@ -260,6 +260,8 @@ def _print_detail(ev: store.CalendarEvent, *, full: bool = False) -> None:
         _print_field("Location", ev.location)
     if ev.url:
         _print_field("URL", ev.url)
+    if ev.attachments:
+        _print_field("Attachments", "\n".join(ev.attachments))
     if ev.organizer:
         _print_field("Organizer", ev.organizer)
     if ev.attendees:
@@ -460,6 +462,8 @@ def cmd_new(args: argparse.Namespace) -> int:
         description=args.description or "",
         rrule=args.rrule or "",
         alarm_minutes=alarm_minutes,
+        url=args.url or "",
+        attachments=args.attach,
     )
 
     _sync()
@@ -482,6 +486,26 @@ def _parse_edit_times(args: argparse.Namespace, kwargs: dict[str, object]) -> No
             kwargs[key] = parse_datetime(value, args.timezone)
 
 
+def _collect_reference_kwargs(
+    args: argparse.Namespace, kwargs: dict[str, object]
+) -> None:
+    """Extract URL and ATTACH edit fields from args."""
+    if args.url is not None and args.clear_url:
+        msg = "--url cannot be used with --clear-url"
+        raise InvalidInputError(msg)
+    if args.attach is not None and args.clear_attach:
+        msg = "--attach cannot be used with --clear-attach"
+        raise InvalidInputError(msg)
+    if args.clear_url:
+        kwargs["url"] = ""
+    elif args.url is not None:
+        kwargs["url"] = args.url
+    if args.clear_attach:
+        kwargs["attachments"] = []
+    elif args.attach is not None:
+        kwargs["attachments"] = args.attach
+
+
 def _collect_edit_kwargs(args: argparse.Namespace) -> dict[str, object]:
     """Extract edit fields from args."""
     kwargs: dict[str, object] = {}
@@ -492,6 +516,7 @@ def _collect_edit_kwargs(args: argparse.Namespace) -> dict[str, object]:
         kwargs["location"] = args.location
     if args.description is not None:
         kwargs["description"] = args.description
+    _collect_reference_kwargs(args, kwargs)
     if args.rrule is not None:
         kwargs["rrule"] = args.rrule
     if args.alarm is not None:
@@ -559,6 +584,34 @@ def _parse_alarms(raw: list[str]) -> list[int]:
 # ---------------------------------------------------------------------------
 # CLI argument parser
 # ---------------------------------------------------------------------------
+
+
+def _add_create_reference_args(parser: argparse.ArgumentParser) -> None:
+    parser.add_argument("--url", help="Primary source URL")
+    parser.add_argument(
+        "--attach",
+        action="append",
+        help="Related document/file URI (repeatable)",
+    )
+
+
+def _add_edit_reference_args(parser: argparse.ArgumentParser) -> None:
+    parser.add_argument("--url", help="New primary source URL")
+    parser.add_argument(
+        "--clear-url",
+        action="store_true",
+        help="Clear the primary source URL",
+    )
+    parser.add_argument(
+        "--attach",
+        action="append",
+        help="New related document/file URI (repeatable, replaces existing ATTACH values)",
+    )
+    parser.add_argument(
+        "--clear-attach",
+        action="store_true",
+        help="Clear all ATTACH values",
+    )
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -712,6 +765,7 @@ Examples:
     )
     p_new.add_argument("-l", "--location", help="Location")
     p_new.add_argument("--description", help="Description text")
+    _add_create_reference_args(p_new)
     p_new.add_argument(
         "--timezone",
         help="Olson timezone, e.g. Europe/Berlin, America/New_York (required unless --all-day)",
@@ -744,6 +798,7 @@ Examples:
     p_edit.add_argument("--end", help="New end time: 'YYYY-MM-DD HH:MM'")
     p_edit.add_argument("-l", "--location", help="New location")
     p_edit.add_argument("--description", help="New description")
+    _add_edit_reference_args(p_edit)
     p_edit.add_argument(
         "--timezone",
         help="Olson timezone, e.g. Europe/Berlin (required when changing times)",

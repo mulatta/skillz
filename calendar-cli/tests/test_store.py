@@ -116,6 +116,40 @@ def test_create_event(cal_dir: str) -> None:
     assert len(ev2.alarms) == 2
 
 
+def test_create_event_with_url_and_attachments(cal_dir: str) -> None:
+    start = datetime(2025, 5, 1, 10, 0, tzinfo=UTC)
+    end = datetime(2025, 5, 1, 11, 0, tzinfo=UTC)
+
+    ev = store.create_event(
+        summary="Referenced Meeting",
+        dtstart=start,
+        dtend=end,
+        calendar_name="personal",
+        calendars_dir=cal_dir,
+        description="Short note",
+        url="https://example.com/source",
+        attachments=[
+            "https://example.com/agenda.pdf",
+            "file:///home/seungwon/notes.md",
+        ],
+    )
+
+    assert ev.url == "https://example.com/source"
+    assert ev.attachments == [
+        "https://example.com/agenda.pdf",
+        "file:///home/seungwon/notes.md",
+    ]
+
+    ev2 = store.get_event(ev.uid, cal_dir)
+    assert ev2 is not None
+    assert ev2.description == "Short note"
+    assert ev2.url == "https://example.com/source"
+    assert ev2.attachments == [
+        "https://example.com/agenda.pdf",
+        "file:///home/seungwon/notes.md",
+    ]
+
+
 def test_create_event_unknown_calendar(cal_dir: str) -> None:
     """Creating an event in a non-existent calendar raises CalendarNotFoundError."""
     start = datetime(2025, 5, 1, 10, 0, tzinfo=UTC)
@@ -303,7 +337,7 @@ def test_update_preserves_all_day(cal_dir: str) -> None:
 
 
 def test_read_attendees_and_organizer(tmp_path: Path) -> None:
-    """Attendees, organizer, status, and URL are parsed from .ics files."""
+    """Attendees, organizer, status, URL, and ATTACH are parsed from .ics files."""
     cal_dir = setup_single_calendar(
         tmp_path,
         make_ics(
@@ -315,6 +349,8 @@ def test_read_attendees_and_organizer(tmp_path: Path) -> None:
                 vevent_lines=[
                     "STATUS:CONFIRMED",
                     "URL:https://meet.example.com/team",
+                    "ATTACH:https://example.com/agenda.pdf",
+                    "ATTACH:file:///home/seungwon/notes.md",
                     "ORGANIZER;CN=Alice:mailto:alice@example.com",
                     "ATTENDEE;CN=Bob;PARTSTAT=ACCEPTED:mailto:bob@example.com",
                     "ATTENDEE;CN=Carol;PARTSTAT=TENTATIVE:mailto:carol@example.com",
@@ -329,6 +365,10 @@ def test_read_attendees_and_organizer(tmp_path: Path) -> None:
     assert ev is not None
     assert ev.status == "CONFIRMED"
     assert ev.url == "https://meet.example.com/team"
+    assert ev.attachments == [
+        "https://example.com/agenda.pdf",
+        "file:///home/seungwon/notes.md",
+    ]
     assert ev.organizer == "Alice (alice@example.com)"
     assert len(ev.attendees) == 3
     assert ev.attendees[0].name == "Bob"
@@ -536,7 +576,7 @@ def test_read_event_negative_duration(tmp_path: Path) -> None:
 
 
 def test_update_preserves_attendees_and_organizer(tmp_path: Path) -> None:
-    """Editing summary must not destroy ORGANIZER, ATTENDEE, STATUS, or URL."""
+    """Editing summary must not destroy ORGANIZER, ATTENDEE, STATUS, URL, or ATTACH."""
     cal_dir = setup_single_calendar(
         tmp_path,
         make_ics(
@@ -548,6 +588,8 @@ def test_update_preserves_attendees_and_organizer(tmp_path: Path) -> None:
                 vevent_lines=[
                     "STATUS:CONFIRMED",
                     "URL:https://meet.example.com/team",
+                    "ATTACH:https://example.com/agenda.pdf",
+                    "ATTACH:file:///home/seungwon/notes.md",
                     "ORGANIZER;CN=Alice:mailto:alice@example.com",
                     "ATTENDEE;CN=Bob;PARTSTAT=ACCEPTED:mailto:bob@example.com",
                     "ATTENDEE;CN=Carol;PARTSTAT=TENTATIVE:mailto:carol@example.com",
@@ -565,6 +607,10 @@ def test_update_preserves_attendees_and_organizer(tmp_path: Path) -> None:
     assert ev.summary == "Renamed Meeting"
     assert ev.status == "CONFIRMED"
     assert ev.url == "https://meet.example.com/team"
+    assert ev.attachments == [
+        "https://example.com/agenda.pdf",
+        "file:///home/seungwon/notes.md",
+    ]
     assert ev.organizer == "Alice (alice@example.com)"
     assert len(ev.attendees) == 2
     assert ev.attendees[0].name == "Bob"
@@ -573,6 +619,63 @@ def test_update_preserves_attendees_and_organizer(tmp_path: Path) -> None:
     # Verify SEQUENCE was incremented
     raw = ev.filepath.read_bytes().decode()
     assert "SEQUENCE:1" in raw
+
+
+def test_update_event_url_and_attachments(cal_dir: str) -> None:
+    start = datetime(2025, 5, 1, 10, 0, tzinfo=UTC)
+    end = datetime(2025, 5, 1, 11, 0, tzinfo=UTC)
+    ev = store.create_event(
+        summary="Reference Update",
+        dtstart=start,
+        dtend=end,
+        calendar_name="personal",
+        calendars_dir=cal_dir,
+        description="Keep this note",
+        url="https://old.example/source",
+        attachments=["https://old.example/old.pdf"],
+    )
+
+    updated = store.update_event(
+        ev.uid,
+        cal_dir,
+        url="https://new.example/source",
+        attachments=[
+            "https://new.example/template.zip",
+            "file:///home/seungwon/papers/draft.pdf",
+        ],
+    )
+
+    assert updated is not None
+    assert updated.summary == "Reference Update"
+    assert updated.description == "Keep this note"
+    assert updated.url == "https://new.example/source"
+    assert updated.attachments == [
+        "https://new.example/template.zip",
+        "file:///home/seungwon/papers/draft.pdf",
+    ]
+
+
+def test_update_event_clear_url_and_attachments(cal_dir: str) -> None:
+    start = datetime(2025, 5, 1, 10, 0, tzinfo=UTC)
+    end = datetime(2025, 5, 1, 11, 0, tzinfo=UTC)
+    ev = store.create_event(
+        summary="Reference Clear",
+        dtstart=start,
+        dtend=end,
+        calendar_name="personal",
+        calendars_dir=cal_dir,
+        url="https://old.example/source",
+        attachments=["https://old.example/old.pdf"],
+    )
+
+    updated = store.update_event(ev.uid, cal_dir, url="", attachments=[])
+
+    assert updated is not None
+    assert updated.url == ""
+    assert updated.attachments == []
+    raw = updated.filepath.read_text(encoding="utf-8")
+    assert "URL:" not in raw
+    assert "ATTACH:" not in raw
 
 
 # ---------------------------------------------------------------------------
