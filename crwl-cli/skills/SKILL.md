@@ -14,13 +14,14 @@ browser automation.
 
 Choose approach before crawling:
 
-| Situation                                                                           | Approach                                 |
-| ----------------------------------------------------------------------------------- | ---------------------------------------- |
-| Single page (article, docs, blog post)                                              | `crwl-cli fetch URL`                     |
-| Multiple pages linked from one page (product listings, search results, index pages) | JSON links pipeline                      |
-| JS-rendered content missing                                                         | Add `--wait-for` or `--scan-full-page`   |
-| Ad/tracker noise                                                                    | Add `--block-ads`                        |
-| Basic bot blocking on public page                                                   | Add `--stealth --user-agent-mode random` |
+| Situation                                                                           | Approach                                     |
+| ----------------------------------------------------------------------------------- | -------------------------------------------- |
+| Single page (article, docs, blog post)                                              | `crwl-cli fetch URL`                         |
+| Multiple pages linked from one page (product listings, search results, index pages) | JSON links pipeline                          |
+| Public CMS homepage with notices, menus, sliders, or portal links                   | `--format json --scan-full-page --block-ads` |
+| JS-rendered content missing                                                         | Add `--wait-for` or `--scan-full-page`       |
+| Ad/tracker noise                                                                    | Add `--block-ads`                            |
+| Basic bot blocking on public page                                                   | Add `--stealth --user-agent-mode random`     |
 
 **Never manually copy URLs from markdown output.** For link discovery, crawl
 with `--format json` and extract `.links` with `jq`. Markdown links may be
@@ -44,13 +45,19 @@ crwl-cli fetch https://example.com --format raw
 # JS-rendered content
 crwl-cli fetch https://example.com --wait-for ".loaded"
 
+# Quote URLs with query strings so the shell does not split on &
+crwl-cli fetch 'https://grad.example.edu/site/index.do?epTicket=LOG&lang=en' \
+  --format json --scan-full-page --block-ads
+
 # Fast text-only crawl
 crwl-cli fetch https://example.com --text-mode
 ```
 
 # Multi-step crawling
 
-Use when a page links to multiple detail pages you need to read.
+Use when a page links to multiple detail pages you need to read. Public CMS
+homepages often mix notices, menus, sliders, and portal/login links; extract
+structured links and follow only public content links.
 
 ```bash
 # 1. Crawl listing/index page as JSON
@@ -123,7 +130,7 @@ crwl-cli fetch --urls-file urls.txt --format json
 
 - Auth profiles or persistent browser profiles.
 - Cookie/session import.
-- Login flows or private pages.
+- Login flows or private pages, even when linked from an otherwise public page.
 - Clicking, typing, uploads, downloads.
 - Non-headless browser mode.
 - Arbitrary browser config passthrough.
