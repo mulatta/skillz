@@ -32,7 +32,7 @@ python3.pkgs.buildPythonApplication {
 
   postInstall = ''
     mkdir -p $out/share/skills
-    cp -r ${./skill} $out/share/skills/calendar-cli
+    cp -r ${./skills} $out/share/skills/calendar-cli
   '';
 
   nativeCheckInputs = with python3.pkgs; [

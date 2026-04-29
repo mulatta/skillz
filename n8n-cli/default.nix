@@ -19,7 +19,7 @@ python3Packages.buildPythonApplication {
 
   postInstall = ''
     mkdir -p $out/share/skills
-    cp -r ${./skill} $out/share/skills/n8n-cli
+    cp -r ${./skills} $out/share/skills/n8n-cli
   '';
 
   meta = {

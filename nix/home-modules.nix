@@ -11,13 +11,12 @@ let
     { pkgs, config, ... }:
     let
       packageName = def.package or name;
-      hasPackage = packageName != null;
-      pkg = if hasPackage then self.packages.${pkgs.stdenv.hostPlatform.system}.${packageName} else null;
-      skillDir = def.source or "${pkg}/share/skills/${name}";
+      pkg = self.packages.${pkgs.stdenv.hostPlatform.system}.${packageName};
+      skillDir = "${pkg}/share/skills/${name}";
     in
     {
       key = "skillz/base/${name}";
-      home.packages = lib.optional hasPackage pkg;
+      home.packages = [ pkg ];
       home.file = lib.listToAttrs (
         map (
           dir: lib.nameValuePair "${dir}/${name}" { source = skillDir; }

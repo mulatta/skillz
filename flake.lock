@@ -53,27 +53,10 @@
       "inputs": {
         "flake-parts": "flake-parts",
         "nixpkgs": "nixpkgs",
-        "scientific-skills": "scientific-skills",
-        "treefmt-nix": "treefmt-nix_2"
+        "treefmt-nix": "treefmt-nix"
       }
     },
-    "scientific-skills": {
-      "flake": false,
-      "locked": {
-        "lastModified": 1774474817,
-        "narHash": "sha256-gjJu/t1Bjxfir1N2/nCFW+A4yMiiDWoCHb5W+ypC21E=",
-        "owner": "K-Dense-AI",
-        "repo": "claude-scientific-skills",
-        "rev": "71add644263a56368f8680d68df504c6674dc1e5",
-        "type": "github"
-      },
-      "original": {
-        "owner": "K-Dense-AI",
-        "repo": "claude-scientific-skills",
-        "type": "github"
-      }
-    },
-    "treefmt-nix_2": {
+    "treefmt-nix": {
       "inputs": {
         "nixpkgs": [
           "nixpkgs"
