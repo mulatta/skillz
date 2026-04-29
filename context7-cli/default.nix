@@ -16,7 +16,7 @@ python3Packages.buildPythonApplication {
     runHook preInstall
     install -Dm755 context7_cli.py $out/bin/context7-cli
     mkdir -p $out/share/skills
-    cp -r ${../skills/context7-cli} $out/share/skills/context7-cli
+    cp -r ${./skills} $out/share/skills/context7-cli
     runHook postInstall
   '';
 
