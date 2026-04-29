@@ -35,7 +35,6 @@
           // {
             default = import ./nix/home-manager.nix { inherit inputs; };
           };
-        homeManagerModules.default = import ./nix/home-manager.nix { inherit inputs; };
       };
 
       perSystem =
