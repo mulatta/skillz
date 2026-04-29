@@ -6,7 +6,7 @@
 
 python3Packages.buildPythonApplication {
   pname = "crwl-cli";
-  version = "0.1.0";
+  version = "0.2.0";
   pyproject = false;
   src = ./.;
   dontBuild = true;
@@ -17,7 +17,7 @@ python3Packages.buildPythonApplication {
     runHook preInstall
     install -Dm755 crawl.py $out/bin/crwl-cli
     mkdir -p $out/share/skills
-    cp -r ${../skills/crwl-cli} $out/share/skills/crwl-cli
+    cp -r ${./skills} $out/share/skills/crwl-cli
     runHook postInstall
   '';
 
