@@ -3,9 +3,30 @@
   python3,
   vdirsyncer,
   msmtp,
-  crawl4ai,
+  symlinkJoin,
+  playwright-driver,
 }:
+let
+  alphashape = python3.pkgs.callPackage ../crwl-cli/deps/alphashape.nix { };
+  patchright = python3.pkgs.callPackage ../crwl-cli/deps/patchright {
+    inherit callPackage;
+  };
+  crawl4ai = python3.pkgs.callPackage ../crwl-cli/crawl4ai.nix {
+    inherit
+      alphashape
+      patchright
+      playwright-driver
+      symlinkJoin
+      ;
+  };
+in
 {
+  inherit
+    alphashape
+    crawl4ai
+    patchright
+    ;
+
   calendar-cli = callPackage ../calendar-cli { inherit python3 vdirsyncer msmtp; };
   context7-cli = callPackage ../context7-cli { };
   crwl-cli = callPackage ../crwl-cli { inherit crawl4ai; };

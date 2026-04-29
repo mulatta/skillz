@@ -19,6 +19,7 @@ Choose approach before crawling:
 | Single page (article, docs, blog post)                                              | `crwl-cli fetch URL`                     |
 | Multiple pages linked from one page (product listings, search results, index pages) | JSON links pipeline                      |
 | JS-rendered content missing                                                         | Add `--wait-for` or `--scan-full-page`   |
+| Ad/tracker noise                                                                    | Add `--block-ads`                        |
 | Basic bot blocking on public page                                                   | Add `--stealth --user-agent-mode random` |
 
 **Never manually copy URLs from markdown output.** For link discovery, crawl
@@ -106,6 +107,7 @@ crwl-cli fetch --urls-file urls.txt --format json
 ## Headless browser behavior
 
 - `--text-mode` — disable images for faster text-only crawls.
+- `--block-ads` — block common ad and tracker requests.
 - `--stealth` — enable Crawl4AI/Playwright stealth mode for basic bot blocking.
 - `--user-agent-mode default|random` — use default or randomized user agent.
 - `--viewport WIDTHxHEIGHT` — set viewport, e.g. `1920x1080`.
@@ -134,6 +136,7 @@ crwl-cli fetch --urls-file urls.txt --format json
 | Too much noise          | `--css SELECTOR` or `--exclude-tags TAGS`                      |
 | Slow pages              | `--timeout 60000`                                              |
 | Images slow things down | `--text-mode`                                                  |
+| Ad/tracker noise        | `--block-ads`                                                  |
 | Basic bot block         | `--stealth --user-agent-mode random`                           |
 | Need links              | `--format json`, then read `.links.internal[]` / `.external[]` |
 | Login required          | Stop. `crwl-cli` is for public headless crawling only.         |

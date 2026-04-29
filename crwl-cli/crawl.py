@@ -93,6 +93,7 @@ def _build_browser_config(args: argparse.Namespace) -> object:
         "text_mode": args.text_mode,
         "enable_stealth": args.stealth,
         "ignore_https_errors": args.ignore_https_errors,
+        "avoid_ads": args.block_ads,
     }
 
     if args.user_agent_mode == "random":
@@ -387,6 +388,11 @@ def build_parser() -> argparse.ArgumentParser:
         type=parse_viewport,
         metavar="WIDTHxHEIGHT",
         help="Browser viewport, e.g. 1920x1080",
+    )
+    fetch.add_argument(
+        "--block-ads",
+        action="store_true",
+        help="Block common ad and tracker requests",
     )
     fetch.add_argument(
         "--ignore-https-errors",
