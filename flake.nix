@@ -6,7 +6,6 @@
     flake-parts.url = "github:hercules-ci/flake-parts";
     treefmt-nix.url = "github:numtide/treefmt-nix";
     treefmt-nix.inputs.nixpkgs.follows = "nixpkgs";
-    stacks.url = "github:mulatta/stacks.nix";
     scientific-skills.url = "github:K-Dense-AI/claude-scientific-skills";
     scientific-skills.flake = false;
   };
@@ -56,9 +55,7 @@
             packages = self'.packages;
           };
 
-          packages = pkgs.callPackages ./nix/packages.nix {
-            crawl4ai = inputs.stacks.packages.${system}.crawl4ai;
-          };
+          packages = pkgs.callPackages ./nix/packages.nix { };
 
           treefmt = import ./nix/treefmt.nix { inherit pkgs; };
         };
