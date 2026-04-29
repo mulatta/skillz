@@ -30,7 +30,7 @@ python3Packages.buildPythonApplication {
 
   postInstall = ''
     mkdir -p $out/share/skills
-    cp -r ${../skills/pexpect-cli} $out/share/skills/pexpect-cli
+    cp -r ${./skills} $out/share/skills/pexpect-cli
   '';
 
   preCheck = ''
