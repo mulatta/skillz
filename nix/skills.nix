@@ -11,6 +11,7 @@
 {
   calendar-cli = { };
   context7-cli = { };
+  crabfit-cli = { };
   crwl-cli = { };
   miniflux-cli = { };
   n8n-cli = { };

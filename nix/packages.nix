@@ -29,6 +29,7 @@ in
 
   calendar-cli = callPackage ../calendar-cli { inherit python3 vdirsyncer msmtp; };
   context7-cli = callPackage ../context7-cli { };
+  crabfit-cli = callPackage ../crabfit-cli { };
   crwl-cli = callPackage ../crwl-cli { inherit crawl4ai; };
   miniflux-cli = callPackage ../miniflux-cli { };
   n8n-cli = callPackage ../n8n-cli { };
