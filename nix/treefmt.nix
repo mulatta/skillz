@@ -26,6 +26,7 @@
         ];
     };
     "context7-cli" = { };
+    "crabfit-cli" = { };
     "crwl-cli" = { };
     "miniflux-cli" = {
       extraPythonPackages = with pkgs.python3.pkgs; [
