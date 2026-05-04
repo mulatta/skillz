@@ -12,6 +12,7 @@
   calendar-cli = { };
   context7-cli = { };
   crwl-cli = { };
+  miniflux-cli = { };
   n8n-cli = { };
   pexpect-cli = { };
 }

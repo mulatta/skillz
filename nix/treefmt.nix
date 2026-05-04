@@ -27,6 +27,11 @@
     };
     "context7-cli" = { };
     "crwl-cli" = { };
+    "miniflux-cli" = {
+      extraPythonPackages = with pkgs.python3.pkgs; [
+        pytest
+      ];
+    };
     "n8n-cli" = {
       extraPythonPackages = with pkgs.python3.pkgs; [
         pytest
