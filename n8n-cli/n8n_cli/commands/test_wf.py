@@ -55,11 +55,20 @@ def _build_webhook_url(api_url: str, webhook_path: str) -> str:
     return f"{base}/webhook/{webhook_path}"
 
 
+def _parse_header(value: str) -> tuple[str, str]:
+    """Parse a header argument as ``Name: value``."""
+    name, sep, header_value = value.partition(":")
+    if not sep or not name.strip():
+        raise WebhookTestError(f"Invalid header {value!r}; expected 'Name: value'")
+    return name.strip(), header_value.strip()
+
+
 def _call_webhook(
     url: str,
     method: str,
     data: Any,
     timeout: int,
+    extra_headers: list[str],
 ) -> tuple[int, str]:
     """Send HTTP request to webhook, return (status, body)."""
     body_bytes = None
@@ -67,6 +76,9 @@ def _call_webhook(
         "Content-Type": "application/json",
         "Accept": "application/json",
     }
+    for header in extra_headers:
+        name, value = _parse_header(header)
+        headers[name] = value
     if data is not None:
         body_bytes = json.dumps(data).encode()
 
@@ -81,37 +93,48 @@ def _call_webhook(
         raise WebhookTestError(f"Webhook request failed: {e.reason}") from e
 
 
+def _latest_execution_id(client: Client, workflow_id: str) -> str | None:
+    """Return latest execution id for workflow, if any."""
+    result = client.get(f"/executions?workflowId={enc(workflow_id)}&limit=1")
+    items = result.get("data", []) if isinstance(result, dict) else []
+    if not items or not isinstance(items[0], dict):
+        return None
+    exec_id = items[0].get("id")
+    return str(exec_id) if exec_id is not None else None
+
+
 def _wait_for_execution(
     client: Client,
     workflow_id: str,
     timeout_s: int,
+    previous_execution_id: str | None,
     poll_s: int = 1,
 ) -> dict[str, Any]:
-    """Poll for the latest execution of a workflow to reach terminal status."""
-    # Brief delay for n8n to create the execution record
-    time.sleep(0.5)
-
-    # Get latest execution
-    result = client.get(f"/executions?workflowId={enc(workflow_id)}&limit=1&includeData=true")
-    items = result.get("data", []) if isinstance(result, dict) else []
-    if not items:
-        raise WebhookTestError(f"No execution found for workflow {workflow_id}")
-
-    execution: dict[str, Any] = items[0]
-    exec_id = execution.get("id", "")
+    """Poll for the next execution of a workflow to reach terminal status."""
     terminal = {"success", "error", "crashed"}
-
-    if execution.get("status", "") in terminal:
-        return execution
-
     deadline = time.monotonic() + timeout_s
+
     while time.monotonic() < deadline:
         time.sleep(poll_s)
-        resp = client.get(f"/executions/{enc(exec_id)}?includeData=true")
-        if isinstance(resp, dict) and resp.get("status", "") in terminal:
-            return resp
+        result = client.get(f"/executions?workflowId={enc(workflow_id)}&limit=1&includeData=true")
+        items = result.get("data", []) if isinstance(result, dict) else []
+        if not items or not isinstance(items[0], dict):
+            continue
 
-    raise WebhookTestError(f"Timeout waiting for execution {exec_id} to complete")
+        execution: dict[str, Any] = items[0]
+        exec_id = str(execution.get("id", ""))
+        if previous_execution_id is not None and exec_id == previous_execution_id:
+            continue
+        if execution.get("status", "") in terminal:
+            return execution
+
+        while time.monotonic() < deadline:
+            time.sleep(poll_s)
+            resp = client.get(f"/executions/{enc(exec_id)}?includeData=true")
+            if isinstance(resp, dict) and resp.get("status", "") in terminal:
+                return resp
+
+    raise WebhookTestError(f"Timeout waiting for new execution of workflow {workflow_id}")
 
 
 def cmd_test(client: Client, ns: Namespace) -> None:
@@ -171,12 +194,25 @@ def cmd_test(client: Client, ns: Namespace) -> None:
             raise WebhookTestError(f"Invalid JSON data: {e}") from None
 
     # Call webhook
-    status_code, response_body = _call_webhook(webhook_url, http_method, data, ns.timeout)
+    previous_execution_id = _latest_execution_id(client, wf_id) if ns.wait_execution else None
+    status_code, response_body = _call_webhook(
+        webhook_url,
+        http_method,
+        data,
+        ns.timeout,
+        ns.header or [],
+    )
 
-    # Optionally wait for execution
+    # Optionally wait for execution. Authentication failures and other HTTP
+    # errors do not create workflow executions, so waiting would report stale data.
     execution = None
-    if ns.wait_execution:
-        execution = _wait_for_execution(client, wf_id, ns.execution_timeout)
+    if ns.wait_execution and 200 <= status_code < 300:
+        execution = _wait_for_execution(
+            client,
+            wf_id,
+            ns.execution_timeout,
+            previous_execution_id,
+        )
 
     # Output
     if ns.use_json:

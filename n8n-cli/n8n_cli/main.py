@@ -204,6 +204,11 @@ def _build_parser() -> argparse.ArgumentParser:
     s = sub.add_parser("test", help="Test a workflow via its webhook")
     s.add_argument("id", help="Workflow ID")
     s.add_argument("-d", "--data", help="JSON data to send to the webhook")
+    s.add_argument(
+        "--header",
+        action="append",
+        help="HTTP header to send to the webhook, in 'Name: value' form (repeatable)",
+    )
     s.add_argument("--timeout", type=int, default=30, help="HTTP timeout in seconds (default: 30)")
     s.add_argument(
         "--wait-execution",

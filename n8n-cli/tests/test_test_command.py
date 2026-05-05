@@ -38,6 +38,34 @@ class TestTestCommand:
         assert data["httpStatus"] == 200
         assert data["success"] is True
 
+    def test_header_auth_webhook(
+        self, server: tuple[str, int], capsys: pytest.CaptureFixture[str]
+    ) -> None:
+        """test forwards custom headers to authenticated webhooks."""
+        out = run_ok(
+            server,
+            [
+                "test",
+                "wf-3",
+                "-d",
+                "{}",
+                "--header",
+                "Authorization: Bearer test-webhook-token",
+            ],
+            capsys,
+        )
+        assert "200" in out
+        assert "Test passed" in out
+
+    def test_wait_execution_skips_stale_execution_after_http_failure(
+        self, server: tuple[str, int], capsys: pytest.CaptureFixture[str]
+    ) -> None:
+        out = run_ok(server, ["-j", "test", "wf-3", "-d", "{}", "--wait-execution"], capsys)
+        data = json.loads(out)
+        assert data["httpStatus"] == 403
+        assert data["success"] is False
+        assert "execution" not in data
+
     def test_no_webhook_node(
         self, server: tuple[str, int], capsys: pytest.CaptureFixture[str]
     ) -> None:
