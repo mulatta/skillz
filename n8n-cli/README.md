@@ -49,6 +49,7 @@ See [SKILL.md](./skills/SKILL.md) for full command reference.
 ```bash
 n8n-cli --help
 n8n-cli <command> --help
+n8n-cli test <workflow-id> --header "Authorization: Bearer $(rbw get n8n-hooks-token)"
 ```
 
 Default output is LLM-friendly text. Add `-j`/`--json` for JSON.

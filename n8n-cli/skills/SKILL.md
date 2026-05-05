@@ -41,7 +41,7 @@ n8n-cli datatable delete-rows <id> --filter '<json>' [--dry-run]
 # filter: {"type":"and","filters":[{"columnName":"c","condition":"eq","value":"v"}]}
 
 # Test webhook
-n8n-cli test <id> [-d '{"key":"val"}'] [--wait-execution] [--activate] [--dry-run]
+n8n-cli test <id> [-d '{"key":"val"}'] [--header 'Authorization: Bearer ...'] [--wait-execution] [--activate] [--dry-run]
 
 # Bulk sync (always --dry-run first)
 n8n-cli import -d ./definitions [--ids a,b] [--dry-run]           # server → local JSON

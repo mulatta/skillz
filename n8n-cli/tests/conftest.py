@@ -106,6 +106,27 @@ WORKFLOW_WEBHOOK = {
     "updatedAt": "2025-03-10T16:45:00.000Z",
 }
 
+WORKFLOW_AUTH_WEBHOOK = {
+    "id": "wf-3",
+    "name": "Authenticated Webhook Test",
+    "active": True,
+    "nodes": [
+        {
+            "id": "node-auth",
+            "name": "Authenticated Entry",
+            "type": "n8n-nodes-base.webhook",
+            "typeVersion": 2.1,
+            "position": [0, 0],
+            "parameters": {"httpMethod": "POST", "path": "auth-hook"},
+            "webhookId": "auth-hook",
+        },
+    ],
+    "connections": {},
+    "tags": [],
+    "createdAt": "2025-02-01T09:00:00.000Z",
+    "updatedAt": "2025-03-10T16:45:00.000Z",
+}
+
 EXECUTION_RETRY_RESULT = {
     "id": "exec-101",
     "workflowId": "wf-1",
@@ -154,9 +175,10 @@ class FakeN8NHandler(BaseHTTPRequestHandler):
             "/api/v1/credentials": {"data": [CREDENTIAL_1]},
             "/api/v1/credentials/42": CREDENTIAL_1,
             "/api/v1/credentials/schema/slackApi": CREDENTIAL_SCHEMA,
-            "/api/v1/workflows": {"data": [WORKFLOW_1, WORKFLOW_WEBHOOK]},
+            "/api/v1/workflows": {"data": [WORKFLOW_1, WORKFLOW_WEBHOOK, WORKFLOW_AUTH_WEBHOOK]},
             "/api/v1/workflows/wf-1": WORKFLOW_1,
             "/api/v1/workflows/wf-2": WORKFLOW_WEBHOOK,
+            "/api/v1/workflows/wf-3": WORKFLOW_AUTH_WEBHOOK,
             "/api/v1/executions/exec-100": EXECUTION_1,
             "/api/v1/executions": {"data": [EXECUTION_1]},
             "/api/v1/tags": {"data": [TAG_1]},
@@ -177,9 +199,15 @@ class FakeN8NHandler(BaseHTTPRequestHandler):
         self._read_body()
         p = self.path.split("?")[0]
 
-        # Webhook endpoint (outside /api/v1)
+        # Webhook endpoints (outside /api/v1)
         if p == "/webhook/test-hook":
             self._send(200, {"success": True, "received": True})
+            return
+        if p == "/webhook/auth-hook":
+            if self.headers.get("Authorization") != "Bearer test-webhook-token":
+                self._send(403, "Authorization data is wrong!")
+                return
+            self._send(200, {"success": True, "authenticated": True})
             return
 
         routes: dict[str, Any] = {
