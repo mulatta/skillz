@@ -9,6 +9,7 @@
 #   extra   – additional home-manager module to merge in (only used by the
 #             per-skill homeModules variant).
 {
+  buildbot-pr-check = { };
   calendar-cli = { };
   context7-cli = { };
   crabfit-cli = { };

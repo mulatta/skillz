@@ -18,6 +18,7 @@ skillz/
 
 ## Tools
 
+- `buildbot-pr-check` - inspect Buildbot (buildbot-nix) CI for a PR
 - `calendar-cli` - manage local vdirsyncer calendars
 - `context7-cli` - fetch up-to-date library docs from Context7
 - `crabfit-cli` - create and manage Crab.fit scheduling events
