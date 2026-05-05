@@ -9,6 +9,11 @@
 
   programs.mypy.enable = true;
   programs.mypy.directories = {
+    "buildbot-pr-check" = {
+      extraPythonPackages = with pkgs.python3.pkgs; [
+        pytest
+      ];
+    };
     "calendar-cli" = {
       extraPythonPackages =
         let
