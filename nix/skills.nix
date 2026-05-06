@@ -19,4 +19,5 @@
   nmap-cli = { };
   n8n-cli = { };
   pexpect-cli = { };
+  weather-cli = { };
 }
