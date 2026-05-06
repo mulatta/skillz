@@ -1,0 +1,16 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "weather-cli"
+version = "0.1.0"
+description = "CLI tool for Korea Meteorological Administration weather forecasts"
+requires-python = ">=3.12"
+dependencies = []
+
+[project.scripts]
+weather-cli = "weather_cli.main:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["weather_cli"]

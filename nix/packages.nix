@@ -37,4 +37,5 @@ in
   nmap-cli = callPackage ../nmap-cli { };
   n8n-cli = callPackage ../n8n-cli { };
   pexpect-cli = callPackage ../pexpect-cli { };
+  weather-cli = callPackage ../weather-cli { };
 }
