@@ -19,5 +19,6 @@
   nmap-cli = { };
   n8n-cli = { };
   pexpect-cli = { };
+  shortcuts-cli = { };
   weather-cli = { };
 }

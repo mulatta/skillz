@@ -27,6 +27,7 @@ skillz/
 - `nmap-cli` - use NAVER Cloud Maps APIs
 - `n8n-cli` - inspect and manage n8n workflows/API objects
 - `pexpect-cli` - automate interactive terminal applications
+- `shortcuts-cli` - build and run Apple Shortcuts from Cherri on macOS
 - `weather-cli` - get Korean weather from KMA APIs
 
 ## Usage
