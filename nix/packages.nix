@@ -34,6 +34,7 @@ in
   crwl-cli = callPackage ../crwl-cli { inherit crawl4ai; };
   gmaps-cli = callPackage ../gmaps-cli { };
   miniflux-cli = callPackage ../miniflux-cli { };
+  nmap-cli = callPackage ../nmap-cli { };
   n8n-cli = callPackage ../n8n-cli { };
   pexpect-cli = callPackage ../pexpect-cli { };
 }
