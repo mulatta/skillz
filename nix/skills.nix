@@ -16,6 +16,7 @@
   crwl-cli = { };
   gmaps-cli = { };
   miniflux-cli = { };
+  nmap-cli = { };
   n8n-cli = { };
   pexpect-cli = { };
 }
