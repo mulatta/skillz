@@ -32,6 +32,7 @@ in
   context7-cli = callPackage ../context7-cli { };
   crabfit-cli = callPackage ../crabfit-cli { };
   crwl-cli = callPackage ../crwl-cli { inherit crawl4ai; };
+  gmaps-cli = callPackage ../gmaps-cli { };
   miniflux-cli = callPackage ../miniflux-cli { };
   n8n-cli = callPackage ../n8n-cli { };
   pexpect-cli = callPackage ../pexpect-cli { };
