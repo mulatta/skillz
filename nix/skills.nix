@@ -14,6 +14,7 @@
   context7-cli = { };
   crabfit-cli = { };
   crwl-cli = { };
+  gmaps-cli = { };
   miniflux-cli = { };
   n8n-cli = { };
   pexpect-cli = { };

@@ -23,6 +23,7 @@ skillz/
 - `context7-cli` - fetch up-to-date library docs from Context7
 - `crabfit-cli` - create and manage Crab.fit scheduling events
 - `crwl-cli` - crawl web pages and extract markdown
+- `gmaps-cli` - search places and get directions with Google Maps
 - `n8n-cli` - inspect and manage n8n workflows/API objects
 - `pexpect-cli` - automate interactive terminal applications
 
