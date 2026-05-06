@@ -6,6 +6,7 @@
     flake-parts.url = "github:hercules-ci/flake-parts";
     treefmt-nix.url = "github:numtide/treefmt-nix";
     treefmt-nix.inputs.nixpkgs.follows = "nixpkgs";
+    cherri.url = "github:electrikmilk/cherri";
   };
 
   outputs =
@@ -51,7 +52,9 @@
             packages = self'.packages;
           };
 
-          packages = pkgs.callPackages ./nix/packages.nix { };
+          packages = pkgs.callPackages ./nix/packages.nix {
+            cherri = inputs.cherri.packages.${system}.cherri;
+          };
 
           treefmt = import ./nix/treefmt.nix { inherit pkgs; };
         };
