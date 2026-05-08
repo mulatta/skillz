@@ -5,6 +5,8 @@ from pathlib import Path
 
 import pytest
 
+from n8n_cli.commands.apply import _strip_for_create, _strip_for_update, _workflows_differ
+
 from tests.conftest import WORKFLOW_1, run_fail, run_ok
 
 
@@ -49,6 +51,83 @@ class TestApplyCommand:
         (tmp_path / "existing.json").write_text(json.dumps(WORKFLOW_1))
         out = run_ok(server, ["apply", "-d", str(tmp_path)], capsys)
         assert "skip" in out.lower()
+
+    def test_ignores_remote_binary_mode_setting(self) -> None:
+        """apply does not treat server-injected settings.binaryMode as drift."""
+        local = {
+            **WORKFLOW_1,
+            "settings": {"executionOrder": "v1"},
+        }
+        remote = {
+            **WORKFLOW_1,
+            "settings": {"executionOrder": "v1", "binaryMode": "separate"},
+        }
+
+        assert not _workflows_differ(local, remote)
+
+    def test_strips_binary_mode_from_write_bodies(self) -> None:
+        """n8n exposes settings.binaryMode but rejects it on create/update."""
+        wf = {
+            **WORKFLOW_1,
+            "settings": {"executionOrder": "v1", "binaryMode": "separate"},
+        }
+
+        assert _strip_for_create(wf)["settings"] == {"executionOrder": "v1"}
+        assert _strip_for_update(wf)["settings"] == {"executionOrder": "v1"}
+
+    def test_ignores_server_normalized_node_layout_and_datatable_resource(self) -> None:
+        """n8n normalizes cosmetic node fields after accepting workflow updates."""
+        local = {
+            **WORKFLOW_1,
+            "nodes": [
+                {
+                    "name": "Get Rows",
+                    "type": "n8n-nodes-base.dataTable",
+                    "typeVersion": 1.1,
+                    "position": [980, 220],
+                    "parameters": {"resource": "row", "operation": "get"},
+                }
+            ],
+        }
+        remote = {
+            **WORKFLOW_1,
+            "nodes": [
+                {
+                    "name": "Get Rows",
+                    "type": "n8n-nodes-base.dataTable",
+                    "typeVersion": 1.1,
+                    "position": [992, 224],
+                    "parameters": {"operation": "get"},
+                }
+            ],
+        }
+
+        assert not _workflows_differ(local, remote)
+
+    def test_detects_runtime_node_parameter_changes(self) -> None:
+        """node parameter changes remain meaningful drift."""
+        local = {
+            **WORKFLOW_1,
+            "nodes": [
+                {
+                    "name": "Code",
+                    "type": "n8n-nodes-base.code",
+                    "parameters": {"jsCode": "return [];"},
+                }
+            ],
+        }
+        remote = {
+            **WORKFLOW_1,
+            "nodes": [
+                {
+                    "name": "Code",
+                    "type": "n8n-nodes-base.code",
+                    "parameters": {"jsCode": "return [1];"},
+                }
+            ],
+        }
+
+        assert _workflows_differ(local, remote)
 
     def test_empty_dir(
         self,
