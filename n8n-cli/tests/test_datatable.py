@@ -5,6 +5,8 @@ from pathlib import Path
 
 import pytest
 
+from n8n_cli.commands.datatable import _compact_filter_json
+
 from tests.conftest import run_fail, run_ok
 
 
@@ -93,6 +95,11 @@ class TestDatatable:
         out = run_ok(server, ["datatable", "upsert", "dt-1", str(f)], capsys)
         data = json.loads(out)
         assert data["updated"] == 1
+
+    def test_filter_json_is_compacted_for_query_params(self) -> None:
+        assert (
+            _compact_filter_json('{"type": "and", "filters": []}') == '{"type":"and","filters":[]}'
+        )
 
     def test_delete_rows(self, server: tuple[str, int], capsys: pytest.CaptureFixture[str]) -> None:
         out = run_ok(
