@@ -78,6 +78,13 @@ def _scan_workflows(directory: str, ids: list[str] | None) -> list[tuple[str, di
     return results
 
 
+def _strip_read_only_settings(settings: Any) -> Any:
+    """Remove settings that n8n returns but rejects on workflow writes."""
+    if not isinstance(settings, dict):
+        return settings
+    return {key: value for key, value in settings.items() if key != "binaryMode"}
+
+
 def _strip_for_create(data: dict[str, Any]) -> dict[str, Any]:
     """Strip fields not accepted by the create endpoint."""
     body: dict[str, Any] = {
@@ -85,8 +92,9 @@ def _strip_for_create(data: dict[str, Any]) -> dict[str, Any]:
         "nodes": data["nodes"],
         "connections": data["connections"],
     }
-    if data.get("settings"):
-        body["settings"] = data["settings"]
+    settings = _strip_read_only_settings(data.get("settings"))
+    if settings:
+        body["settings"] = settings
     if data.get("staticData"):
         body["staticData"] = data["staticData"]
     return body
@@ -94,7 +102,14 @@ def _strip_for_create(data: dict[str, Any]) -> dict[str, Any]:
 
 def _strip_for_update(data: dict[str, Any]) -> dict[str, Any]:
     """Keep only fields the public API PUT endpoint accepts."""
-    return keep_writable(data, WORKFLOW_WRITABLE)
+    body = keep_writable(data, WORKFLOW_WRITABLE)
+    if "settings" in body:
+        settings = _strip_read_only_settings(body["settings"])
+        if settings:
+            body["settings"] = settings
+        else:
+            del body["settings"]
+    return body
 
 
 def _update_local_file(path: str, created: dict[str, Any]) -> None:
@@ -120,6 +135,27 @@ def _update_local_file(path: str, created: dict[str, Any]) -> None:
         pass  # Best-effort; the server operation already succeeded
 
 
+def _normalize_node_for_compare(node: Any) -> Any:
+    """Remove cosmetic/server-normalized node fields before drift checks."""
+    if not isinstance(node, dict):
+        return node
+
+    normalized = {key: value for key, value in node.items() if key != "position"}
+    if normalized.get("type") == "n8n-nodes-base.dataTable" and isinstance(
+        normalized.get("parameters"), dict
+    ):
+        normalized["parameters"] = {
+            key: value for key, value in normalized["parameters"].items() if key != "resource"
+        }
+    return normalized
+
+
+def _normalize_nodes_for_compare(nodes: Any) -> Any:
+    if not isinstance(nodes, list):
+        return nodes
+    return [_normalize_node_for_compare(node) for node in nodes]
+
+
 def _workflows_differ(local: dict[str, Any], remote: dict[str, Any]) -> bool:
     """Check if local and remote workflows differ in meaningful fields."""
 
@@ -130,9 +166,17 @@ def _workflows_differ(local: dict[str, Any], remote: dict[str, Any]) -> bool:
         s = json.dumps(v, sort_keys=True, separators=(",", ":"))
         return s
 
-    for field in ("name", "nodes", "connections", "settings"):
+    for field in ("name", "connections"):
         if _normalize(local.get(field)) != _normalize(remote.get(field)):
             return True
+    if _normalize(_normalize_nodes_for_compare(local.get("nodes"))) != _normalize(
+        _normalize_nodes_for_compare(remote.get("nodes"))
+    ):
+        return True
+    if _normalize(_strip_read_only_settings(local.get("settings"))) != _normalize(
+        _strip_read_only_settings(remote.get("settings"))
+    ):
+        return True
     # Compare active state
     if local.get("active") != remote.get("active"):
         return True
