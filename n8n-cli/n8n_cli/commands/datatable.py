@@ -15,11 +15,20 @@ from n8n_cli.output import emit, emit_json, emit_kv, emit_table, enc, read_json_
 # ---------------------------------------------------------------------------
 
 
+def _compact_filter_json(value: str) -> str:
+    """Normalize filter JSON so n8n's query validator accepts it."""
+    try:
+        parsed = json.loads(value)
+    except json.JSONDecodeError as e:
+        raise InputError(f"Invalid filter JSON: {e}") from None
+    return json.dumps(parsed, separators=(",", ":"))
+
+
 def cmd_datatable_list(client: Client, ns: Namespace) -> None:
     """List all data tables."""
     params: dict[str, str] = {}
     if ns.filter:
-        params["filter"] = ns.filter
+        params["filter"] = _compact_filter_json(ns.filter)
     if ns.sort:
         params["sortBy"] = ns.sort
     if ns.limit is not None:
@@ -111,7 +120,7 @@ def cmd_datatable_rows(client: Client, ns: Namespace) -> None:
     """List rows from a data table."""
     params: dict[str, str] = {}
     if ns.filter:
-        params["filter"] = ns.filter
+        params["filter"] = _compact_filter_json(ns.filter)
     if ns.sort:
         params["sortBy"] = ns.sort
     if ns.search:
@@ -173,12 +182,7 @@ def cmd_datatable_upsert(client: Client, ns: Namespace) -> None:
 
 def cmd_datatable_delete_rows(client: Client, ns: Namespace) -> None:
     """Delete rows matching a filter."""
-    try:
-        json.loads(ns.filter)
-    except json.JSONDecodeError as e:
-        raise InputError(f"Invalid filter JSON: {e}") from None
-
-    params: dict[str, str] = {"filter": ns.filter}
+    params: dict[str, str] = {"filter": _compact_filter_json(ns.filter)}
     if ns.return_data:
         params["returnData"] = "true"
     if ns.dry_run:
