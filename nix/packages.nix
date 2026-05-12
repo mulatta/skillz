@@ -38,6 +38,7 @@ in
   nmap-cli = callPackage ../nmap-cli { };
   n8n-cli = callPackage ../n8n-cli { };
   pexpect-cli = callPackage ../pexpect-cli { };
+  vikunja-cli = callPackage ../vikunja-cli { };
   shortcuts-cli = callPackage ../shortcuts-cli { inherit cherri; };
   weather-cli = callPackage ../weather-cli { };
 }
