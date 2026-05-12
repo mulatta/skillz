@@ -24,10 +24,12 @@ skillz/
 - `crabfit-cli` - create and manage Crab.fit scheduling events
 - `crwl-cli` - crawl web pages and extract markdown
 - `gmaps-cli` - search places and get directions with Google Maps
+- `miniflux-cli` - read Miniflux RSS entries and enclosures
 - `nmap-cli` - use NAVER Cloud Maps APIs
 - `n8n-cli` - inspect and manage n8n workflows/API objects
 - `pexpect-cli` - automate interactive terminal applications
 - `shortcuts-cli` - build and run Apple Shortcuts from Cherri on macOS
+- `vikunja-cli` - manage Vikunja tasks, projects, and kanban buckets
 - `weather-cli` - get Korean weather from KMA APIs
 
 ## Usage
