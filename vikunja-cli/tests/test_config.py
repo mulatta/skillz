@@ -3,10 +3,14 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+import pytest
+
 from vikunja_cli.config import resolve_credentials, write_config
 
 
-def test_write_config_stores_command_not_secret(tmp_path: Path, monkeypatch) -> None:
+def test_write_config_stores_command_not_secret(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     config = tmp_path / "config.json"
     path = write_config("https://vikunja.example.com/", "printf token", str(config))
 
@@ -18,7 +22,9 @@ def test_write_config_stores_command_not_secret(tmp_path: Path, monkeypatch) -> 
     }
 
 
-def test_resolve_credentials_prefers_environment(tmp_path: Path, monkeypatch) -> None:
+def test_resolve_credentials_prefers_environment(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     config = tmp_path / "config.json"
     config.write_text(
         json.dumps(
