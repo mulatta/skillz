@@ -157,6 +157,7 @@ def _add_task(sub: argparse._SubParsersAction[argparse.ArgumentParser]) -> None:
 
     s = task_sub.add_parser("update")
     s.add_argument("task")
+    s.add_argument("--title")
     _task_field_args(s)
     s.add_argument("--percent-done", type=float)
 
