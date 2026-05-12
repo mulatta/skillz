@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from threading import Thread
+from collections.abc import Generator
 from typing import Any
 
 import pytest
@@ -42,7 +43,7 @@ class Handler(BaseHTTPRequestHandler):
 
 
 @pytest.fixture
-def server() -> str:
+def server() -> Generator[str]:
     httpd = HTTPServer(("127.0.0.1", 0), Handler)
     thread = Thread(target=httpd.serve_forever)
     thread.daemon = True
