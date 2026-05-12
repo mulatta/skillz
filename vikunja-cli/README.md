@@ -51,63 +51,69 @@ Priority: environment variables > config command.
 
 ## Command shape
 
+Global flags such as `-j`/`--json` come before the command:
+
+```bash
+vikunja-cli -j task list --project Inbox --all
+```
+
 ```bash
 # Projects
-vikunja-cli project list [--search TEXT] [--archived] [-j]
-vikunja-cli project show <project> [-j]
-vikunja-cli project create --title TITLE [--description TEXT] [--parent PROJECT] [-j]
-vikunja-cli project update <project> [--title TITLE] [--description TEXT] [--color HEX] [-j]
+vikunja-cli project list [--search TEXT] [--archived] [--all]
+vikunja-cli project show <project>
+vikunja-cli project create --title TITLE [--description TEXT] [--color HEX] [--parent PROJECT]
+vikunja-cli project update <project> [--title TITLE] [--description TEXT] [--color HEX]
 vikunja-cli project archive <project> --yes
 vikunja-cli project unarchive <project>
 vikunja-cli project delete <project> --yes
 
 # Tasks
-vikunja-cli task list [--project PROJECT] [--filter FILTER] [--search TEXT] [--all] [-j]
-vikunja-cli task show <task> [-j]
-vikunja-cli task create --project PROJECT --title TITLE [--description TEXT] [--due DATE] [-j]
-vikunja-cli task update <task> [--title TITLE] [--description TEXT] [--due DATE] [--priority N] [-j]
-vikunja-cli task complete <task> [-j]
-vikunja-cli task reopen <task> [-j]
-vikunja-cli task duplicate <task> [-j]
+vikunja-cli task list [--project PROJECT] [--filter FILTER] [--search TEXT] [--sort-by FIELD] [--order-by asc|desc] [--expand FIELD] [--all]
+vikunja-cli task show <task>
+vikunja-cli task create --project PROJECT --title TITLE [--description TEXT] [--due DATE] [--start DATE] [--end DATE] [--priority N] [--color HEX]
+vikunja-cli task update <task> [--title TITLE] [--description TEXT] [--due DATE] [--start DATE] [--end DATE] [--priority N] [--color HEX] [--percent-done N]
+vikunja-cli task complete <task>
+vikunja-cli task reopen <task>
+vikunja-cli task duplicate <task>
 vikunja-cli task delete <task> --yes
 
 # Labels
-vikunja-cli label list [--search TEXT] [-j]
-vikunja-cli label show <label> [-j]
-vikunja-cli label create --title TITLE [--description TEXT] [--color HEX] [-j]
-vikunja-cli label update <label> [--title TITLE] [--description TEXT] [--color HEX] [-j]
+vikunja-cli label list [--search TEXT] [--all]
+vikunja-cli label show <label>
+vikunja-cli label create --title TITLE [--description TEXT] [--color HEX]
+vikunja-cli label update <label> [--title TITLE] [--description TEXT] [--color HEX]
 vikunja-cli label delete <label> --yes
-vikunja-cli label add-to-task --task TASK --label LABEL [-j]
-vikunja-cli label remove-from-task --task TASK --label LABEL [-j]
-vikunja-cli label replace-on-task --task TASK --label LABEL [--label LABEL ...] [-j]
+vikunja-cli label add-to-task --task TASK --label LABEL
+vikunja-cli label remove-from-task --task TASK --label LABEL
+vikunja-cli label replace-on-task --task TASK --label LABEL [--label LABEL ...]
 
 # Comments
-vikunja-cli comment list --task TASK [-j]
-vikunja-cli comment add --task TASK --message TEXT [-j]
-vikunja-cli comment update --task TASK --comment COMMENT --message TEXT [-j]
+vikunja-cli comment list --task TASK [--order asc|desc]
+vikunja-cli comment add --task TASK --message TEXT
+vikunja-cli comment update --task TASK --comment COMMENT --message TEXT
 vikunja-cli comment delete --task TASK --comment COMMENT --yes
 
 # Notifications: focused on actionable due/reminder signals
-vikunja-cli notification list --kind due|reminder|overdue [--unread] [-j]
-vikunja-cli notification read <id> [-j]
-vikunja-cli notification read-all --kind due|reminder|overdue [-j]
+vikunja-cli notification list --kind due|reminder|overdue [--unread]
+vikunja-cli notification read <id>
+vikunja-cli notification read-all --kind due|reminder|overdue
 
 # Views
-vikunja-cli view list --project PROJECT [-j]
-vikunja-cli view show <view> --project PROJECT [-j]
-vikunja-cli view create --project PROJECT --title TITLE --kind list|table|kanban|gantt [-j]
-vikunja-cli view update <view> --project PROJECT [--title TITLE] [--filter FILTER] [--clear-filter] [-j]
-vikunja-cli view update <view> --project PROJECT --bucket-mode none|manual|filter [-j]
+vikunja-cli view list --project PROJECT
+vikunja-cli view show <view> --project PROJECT
+vikunja-cli view create --project PROJECT --title TITLE --kind list|table|kanban|gantt [--filter FILTER]
+vikunja-cli view update <view> --project PROJECT [--title TITLE] [--kind list|table|kanban|gantt] [--filter FILTER] [--clear-filter]
+vikunja-cli view update <view> --project PROJECT --bucket-mode none|manual|filter
 vikunja-cli view update <view> --project PROJECT --bucket-mode filter \
   --bucket-filter "Overdue=done = false && due_date < now" \
-  --bucket-filter "High priority=priority >= 4" [-j]
+  --bucket-filter "High priority=priority >= 4"
 vikunja-cli view delete <view> --project PROJECT --yes
 
 # Buckets: manual kanban columns
-vikunja-cli bucket list --project PROJECT --view VIEW [-j]
-vikunja-cli bucket create --project PROJECT --view VIEW --title TITLE [-j]
-vikunja-cli bucket update <bucket> --project PROJECT --view VIEW [--title TITLE] [--limit N] [-j]
-vikunja-cli bucket move-task --project PROJECT --view VIEW --task TASK --bucket BUCKET [-j]
+vikunja-cli bucket list --project PROJECT --view VIEW
+vikunja-cli bucket create --project PROJECT --view VIEW --title TITLE [--limit N]
+vikunja-cli bucket update <bucket> --project PROJECT --view VIEW [--title TITLE] [--limit N]
+vikunja-cli bucket move-task --project PROJECT --view VIEW --task TASK --bucket BUCKET
 vikunja-cli bucket delete <bucket> --project PROJECT --view VIEW --yes
 ```
 
