@@ -20,5 +20,6 @@
   n8n-cli = { };
   pexpect-cli = { };
   shortcuts-cli = { };
+  vikunja-cli = { };
   weather-cli = { };
 }

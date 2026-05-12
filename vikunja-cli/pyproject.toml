@@ -1,0 +1,27 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "vikunja-cli"
+version = "0.1.0"
+description = "Agent-oriented CLI for Vikunja task management workflows"
+readme = "README.md"
+requires-python = ">=3.13"
+dependencies = []
+
+[project.scripts]
+vikunja-cli = "vikunja_cli.main:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["vikunja_cli"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py313"
+
+[tool.mypy]
+python_version = "3.13"
+warn_return_any = true
+warn_unused_configs = true
+strict = true
