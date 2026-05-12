@@ -8,6 +8,7 @@ from vikunja_cli.commands import (
     cmd_label_replace_on_task,
     cmd_notification_read_all,
     cmd_task_list,
+    cmd_task_update,
     cmd_view_update,
 )
 
@@ -83,6 +84,27 @@ def test_task_list_combines_project_and_user_filter() -> None:
             },
         )
     ]
+
+
+def test_task_update_sends_title_field() -> None:
+    client = RecordingClient()
+
+    cmd_task_update(
+        client,
+        ns(
+            task="5",
+            title="Renamed",
+            description=None,
+            due=None,
+            start=None,
+            end=None,
+            priority=None,
+            color=None,
+            percent_done=None,
+        ),
+    )
+
+    assert client.calls == [("POST", "/tasks/5", {"title": "Renamed"}, None)]
 
 
 def test_label_replace_on_task_uses_bulk_endpoint() -> None:
