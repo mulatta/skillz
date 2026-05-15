@@ -3,7 +3,6 @@
 
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
-    flake-parts.url = "github:hercules-ci/flake-parts";
     treefmt-nix.url = "github:numtide/treefmt-nix";
     treefmt-nix.inputs.nixpkgs.follows = "nixpkgs";
     cherri.url = "github:electrikmilk/cherri";
@@ -12,51 +11,55 @@
   outputs =
     inputs@{
       self,
-      flake-parts,
       nixpkgs,
+      treefmt-nix,
+      cherri,
       ...
     }:
-    flake-parts.lib.mkFlake { inherit inputs; } {
+    let
       systems = [
         "x86_64-linux"
         "aarch64-linux"
         "aarch64-darwin"
       ];
 
-      imports = [
-        inputs.treefmt-nix.flakeModule
-      ];
+      lib = nixpkgs.lib;
 
-      flake = {
-        homeModules =
-          import ./nix/home-modules.nix {
-            inherit self inputs;
-            lib = nixpkgs.lib;
+      eachSystem =
+        f:
+        lib.genAttrs systems (
+          system:
+          f {
+            inherit system;
+            pkgs = nixpkgs.legacyPackages.${system};
           }
-          // {
-            default = import ./nix/home-manager.nix { inherit inputs; };
-          };
+        );
+
+      treefmtEval = eachSystem (
+        { pkgs, ... }: treefmt-nix.lib.evalModule pkgs (import ./nix/treefmt.nix { inherit pkgs; })
+      );
+    in
+    {
+      packages = eachSystem (
+        { pkgs, system, ... }:
+        pkgs.callPackages ./nix/packages.nix {
+          cherri = cherri.packages.${system}.cherri;
+        }
+      );
+
+      checks = eachSystem (
+        { system, ... }:
+        import ./nix/checks.nix {
+          inherit lib;
+          packages = self.packages.${system};
+          treefmtCheck = treefmtEval.${system}.config.build.check self;
+        }
+      );
+
+      formatter = eachSystem ({ system, ... }: treefmtEval.${system}.config.build.wrapper);
+
+      homeModules = import ./nix/home-modules.nix { inherit self inputs lib; } // {
+        default = import ./nix/home-manager.nix { inherit inputs; };
       };
-
-      perSystem =
-        {
-          pkgs,
-          system,
-          self',
-          lib,
-          ...
-        }:
-        {
-          checks = import ./nix/checks.nix {
-            inherit lib;
-            packages = self'.packages;
-          };
-
-          packages = pkgs.callPackages ./nix/packages.nix {
-            cherri = inputs.cherri.packages.${system}.cherri;
-          };
-
-          treefmt = import ./nix/treefmt.nix { inherit pkgs; };
-        };
     };
 }
