@@ -1,3 +1,7 @@
-{ lib, packages }:
+{
+  lib,
+  packages,
+  treefmtCheck,
+}:
 
-lib.mapAttrs' (n: lib.nameValuePair "package-${n}") packages
+lib.mapAttrs' (n: lib.nameValuePair "package-${n}") packages // { treefmt = treefmtCheck; }
