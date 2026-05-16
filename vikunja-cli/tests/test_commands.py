@@ -257,7 +257,7 @@ def test_task_create_without_template_keeps_existing_body() -> None:
     ]
 
 
-def test_task_create_from_template_uses_rendered_description(tmp_path: Path) -> None:
+def test_task_create_from_template_uses_vikunja_html_description(tmp_path: Path) -> None:
     client = RecordingClient()
     write_task_template(tmp_path, "submission")
     context = write_context(tmp_path, {"goal": "Ship template create"})
@@ -271,7 +271,10 @@ def test_task_create_from_template_uses_rendered_description(tmp_path: Path) -> 
         (
             "PUT",
             "/projects/7/tasks",
-            {"title": "Made from template", "description": "## Goal\nShip template create\n"},
+            {
+                "title": "Made from template",
+                "description": "<h2>Goal</h2>\n<p>Ship template create</p>\n",
+            },
             None,
         )
     ]
@@ -335,7 +338,7 @@ def test_task_create_from_template_allow_missing_permits_creation(tmp_path: Path
         (
             "PUT",
             "/projects/7/tasks",
-            {"title": "Made from template", "description": "## Goal\n"},
+            {"title": "Made from template", "description": "<h2>Goal</h2>\n"},
             None,
         )
     ]
@@ -365,13 +368,21 @@ def test_task_create_from_template_default_priority_only_when_absent(tmp_path: P
     assert default_client.calls[0] == (
         "PUT",
         "/projects/7/tasks",
-        {"title": "Made from template", "description": "## Goal\nPrioritize\n", "priority": 4},
+        {
+            "title": "Made from template",
+            "description": "<h2>Goal</h2>\n<p>Prioritize</p>\n",
+            "priority": 4,
+        },
         None,
     )
     assert explicit_client.calls[0] == (
         "PUT",
         "/projects/7/tasks",
-        {"title": "Made from template", "description": "## Goal\nPrioritize\n", "priority": 2},
+        {
+            "title": "Made from template",
+            "description": "<h2>Goal</h2>\n<p>Prioritize</p>\n",
+            "priority": 2,
+        },
         None,
     )
 
@@ -401,7 +412,7 @@ def test_task_create_from_template_applies_default_labels(tmp_path: Path) -> Non
         (
             "PUT",
             "/projects/7/tasks",
-            {"title": "Made from template", "description": "## Goal\nLabel it\n"},
+            {"title": "Made from template", "description": "<h2>Goal</h2>\n<p>Label it</p>\n"},
             None,
         ),
         ("POST", "/tasks/42/labels/bulk", {"labels": [{"id": 10}, {"id": 11}]}, None),
@@ -533,7 +544,7 @@ def test_task_create_from_template_with_attach_resolves_labels_before_create(
         (
             "PUT",
             "/projects/7/tasks",
-            {"title": "Made from template", "description": "## Goal\nAttach proof\n"},
+            {"title": "Made from template", "description": "<h2>Goal</h2>\n<p>Attach proof</p>\n"},
             None,
         ),
         ("POST", "/tasks/46/labels/bulk", {"labels": [{"id": 10}]}, None),
