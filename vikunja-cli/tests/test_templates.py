@@ -201,7 +201,34 @@ def test_validate_template_rejects_missing_template_file_for_explicit_template(
     record = templates.validate_template("broken", template_dir=tmp_path)
 
     assert record["ok"] is False
-    assert "missing template.md.njk" in record["errors"]
+    assert "missing template.md.njk or common.template.md.njk" in record["errors"]
+
+
+def test_render_template_uses_common_template_fallback(tmp_path: Path) -> None:
+    (tmp_path / "common.template.md.njk").write_text("## Summary\n{{ summary }}\n")
+    template_root = tmp_path / "backlog"
+    template_root.mkdir()
+    (template_root / "schema.json").write_text(json.dumps({"required": ["summary"]}))
+    (template_root / "defaults.json").write_text(json.dumps({"labels": ["type:backlog"]}))
+
+    rendered = templates.render_template(
+        "backlog", {"summary": "Shared layout"}, template_dir=tmp_path
+    )
+
+    assert rendered["template_path"] == str(tmp_path / "common.template.md.njk")
+    assert rendered["description"] == "## Summary\nShared layout\n"
+
+
+def test_default_template_lookup_uses_xdg_data_home(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    template_dir = tmp_path / "data" / "vikunja-cli" / "templates"
+    write_template(template_dir, "backlog")
+    monkeypatch.setenv("XDG_DATA_HOME", str(tmp_path / "data"))
+    monkeypatch.setenv("XDG_DATA_DIRS", "")
+    monkeypatch.delenv("VIKUNJA_TEMPLATE_DIR", raising=False)
+
+    assert templates.list_templates() == ["backlog"]
 
 
 def test_validate_all_reports_all_template_records(

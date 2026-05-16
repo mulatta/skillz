@@ -153,21 +153,25 @@ vikunja-cli relation add --task PROJ-42 --kind blocked --other PROJ-41
 
 ## Templates
 
-Templates are local files under:
+Templates are local data files under:
 
 ```text
-${XDG_CONFIG_HOME:-~/.config}/vikunja-cli/templates/<name>/
+${XDG_DATA_HOME:-~/.local/share}/vikunja-cli/templates/<name>/
 ```
 
-The template root may contain `common.schema.json`, a wide shared context model.
-Each template directory contains `template.md.njk`, optional `schema.json` patch,
-and optional `defaults.json`. `template schema` returns the merged common schema
-and template patch for LLM context filling. `template render` returns the rendered
-description, defaults, merged schema, and missing required fields. `template
-validate` checks one template or `--all` template directories, and requires
-exactly one of `TEMPLATE` or `--all`. `template required` returns compact
-required/optional context metadata and raw defaults for planning. Template
-commands are local and do not read Vikunja credentials.
+When no explicit directory is passed, template lookup searches XDG data paths:
+`$XDG_DATA_HOME/vikunja-cli/templates` followed by each
+`$XDG_DATA_DIRS/vikunja-cli/templates` entry. The template root may contain
+`common.schema.json`, a wide shared context model, and `common.template.md.njk`,
+the shared description layout. Each template directory contains an optional
+`template.md.njk` override, optional `schema.json` patch, and optional
+`defaults.json`. `template schema` returns the merged common schema and template
+patch for context filling. `template render` returns review Markdown, Vikunja
+HTML, defaults, merged schema, and missing required fields. `template validate`
+checks one template or `--all` template directories, and requires exactly one of
+`TEMPLATE` or `--all`. `template required` returns compact required/optional
+context metadata and raw defaults for planning. Template commands are local and
+do not read Vikunja credentials.
 
 Use templates at creation time:
 
@@ -184,21 +188,21 @@ vikunja-cli task create --project Inbox --title "Submit patch" \
   --attach patch.diff --attach build.log
 ```
 
-With `--template`, rendered Markdown becomes the task description. Explicit CLI
-fields have highest priority: `--description` overrides rendered Markdown, and
-`--priority` overrides template defaults. Missing required context fails unless
-`--allow-missing` is set.
+With `--template`, rendered Markdown is converted to Vikunja TipTap HTML before
+being stored as the task description. Explicit CLI fields have highest priority:
+`--description` overrides rendered content, and `--priority` overrides template
+defaults. Missing required context fails unless `--allow-missing` is set.
 
 `schema.json` is a JSON-schema-style patch over `common.schema.json`:
 
 ```json
 {
-  "required": ["summary", "sources", "requirements", "checklist"],
+  "description": "External form/document/package submission.",
   "properties": {
-    "sources": { "minItems": 1 },
-    "checklist": { "minItems": 3, "maxItems": 5 }
+    "checklist": { "minItems": 3, "maxItems": 5 },
+    "proof": { "minItems": 1 }
   },
-  "x-attachment_expectations": ["patch file"]
+  "x-note_hints": ["channel", "format", "recipient", "signature requirements"]
 }
 ```
 
@@ -216,7 +220,7 @@ bulk label endpoint after creation. Use explicit `labels` entries only; shortcut
 fields such as `type` or `label` are rejected.
 
 Use `VIKUNJA_TEMPLATE_DIR` or `--template-dir` on `template` commands to override
-the template root. `task create --template` uses the configured template root.
+the template root. `task create --template` uses the same lookup rules.
 
 ## Resolution rules
 

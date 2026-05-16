@@ -31,6 +31,7 @@ SCHEMA_LIST_FIELDS = (
     "x-attachment_expectations",
 )
 COMMON_SCHEMA_NAME = "common.schema.json"
+COMMON_TEMPLATE_NAME = "common.template.md.njk"
 
 COMMON_CONTEXT_SCHEMA: dict[str, Any] = {
     "title": "Vikunja template context",
@@ -215,23 +216,29 @@ class LoadedTemplate:
 
 
 def default_template_dir() -> Path:
+    return default_template_dirs()[0]
+
+
+def default_template_dirs() -> list[Path]:
     override = os.environ.get("VIKUNJA_TEMPLATE_DIR")
     if override:
-        return Path(override).expanduser()
-    config_home = Path(os.environ.get("XDG_CONFIG_HOME", Path.home() / ".config"))
-    return config_home / "vikunja-cli" / "templates"
+        return [Path(override).expanduser()]
+    data_home = Path(os.environ.get("XDG_DATA_HOME", Path.home() / ".local" / "share"))
+    data_dirs = os.environ.get("XDG_DATA_DIRS", "/usr/local/share:/usr/share")
+    bases = [data_home, *(Path(item) for item in data_dirs.split(":") if item)]
+    return [base / "vikunja-cli" / "templates" for base in bases]
 
 
 def list_templates(template_dir: Path | None = None) -> list[str]:
-    base = (template_dir or default_template_dir()).expanduser()
-    if not base.exists():
-        return []
-    result: list[str] = []
-    for item in base.iterdir():
-        if not item.is_dir():
+    result: set[str] = set()
+    for base in _template_bases(template_dir):
+        if not base.exists():
             continue
-        if (item / "template.md.njk").exists():
-            result.append(item.name)
+        for item in base.iterdir():
+            if not item.is_dir():
+                continue
+            if _is_template_dir(item):
+                result.add(item.name)
     return sorted(result)
 
 
@@ -254,13 +261,13 @@ def validate_template(
             "warnings": [],
         }
 
-    template_path = root / "template.md.njk"
-    if not template_path.exists():
-        errors.append("missing template.md.njk")
+    template_path = _template_path(root)
+    if template_path is None:
+        errors.append(f"missing template.md.njk or {COMMON_TEMPLATE_NAME}")
     elif not template_path.is_file():
-        errors.append("template.md.njk is not a file")
+        errors.append(f"{template_path.name} is not a file")
     else:
-        _validate_jinja(root, errors)
+        _validate_jinja(root, template_path, errors)
 
     common_schema = _read_json_object_for_validation(root.parent / COMMON_SCHEMA_NAME, errors)
     schema = _read_json_object_for_validation(root / "schema.json", errors)
@@ -278,11 +285,9 @@ def validate_template(
 
 
 def validate_templates(template_dir: Path | None = None) -> list[TemplateValidationRecord]:
-    base = (template_dir or default_template_dir()).expanduser()
-    if not base.exists():
-        return []
-    names = sorted(item.name for item in base.iterdir() if item.is_dir())
-    return [validate_template(name, template_dir=base) for name in names]
+    return [
+        validate_template(name, template_dir=template_dir) for name in list_templates(template_dir)
+    ]
 
 
 def template_required(
@@ -331,14 +336,14 @@ def render_template(
 ) -> dict[str, Any]:
     loaded = load_template(name, template_dir=template_dir)
     env = Environment(
-        loader=FileSystemLoader(str(loaded.root)),
+        loader=FileSystemLoader([str(loaded.root), str(loaded.root.parent)]),
         autoescape=False,
         keep_trailing_newline=True,
         trim_blocks=False,
         lstrip_blocks=True,
     )
     render_context = {**context, "__has": _has_map(context)}
-    rendered = env.get_template("template.md.njk").render(**render_context)
+    rendered = env.get_template(loaded.template_path.name).render(**render_context)
     description = _clean_markdown(HTML_COMMENT_RE.sub("", rendered))
     return {
         "template": loaded.name,
@@ -353,8 +358,8 @@ def render_template(
 
 def load_template(name: str, *, template_dir: Path | None = None) -> LoadedTemplate:
     safe_name, root = _resolve_template_root(name, template_dir=template_dir)
-    template_path = root / "template.md.njk"
-    if not template_path.exists():
+    template_path = _template_path(root)
+    if template_path is None:
         raise InputError(f"template not found: {safe_name}")
     return LoadedTemplate(
         name=safe_name,
@@ -379,13 +384,43 @@ def _resolve_template_root(
     template_dir: Path | None = None,
 ) -> tuple[str, Path]:
     safe_name = _safe_template_name(name)
-    base = (template_dir or default_template_dir()).expanduser().resolve()
-    root = (base / safe_name).resolve()
-    try:
-        root.relative_to(base)
-    except ValueError as exc:
-        raise InputError("template path escapes template dir") from exc
-    return safe_name, root
+    fallback_root: Path | None = None
+    for base in _template_bases(template_dir):
+        resolved_base = base.expanduser().resolve()
+        root = (resolved_base / safe_name).resolve()
+        try:
+            root.relative_to(resolved_base)
+        except ValueError as exc:
+            raise InputError("template path escapes template dir") from exc
+        if fallback_root is None:
+            fallback_root = root
+        if root.exists():
+            return safe_name, root
+    return safe_name, fallback_root or (default_template_dir().expanduser().resolve() / safe_name)
+
+
+def _template_bases(template_dir: Path | None = None) -> list[Path]:
+    if template_dir is not None:
+        return [template_dir.expanduser()]
+    return default_template_dirs()
+
+
+def _is_template_dir(path: Path) -> bool:
+    return (
+        (path / "template.md.njk").exists()
+        or (path / "schema.json").exists()
+        or (path / "defaults.json").exists()
+    )
+
+
+def _template_path(root: Path) -> Path | None:
+    local = root / "template.md.njk"
+    if local.exists():
+        return local
+    common = root.parent / COMMON_TEMPLATE_NAME
+    if common.exists():
+        return common
+    return None
 
 
 def _safe_template_name(name: str) -> str:
@@ -470,9 +505,9 @@ def _union_strings(left: list[Any], right: list[Any]) -> list[Any]:
     return result
 
 
-def _validate_jinja(root: Path, errors: list[str]) -> None:
+def _validate_jinja(root: Path, template_path: Path, errors: list[str]) -> None:
     env = Environment(
-        loader=FileSystemLoader(str(root)),
+        loader=FileSystemLoader([str(root), str(root.parent)]),
         autoescape=False,
         keep_trailing_newline=True,
         trim_blocks=False,
@@ -480,13 +515,13 @@ def _validate_jinja(root: Path, errors: list[str]) -> None:
         undefined=ChainableUndefined,
     )
     try:
-        env.get_template("template.md.njk").render(__has={})
+        env.get_template(template_path.name).render(__has={})
     except TemplateSyntaxError as exc:
-        errors.append(f"invalid Jinja syntax in template.md.njk:{exc.lineno}: {exc.message}")
+        errors.append(f"invalid Jinja syntax in {template_path.name}:{exc.lineno}: {exc.message}")
     except UndefinedError:
         pass
     except TemplateError as exc:
-        errors.append(f"cannot render template.md.njk with empty context: {exc}")
+        errors.append(f"cannot render {template_path.name} with empty context: {exc}")
 
 
 def _validate_schema_shape(
