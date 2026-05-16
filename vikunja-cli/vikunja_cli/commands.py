@@ -207,7 +207,7 @@ def cmd_task_create(client: ClientLike, ns: argparse.Namespace) -> None:
 
     description = ns.description
     if description is None and rendered is not None:
-        raw_description = rendered.get("description")
+        raw_description = rendered.get("description_html")
         if isinstance(raw_description, str):
             description = raw_description
     priority = ns.priority

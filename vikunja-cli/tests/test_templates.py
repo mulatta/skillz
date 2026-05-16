@@ -74,6 +74,35 @@ def test_render_template_reports_missing_required_fields(tmp_path: Path) -> None
     assert rendered["missing_required"] == ["summary", "sources (minItems 1)"]
 
 
+def test_render_template_exposes_vikunja_html_description(tmp_path: Path) -> None:
+    write_template(tmp_path, "backlog")
+
+    rendered = templates.render_template(
+        "backlog",
+        {
+            "summary": "Prototype <thing>",
+            "sources": [{"kind": "slack", "ref": "https://slack.example/thread"}],
+            "checklist": ["첫 단계", "둘째 `code`"],
+        },
+        template_dir=tmp_path,
+    )
+
+    assert rendered["description_html"] == (
+        "<h2>Sources</h2>\n"
+        "<ul>\n"
+        '<li><p>slack: <a target="_blank" rel="noopener noreferrer nofollow" '
+        'href="https://slack.example/thread">https://slack.example/thread</a></p></li>\n'
+        "</ul>\n"
+        "<h2>Summary</h2>\n"
+        "<p>Prototype &lt;thing&gt;</p>\n"
+        "<h2>Checklist</h2>\n"
+        '<ul data-type="taskList">\n'
+        '<li data-type="taskItem" data-checked="false"><p>첫 단계</p></li>\n'
+        '<li data-type="taskItem" data-checked="false"><p>둘째 <code>code</code></p></li>\n'
+        "</ul>\n"
+    )
+
+
 def test_template_render_command_does_not_require_vikunja_credentials(
     tmp_path: Path, capsys: pytest.CaptureFixture[str]
 ) -> None:

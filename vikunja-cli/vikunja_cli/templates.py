@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import html
 import json
 import os
 import re
@@ -22,6 +23,7 @@ from jinja2 import (
 from vikunja_cli.errors import InputError
 
 HTML_COMMENT_RE = re.compile(r"<!--[\s\S]*?-->")
+URL_RE = re.compile(r"https?://[^\s<>()]+[^\s<>().,;:!?]")
 SCHEMA_LIST_FIELDS = (
     "required",
     "optional",
@@ -345,6 +347,7 @@ def render_template(
         "schema": loaded.schema,
         "missing_required": missing_required(loaded.schema, context),
         "description": description,
+        "description_html": markdown_to_vikunja_html(description),
     }
 
 
@@ -651,6 +654,90 @@ def _truthy(value: Any) -> bool:
     if isinstance(value, dict):
         return any(_truthy(item) for item in value.values())
     return True
+
+
+def markdown_to_vikunja_html(value: str) -> str:
+    """Convert template Markdown subset to TipTap HTML stored by Vikunja descriptions."""
+    lines = [line.rstrip() for line in value.splitlines()]
+    output: list[str] = []
+    list_kind: str | None = None
+
+    def close_list() -> None:
+        nonlocal list_kind
+        if list_kind is None:
+            return
+        output.append("</ul>")
+        list_kind = None
+
+    def open_list(kind: str) -> None:
+        nonlocal list_kind
+        if list_kind == kind:
+            return
+        close_list()
+        if kind == "task":
+            output.append('<ul data-type="taskList">')
+        else:
+            output.append("<ul>")
+        list_kind = kind
+
+    for line in lines:
+        if not line.strip():
+            close_list()
+            continue
+
+        heading = re.fullmatch(r"(#{1,6})\s+(.+)", line)
+        if heading:
+            close_list()
+            level = len(heading.group(1))
+            output.append(f"<h{level}>{_inline_markdown_to_html(heading.group(2))}</h{level}>")
+            continue
+
+        task_item = re.fullmatch(r"\s*-\s+\[([ xX])\]\s+(.+)", line)
+        if task_item:
+            open_list("task")
+            checked = "true" if task_item.group(1).lower() == "x" else "false"
+            text = _inline_markdown_to_html(task_item.group(2))
+            output.append(f'<li data-type="taskItem" data-checked="{checked}"><p>{text}</p></li>')
+            continue
+
+        bullet = re.fullmatch(r"\s*-\s+(.+)", line)
+        if bullet:
+            open_list("bullet")
+            output.append(f"<li><p>{_inline_markdown_to_html(bullet.group(1))}</p></li>")
+            continue
+
+        close_list()
+        output.append(f"<p>{_inline_markdown_to_html(line.strip())}</p>")
+
+    close_list()
+    return "\n".join(output).strip() + "\n"
+
+
+def _inline_markdown_to_html(value: str) -> str:
+    parts = re.split(r"(`[^`]*`)", value)
+    rendered: list[str] = []
+    for part in parts:
+        if part.startswith("`") and part.endswith("`") and len(part) >= 2:
+            rendered.append(f"<code>{html.escape(part[1:-1])}</code>")
+        else:
+            rendered.append(_linkify_urls(part))
+    return "".join(rendered)
+
+
+def _linkify_urls(value: str) -> str:
+    pieces: list[str] = []
+    last = 0
+    for match in URL_RE.finditer(value):
+        pieces.append(html.escape(value[last : match.start()]))
+        url = match.group(0)
+        escaped_url = html.escape(url, quote=True)
+        pieces.append(
+            f'<a target="_blank" rel="noopener noreferrer nofollow" href="{escaped_url}">'
+            f"{html.escape(url)}</a>"
+        )
+        last = match.end()
+    pieces.append(html.escape(value[last:]))
+    return "".join(pieces)
 
 
 def _clean_markdown(value: str) -> str:
