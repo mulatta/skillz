@@ -110,6 +110,12 @@ def cmd_template_required(_client: ClientLike | None, ns: argparse.Namespace) ->
     emit(data, use_json=ns.use_json)
 
 
+def cmd_template_schema(_client: ClientLike | None, ns: argparse.Namespace) -> None:
+    template_dir = Path(ns.template_dir).expanduser() if ns.template_dir else None
+    data = templates.template_schema(ns.template, template_dir=template_dir)
+    emit(data, use_json=ns.use_json)
+
+
 def cmd_project_list(client: ClientLike, ns: argparse.Namespace) -> None:
     query = {"s": ns.search, "is_archived": "true" if ns.archived else None}
     data = client.paginate("/projects", query) if ns.all else client.get("/projects", query)

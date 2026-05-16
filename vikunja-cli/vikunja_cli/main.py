@@ -56,6 +56,7 @@ from vikunja_cli.commands import (
     cmd_template_list,
     cmd_template_render,
     cmd_template_required,
+    cmd_template_schema,
     cmd_template_show,
     cmd_template_validate,
     cmd_view_create,
@@ -401,6 +402,10 @@ def _add_template(sub: argparse._SubParsersAction[argparse.ArgumentParser]) -> N
     s.add_argument("template")
     _template_common_args(s)
 
+    s = template_sub.add_parser("schema")
+    s.add_argument("template")
+    _template_common_args(s)
+
 
 def _template_common_args(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("--template-dir", help="Template directory (default: XDG config path)")
@@ -496,6 +501,7 @@ _HANDLERS: dict[tuple[str, str | None], Handler] = {
     ("template", "render"): cmd_template_render,
     ("template", "validate"): cmd_template_validate,
     ("template", "required"): cmd_template_required,
+    ("template", "schema"): cmd_template_schema,
 }
 
 
