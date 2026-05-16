@@ -9,6 +9,10 @@ from typing import Any
 
 from vikunja_cli.client import Client
 from vikunja_cli.commands import (
+    cmd_attachment_delete,
+    cmd_attachment_download,
+    cmd_attachment_list,
+    cmd_attachment_upload,
     cmd_bucket_create,
     cmd_bucket_delete,
     cmd_bucket_list,
@@ -34,14 +38,22 @@ from vikunja_cli.commands import (
     cmd_project_list,
     cmd_project_show,
     cmd_project_update,
+    cmd_setup_labels,
     cmd_task_complete,
     cmd_task_create,
     cmd_task_delete,
     cmd_task_duplicate,
     cmd_task_list,
+    cmd_task_move,
     cmd_task_reopen,
     cmd_task_show,
+    cmd_task_transition,
     cmd_task_update,
+    cmd_template_list,
+    cmd_template_render,
+    cmd_template_required,
+    cmd_template_show,
+    cmd_template_validate,
     cmd_view_create,
     cmd_view_delete,
     cmd_view_list,
@@ -81,14 +93,25 @@ def _build_parser() -> argparse.ArgumentParser:
     s.add_argument("--api-key-command", required=True, help="Command that prints API token")
     s.add_argument("--timeout", type=int, default=30, help="Verification timeout in seconds")
 
+    _add_setup(sub)
     _add_project(sub)
     _add_task(sub)
+    _add_attachment(sub)
     _add_label(sub)
     _add_comment(sub)
     _add_notification(sub)
     _add_view(sub)
     _add_bucket(sub)
+    _add_template(sub)
     return parser
+
+
+def _add_setup(sub: argparse._SubParsersAction[argparse.ArgumentParser]) -> None:
+    setup = sub.add_parser("setup", help="Verify or create workflow prerequisites")
+    setup_sub = setup.add_subparsers(dest="subcmd")
+
+    s = setup_sub.add_parser("labels", help="Verify or create default workflow labels")
+    s.add_argument("--create", action="store_true", help="Create missing workflow labels")
 
 
 def _add_project(sub: argparse._SubParsersAction[argparse.ArgumentParser]) -> None:
@@ -153,13 +176,31 @@ def _add_task(sub: argparse._SubParsersAction[argparse.ArgumentParser]) -> None:
     s = task_sub.add_parser("create")
     s.add_argument("--project", required=True)
     s.add_argument("--title", required=True)
+    s.add_argument("--template", help="Render local template into task description")
+    s.add_argument("--context", help="JSON template context file, or '-' for stdin")
+    s.add_argument(
+        "--allow-missing",
+        action="store_true",
+        help="Allow template creation when required context fields are missing",
+    )
     _task_field_args(s)
+    s.add_argument("--attach", action="append", help="File to upload after task creation")
 
     s = task_sub.add_parser("update")
     s.add_argument("task")
     s.add_argument("--title")
+    s.add_argument("--project")
     _task_field_args(s)
     s.add_argument("--percent-done", type=float)
+
+    s = task_sub.add_parser("move")
+    s.add_argument("task")
+    s.add_argument("--project", required=True)
+
+    s = task_sub.add_parser("transition")
+    s.add_argument("task")
+    s.add_argument("--state", required=True, choices=["waiting", "next", "someday"])
+    s.add_argument("--comment")
 
     for name in ("complete", "reopen", "duplicate"):
         s = task_sub.add_parser(name)
@@ -177,6 +218,29 @@ def _task_field_args(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("--end")
     parser.add_argument("--priority", type=int)
     parser.add_argument("--color")
+    parser.add_argument("--reminder", action="append", help="Absolute reminder timestamp")
+
+
+def _add_attachment(sub: argparse._SubParsersAction[argparse.ArgumentParser]) -> None:
+    attachment = sub.add_parser("attachment", help="Manage task attachments")
+    attachment_sub = attachment.add_subparsers(dest="subcmd")
+
+    s = attachment_sub.add_parser("list")
+    s.add_argument("--task", required=True)
+
+    s = attachment_sub.add_parser("upload")
+    s.add_argument("--task", required=True)
+    s.add_argument("--file", action="append", required=True, dest="files")
+
+    s = attachment_sub.add_parser("download")
+    s.add_argument("--task", required=True)
+    s.add_argument("--attachment", required=True, type=int)
+    s.add_argument("--output", required=True)
+
+    s = attachment_sub.add_parser("delete")
+    s.add_argument("--task", required=True)
+    s.add_argument("--attachment", required=True, type=int)
+    s.add_argument("--yes", action="store_true")
 
 
 def _add_label(sub: argparse._SubParsersAction[argparse.ArgumentParser]) -> None:
@@ -293,6 +357,36 @@ def _add_view(sub: argparse._SubParsersAction[argparse.ArgumentParser]) -> None:
     s.add_argument("--yes", action="store_true")
 
 
+def _add_template(sub: argparse._SubParsersAction[argparse.ArgumentParser]) -> None:
+    template = sub.add_parser("template", help="Render task templates")
+    template_sub = template.add_subparsers(dest="subcmd")
+
+    s = template_sub.add_parser("list")
+    _template_common_args(s)
+
+    s = template_sub.add_parser("show")
+    s.add_argument("template")
+    _template_common_args(s)
+
+    s = template_sub.add_parser("render")
+    s.add_argument("template")
+    s.add_argument("--context", required=True, help="JSON context file, or '-' for stdin")
+    _template_common_args(s)
+
+    s = template_sub.add_parser("validate")
+    s.add_argument("template", nargs="?")
+    s.add_argument("--all", action="store_true", help="Validate all template directories")
+    _template_common_args(s)
+
+    s = template_sub.add_parser("required")
+    s.add_argument("template")
+    _template_common_args(s)
+
+
+def _template_common_args(parser: argparse.ArgumentParser) -> None:
+    parser.add_argument("--template-dir", help="Template directory (default: XDG config path)")
+
+
 def _add_bucket(sub: argparse._SubParsersAction[argparse.ArgumentParser]) -> None:
     bucket = sub.add_parser("bucket", help="Manage manual kanban buckets")
     bucket_sub = bucket.add_subparsers(dest="subcmd")
@@ -328,6 +422,7 @@ def _bucket_context_args(parser: argparse.ArgumentParser) -> None:
 
 
 _HANDLERS: dict[tuple[str, str | None], Handler] = {
+    ("setup", "labels"): cmd_setup_labels,
     ("project", "list"): cmd_project_list,
     ("project", "show"): cmd_project_show,
     ("project", "create"): cmd_project_create,
@@ -339,10 +434,16 @@ _HANDLERS: dict[tuple[str, str | None], Handler] = {
     ("task", "show"): cmd_task_show,
     ("task", "create"): cmd_task_create,
     ("task", "update"): cmd_task_update,
+    ("task", "move"): cmd_task_move,
+    ("task", "transition"): cmd_task_transition,
     ("task", "complete"): cmd_task_complete,
     ("task", "reopen"): cmd_task_reopen,
     ("task", "duplicate"): cmd_task_duplicate,
     ("task", "delete"): cmd_task_delete,
+    ("attachment", "list"): cmd_attachment_list,
+    ("attachment", "upload"): cmd_attachment_upload,
+    ("attachment", "download"): cmd_attachment_download,
+    ("attachment", "delete"): cmd_attachment_delete,
     ("label", "list"): cmd_label_list,
     ("label", "show"): cmd_label_show,
     ("label", "create"): cmd_label_create,
@@ -368,6 +469,11 @@ _HANDLERS: dict[tuple[str, str | None], Handler] = {
     ("bucket", "update"): cmd_bucket_update,
     ("bucket", "move-task"): cmd_bucket_move_task,
     ("bucket", "delete"): cmd_bucket_delete,
+    ("template", "list"): cmd_template_list,
+    ("template", "show"): cmd_template_show,
+    ("template", "render"): cmd_template_render,
+    ("template", "validate"): cmd_template_validate,
+    ("template", "required"): cmd_template_required,
 }
 
 
@@ -387,7 +493,8 @@ def main(argv: list[str] | None = None) -> None:
         if handler is None:
             parser.parse_args([ns.command, "--help"])
             return
-        handler(_make_client(), ns)
+        client = None if ns.command == "template" else _make_client()
+        handler(client, ns)
     except CLIError as exc:
         print(f"Error: {exc}", file=sys.stderr)
         sys.exit(1)
