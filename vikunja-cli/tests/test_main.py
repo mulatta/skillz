@@ -106,6 +106,15 @@ def test_relation_remove_parser_accepts_safe_kinds_and_dispatches() -> None:
     assert _HANDLERS[("relation", "remove")]
 
 
+def test_template_schema_parser_accepts_template_and_dispatches() -> None:
+    ns = _build_parser().parse_args(["template", "schema", "submission"])
+
+    assert ns.command == "template"
+    assert ns.subcmd == "schema"
+    assert ns.template == "submission"
+    assert _HANDLERS[("template", "schema")]
+
+
 def test_setup_labels_parser_accepts_create() -> None:
     ns = _build_parser().parse_args(["setup", "labels", "--create"])
 

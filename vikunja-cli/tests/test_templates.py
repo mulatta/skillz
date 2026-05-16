@@ -14,16 +14,16 @@ def write_template(root: Path, name: str) -> Path:
     template_root.mkdir(parents=True)
     (template_root / "template.md.njk").write_text(
         """{# removed #}
-{% if sources.slack_thread %}
+{% if sources %}
 ## Sources
-- Slack thread: {{ sources.slack_thread }}
-{% endif %}
-## Goal
-{{ goal }}
-{% if optional %}
-## Optional
-{{ optional }}
-{% endif %}
+{% for source in sources %}- {{ source.kind }}: {{ source.ref }}
+{% endfor %}{% endif %}
+## Summary
+{{ summary }}
+{% if checklist %}
+## Checklist
+{% for item in checklist %}- [ ] {{ item }}
+{% endfor %}{% endif %}
 <!-- removed -->
 """
     )
@@ -33,8 +33,13 @@ def write_template(root: Path, name: str) -> Path:
     (template_root / "schema.json").write_text(
         json.dumps(
             {
-                "required": ["goal"],
-                "required_any": [["sources.slack_thread", "sources.email_thread"]],
+                "title": f"{name} context",
+                "required": ["summary", "sources"],
+                "properties": {
+                    "sources": {"minItems": 1},
+                    "checklist": {"minItems": 1, "maxItems": 5},
+                },
+                "x-attachment_expectations": ["source docs or issue"],
             }
         )
     )
@@ -46,28 +51,27 @@ def test_render_template_prunes_missing_fields_and_strips_comments(tmp_path: Pat
 
     rendered = templates.render_template(
         "backlog",
-        {"goal": "Prototype thing", "sources": {"slack_thread": "https://slack/thread"}},
+        {
+            "summary": "Prototype thing",
+            "sources": [{"kind": "slack", "ref": "https://slack/thread"}],
+        },
         template_dir=tmp_path,
     )
 
     assert rendered["missing_required"] == []
     assert rendered["defaults"] == {"labels": ["type:backlog", "state:someday"], "priority": 4}
     assert rendered["description"] == (
-        "## Sources\n- Slack thread: https://slack/thread\n\n## Goal\nPrototype thing\n"
+        "## Sources\n- slack: https://slack/thread\n\n## Summary\nPrototype thing\n"
     )
-    assert "Optional" not in rendered["description"]
     assert "removed" not in rendered["description"]
 
 
 def test_render_template_reports_missing_required_fields(tmp_path: Path) -> None:
     write_template(tmp_path, "backlog")
 
-    rendered = templates.render_template("backlog", {"sources": {}}, template_dir=tmp_path)
+    rendered = templates.render_template("backlog", {"sources": []}, template_dir=tmp_path)
 
-    assert rendered["missing_required"] == [
-        "goal",
-        "one of: sources.slack_thread, sources.email_thread",
-    ]
+    assert rendered["missing_required"] == ["summary", "sources (minItems 1)"]
 
 
 def test_template_render_command_does_not_require_vikunja_credentials(
@@ -75,7 +79,9 @@ def test_template_render_command_does_not_require_vikunja_credentials(
 ) -> None:
     write_template(tmp_path, "backlog")
     context = tmp_path / "context.json"
-    context.write_text(json.dumps({"goal": "CLI render", "sources": {"slack_thread": "url"}}))
+    context.write_text(
+        json.dumps({"summary": "CLI render", "sources": [{"kind": "url", "ref": "url"}]})
+    )
 
     main(
         [
@@ -92,7 +98,7 @@ def test_template_render_command_does_not_require_vikunja_credentials(
 
     captured = capsys.readouterr()
     data = json.loads(captured.out)
-    assert data["description"] == "## Sources\n- Slack thread: url\n\n## Goal\nCLI render\n"
+    assert data["description"] == "## Sources\n- url: url\n\n## Summary\nCLI render\n"
 
 
 def test_validate_template_accepts_valid_template(tmp_path: Path) -> None:
@@ -126,7 +132,7 @@ def test_validate_template_rejects_invalid_schema_json(tmp_path: Path) -> None:
 
 def test_validate_template_rejects_invalid_schema_field_type(tmp_path: Path) -> None:
     template_root = write_template(tmp_path, "backlog")
-    (template_root / "schema.json").write_text(json.dumps({"required": "goal"}))
+    (template_root / "schema.json").write_text(json.dumps({"required": "summary"}))
 
     record = templates.validate_template("backlog", template_dir=tmp_path)
 
@@ -174,7 +180,7 @@ def test_validate_all_reports_all_template_records(
 ) -> None:
     write_template(tmp_path, "good")
     broken = write_template(tmp_path, "bad")
-    (broken / "schema.json").write_text(json.dumps({"required_any": ["goal"]}))
+    (broken / "schema.json").write_text(json.dumps({"properties": []}))
 
     with pytest.raises(SystemExit) as excinfo:
         main(
@@ -226,10 +232,9 @@ def test_template_required_outputs_schema_fields(tmp_path: Path) -> None:
     (template_root / "schema.json").write_text(
         json.dumps(
             {
-                "required": ["goal"],
-                "required_any": [["sources.slack_thread", "sources.email_thread"]],
-                "optional": ["notes"],
-                "attachment_expectations": ["patch file"],
+                "required": ["summary", "sources"],
+                "properties": {"notes": {"type": "array"}},
+                "x-attachment_expectations": ["patch file"],
             }
         )
     )
@@ -238,9 +243,19 @@ def test_template_required_outputs_schema_fields(tmp_path: Path) -> None:
 
     assert data == {
         "template": "submission",
-        "required": ["goal"],
-        "required_any": [["sources.slack_thread", "sources.email_thread"]],
-        "optional": ["notes"],
+        "required": ["summary", "sources"],
+        "required_any": [],
+        "optional": [
+            "facts",
+            "requirements",
+            "checklist",
+            "relations",
+            "questions",
+            "attachments",
+            "proof",
+            "notes",
+            "template",
+        ],
         "attachment_expectations": ["patch file"],
         "defaults": {"priority": 4, "labels": ["type:submission", "state:next"]},
     }
@@ -250,14 +265,95 @@ def test_template_required_uses_empty_lists_for_missing_schema_keys(
     tmp_path: Path,
 ) -> None:
     template_root = write_template(tmp_path, "submission")
-    (template_root / "schema.json").write_text(json.dumps({"required": ["goal"]}))
+    (template_root / "schema.json").write_text(json.dumps({"required": ["summary"]}))
 
     data = templates.template_required("submission", template_dir=tmp_path)
 
-    assert data["required"] == ["goal"]
+    assert data["required"] == ["summary"]
     assert data["required_any"] == []
-    assert data["optional"] == []
+    assert data["optional"] == [
+        "sources",
+        "facts",
+        "requirements",
+        "checklist",
+        "relations",
+        "questions",
+        "attachments",
+        "proof",
+        "notes",
+        "template",
+    ]
     assert data["attachment_expectations"] == []
+
+
+def test_template_schema_merges_common_schema_and_template_patch(tmp_path: Path) -> None:
+    (tmp_path / "common.schema.json").write_text(
+        json.dumps(
+            {
+                "type": "object",
+                "required": ["summary"],
+                "properties": {
+                    "summary": {"type": "string", "description": "Common summary"},
+                    "sources": {"type": "array", "items": {"type": "object"}},
+                },
+            }
+        )
+    )
+    template_root = write_template(tmp_path, "submission")
+    (template_root / "schema.json").write_text(
+        json.dumps(
+            {
+                "required": ["sources"],
+                "properties": {
+                    "sources": {"minItems": 1, "description": "Submission sources"},
+                    "template": {
+                        "type": "object",
+                        "properties": {
+                            "submission": {
+                                "type": "object",
+                                "required": ["deadline"],
+                                "properties": {"deadline": {"type": "string"}},
+                            }
+                        },
+                    },
+                },
+            }
+        )
+    )
+
+    data = templates.template_schema("submission", template_dir=tmp_path)
+
+    schema = data["schema"]
+    assert schema["required"] == ["summary", "sources"]
+    assert schema["properties"]["summary"]["description"] == "Common summary"
+    assert schema["properties"]["sources"]["type"] == "array"
+    assert schema["properties"]["sources"]["minItems"] == 1
+    assert schema["properties"]["sources"]["description"] == "Submission sources"
+    assert schema["properties"]["template"]["properties"]["submission"]["required"] == ["deadline"]
+
+
+def test_template_schema_command_outputs_merged_schema(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    write_template(tmp_path, "submission")
+
+    main(
+        [
+            "-j",
+            "template",
+            "schema",
+            "submission",
+            "--template-dir",
+            str(tmp_path),
+        ]
+    )
+
+    captured = capsys.readouterr()
+    data = json.loads(captured.out)
+    assert data["template"] == "submission"
+    assert data["schema"]["type"] == "object"
+    assert "summary" in data["schema"]["properties"]
+    assert data["attachment_expectations"] == ["source docs or issue"]
 
 
 def test_template_required_command_outputs_defaults(

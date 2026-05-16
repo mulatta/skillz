@@ -90,6 +90,7 @@ vikunja-cli template render TEMPLATE --context context.json [--template-dir DIR]
 vikunja-cli template validate TEMPLATE [--template-dir DIR]
 vikunja-cli template validate --all [--template-dir DIR]
 vikunja-cli template required TEMPLATE [--template-dir DIR]
+vikunja-cli template schema TEMPLATE [--template-dir DIR]
 
 # Attachments
 vikunja-cli attachment list --task TASK
@@ -158,13 +159,15 @@ Templates are local files under:
 ${XDG_CONFIG_HOME:-~/.config}/vikunja-cli/templates/<name>/
 ```
 
-Each template directory contains `template.md.njk`, optional `schema.json`, and
-optional `defaults.json`. `template render` returns the rendered description,
-defaults, schema, and missing required fields. `template validate` checks one
-template or `--all` template directories, and requires exactly one of `TEMPLATE`
-or `--all`. `template required` returns required/optional context metadata and
-raw defaults for planning. Template commands are local and do not read Vikunja
-credentials.
+The template root may contain `common.schema.json`, a wide shared context model.
+Each template directory contains `template.md.njk`, optional `schema.json` patch,
+and optional `defaults.json`. `template schema` returns the merged common schema
+and template patch for LLM context filling. `template render` returns the rendered
+description, defaults, merged schema, and missing required fields. `template
+validate` checks one template or `--all` template directories, and requires
+exactly one of `TEMPLATE` or `--all`. `template required` returns compact
+required/optional context metadata and raw defaults for planning. Template
+commands are local and do not read Vikunja credentials.
 
 Use templates at creation time:
 
@@ -186,14 +189,16 @@ fields have highest priority: `--description` overrides rendered Markdown, and
 `--priority` overrides template defaults. Missing required context fails unless
 `--allow-missing` is set.
 
-Supported `schema.json` metadata fields:
+`schema.json` is a JSON-schema-style patch over `common.schema.json`:
 
 ```json
 {
-  "required": ["goal"],
-  "required_any": [["sources.slack_thread", "sources.email_thread"]],
-  "optional": ["notes"],
-  "attachment_expectations": ["patch file"]
+  "required": ["summary", "sources", "requirements", "checklist"],
+  "properties": {
+    "sources": { "minItems": 1 },
+    "checklist": { "minItems": 3, "maxItems": 5 }
+  },
+  "x-attachment_expectations": ["patch file"]
 }
 ```
 
