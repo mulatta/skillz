@@ -38,10 +38,10 @@ Downloads create parent directories for `--output` and fail if the output path a
 
 ## Delete
 
-Attachment deletion is destructive and requires explicit user request plus `--yes`:
+Attachment deletion is destructive and requires an explicit user request:
 
 ```bash
-vikunja-cli -j attachment delete --task 123 --attachment 456 --yes
+vikunja-cli -j attachment delete --task 123 --attachment 456
 ```
 
 ## Agent guidance

@@ -29,7 +29,7 @@ Commands:
 vikunja-cli -j view list --project Roadmap
 vikunja-cli -j view create --project Roadmap --title Kanban --kind kanban
 vikunja-cli -j view update Kanban --project Roadmap --filter 'done = false'
-vikunja-cli view delete Kanban --project Roadmap --yes
+vikunja-cli view delete Kanban --project Roadmap
 ```
 
 ## Bucket

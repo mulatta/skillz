@@ -73,10 +73,11 @@ def cmd_template_show(_client: ClientLike | None, ns: argparse.Namespace) -> Non
     loaded = templates.load_template(ns.template, template_dir=template_dir)
     data = {
         "template": loaded.name,
-        "template_path": str(loaded.template_path),
+        "template_path": str(loaded.spec_path),
+        "spec_path": str(loaded.spec_path),
         "defaults": loaded.defaults,
         "schema": loaded.schema,
-        "body": loaded.template_path.read_text(),
+        "body": loaded.spec_path.read_text(),
     }
     emit(data, use_json=ns.use_json)
 
@@ -158,7 +159,6 @@ def cmd_project_update(client: ClientLike, ns: argparse.Namespace) -> None:
 
 
 def cmd_project_delete(client: ClientLike, ns: argparse.Namespace) -> None:
-    _require_yes(ns)
     pid = resolvers.project_id(client, ns.project)
     data = client.delete(f"/projects/{pid}")
     emit(data or {"deleted": pid}, use_json=ns.use_json)
@@ -313,7 +313,6 @@ def cmd_task_duplicate(client: ClientLike, ns: argparse.Namespace) -> None:
 
 
 def cmd_task_delete(client: ClientLike, ns: argparse.Namespace) -> None:
-    _require_yes(ns)
     tid = resolvers.task_id(client, ns.task)
     data = client.delete(f"/tasks/{tid}")
     emit(data or {"deleted": tid}, use_json=ns.use_json)
@@ -386,7 +385,6 @@ def cmd_label_update(client: ClientLike, ns: argparse.Namespace) -> None:
 
 
 def cmd_label_delete(client: ClientLike, ns: argparse.Namespace) -> None:
-    _require_yes(ns)
     lid = resolvers.label_id(client, ns.label)
     data = client.delete(f"/labels/{lid}")
     emit(data or {"deleted": lid}, use_json=ns.use_json)
@@ -477,7 +475,6 @@ def cmd_attachment_download(client: ClientLike, ns: argparse.Namespace) -> None:
 
 
 def cmd_attachment_delete(client: ClientLike, ns: argparse.Namespace) -> None:
-    _require_yes(ns)
     tid = resolvers.task_id(client, ns.task)
     data = client.delete(f"/tasks/{tid}/attachments/{ns.attachment}")
     emit(data or {"task_id": tid, "deleted_attachment": ns.attachment}, use_json=ns.use_json)
@@ -502,7 +499,6 @@ def cmd_comment_update(client: ClientLike, ns: argparse.Namespace) -> None:
 
 
 def cmd_comment_delete(client: ClientLike, ns: argparse.Namespace) -> None:
-    _require_yes(ns)
     tid = resolvers.task_id(client, ns.task)
     data = client.delete(f"/tasks/{tid}/comments/{ns.comment}")
     emit(data or {"task_id": tid, "deleted_comment": ns.comment}, use_json=ns.use_json)
@@ -570,7 +566,6 @@ def cmd_view_update(client: ClientLike, ns: argparse.Namespace) -> None:
 
 
 def cmd_view_delete(client: ClientLike, ns: argparse.Namespace) -> None:
-    _require_yes(ns)
     pid = resolvers.project_id(client, ns.project)
     vid = resolvers.view_id(client, pid, ns.view)
     data = client.delete(f"/projects/{pid}/views/{vid}")
@@ -613,7 +608,6 @@ def cmd_bucket_move_task(client: ClientLike, ns: argparse.Namespace) -> None:
 
 
 def cmd_bucket_delete(client: ClientLike, ns: argparse.Namespace) -> None:
-    _require_yes(ns)
     pid, vid = _project_view_ids(client, ns)
     bid = resolvers.bucket_id(client, pid, vid, ns.bucket)
     data = client.delete(f"/projects/{pid}/views/{vid}/buckets/{bid}")
@@ -624,11 +618,6 @@ def _project_view_ids(client: ClientLike, ns: argparse.Namespace) -> tuple[int, 
     pid = resolvers.project_id(client, ns.project)
     vid = resolvers.view_id(client, pid, ns.view)
     return pid, vid
-
-
-def _require_yes(ns: argparse.Namespace) -> None:
-    if not ns.yes:
-        raise InputError("destructive operation requires --yes")
 
 
 def _clean(body: dict[str, Any]) -> dict[str, Any]:

@@ -83,7 +83,7 @@ def test_relation_add_parser_accepts_safe_kinds_and_dispatches() -> None:
     assert ns.task == "PROJ-1"
     assert ns.kind == "blocked"
     assert ns.other == "PROJ-2"
-    assert _HANDLERS[("relation", "add")]
+    assert ("relation", "add") in _HANDLERS
 
 
 def test_relation_list_parser_accepts_task_and_dispatches() -> None:
@@ -92,7 +92,7 @@ def test_relation_list_parser_accepts_task_and_dispatches() -> None:
     assert ns.command == "relation"
     assert ns.subcmd == "list"
     assert ns.task == "PROJ-1"
-    assert _HANDLERS[("relation", "list")]
+    assert ("relation", "list") in _HANDLERS
 
 
 def test_relation_remove_parser_accepts_safe_kinds_and_dispatches() -> None:
@@ -103,7 +103,7 @@ def test_relation_remove_parser_accepts_safe_kinds_and_dispatches() -> None:
     assert ns.command == "relation"
     assert ns.subcmd == "remove"
     assert ns.kind == "subtask"
-    assert _HANDLERS[("relation", "remove")]
+    assert ("relation", "remove") in _HANDLERS
 
 
 def test_template_schema_parser_accepts_template_and_dispatches() -> None:
@@ -112,7 +112,7 @@ def test_template_schema_parser_accepts_template_and_dispatches() -> None:
     assert ns.command == "template"
     assert ns.subcmd == "schema"
     assert ns.template == "submission"
-    assert _HANDLERS[("template", "schema")]
+    assert ("template", "schema") in _HANDLERS
 
 
 def test_setup_labels_parser_accepts_create() -> None:
@@ -151,7 +151,7 @@ def test_template_validate_parser_dispatches() -> None:
     assert ns.subcmd == "validate"
     assert ns.template == "submission"
     assert ns.template_dir == "templates"
-    assert _HANDLERS[("template", "validate")]
+    assert ("template", "validate") in _HANDLERS
 
 
 def test_template_required_parser_dispatches() -> None:
@@ -163,4 +163,4 @@ def test_template_required_parser_dispatches() -> None:
     assert ns.subcmd == "required"
     assert ns.template == "submission"
     assert ns.template_dir == "templates"
-    assert _HANDLERS[("template", "required")]
+    assert ("template", "required") in _HANDLERS
