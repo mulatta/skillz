@@ -97,6 +97,11 @@ vikunja-cli attachment upload --task TASK --file FILE [--file FILE ...]
 vikunja-cli attachment download --task TASK --attachment ID --output PATH
 vikunja-cli attachment delete --task TASK --attachment ID --yes
 
+# Relations
+vikunja-cli relation list --task TASK
+vikunja-cli relation add --task TASK --kind blocked|blocking|subtask|parenttask|precedes|follows|related --other OTHER_TASK
+vikunja-cli relation remove --task TASK --kind blocked|blocking|subtask|parenttask|precedes|follows|related --other OTHER_TASK
+
 # Labels
 vikunja-cli label list [--search TEXT] [--all]
 vikunja-cli label show <label>
@@ -142,6 +147,7 @@ Examples:
 ```bash
 vikunja-cli task move 123 --project Work
 vikunja-cli task update PROJ-42 --project Inbox --title "Triage customer reply"
+vikunja-cli relation add --task PROJ-42 --kind blocked --other PROJ-41
 ```
 
 ## Templates
@@ -201,9 +207,8 @@ Supported `defaults.json` fields for task creation:
 ```
 
 Labels are resolved by title before task creation, then applied through Vikunja's
-bulk label endpoint after creation. For compatibility, old defaults still work: `"type":
-"submission"` becomes `type:submission`, and `"label": "next"` becomes
-`state:next`.
+bulk label endpoint after creation. Use explicit `labels` entries only; shortcut
+fields such as `type` or `label` are rejected.
 
 Use `VIKUNJA_TEMPLATE_DIR` or `--template-dir` on `template` commands to override
 the template root. `task create --template` uses the configured template root.
@@ -238,6 +243,21 @@ and reports the created task id and failed file; it does not delete the task.
 Repeat `--reminder` on `task create` or `task update` to set absolute task
 reminders. Updating reminders sends the full reminder list to Vikunja.
 
+## Relations
+
+Use relations for dependencies, hierarchy, and task ordering. Both `--task` and
+`--other` accept numeric ids or Vikunja identifiers such as `PROJ-42`.
+
+```bash
+vikunja-cli relation list --task PROJ-42
+vikunja-cli relation add --task PROJ-42 --kind blocked --other PROJ-41
+vikunja-cli relation add --task PROJ-42 --kind subtask --other PROJ-43
+vikunja-cli relation remove --task PROJ-42 --kind blocked --other PROJ-41
+```
+
+The initial allowlist is intentionally small: `blocked`, `blocking`, `subtask`,
+`parenttask`, `precedes`, `follows`, and `related`.
+
 ## Semantic workflow labels
 
 Use `vikunja-cli setup labels` to verify required workflow labels. Add
@@ -246,7 +266,6 @@ Use `vikunja-cli setup labels` to verify required workflow labels. Add
 ```text
 state:next
 state:waiting
-state:waiting-upstream
 state:someday
 type:backlog
 type:bugfix
@@ -256,10 +275,15 @@ type:submission
 type:workaround
 ```
 
-Use `vikunja-cli task transition TASK --state waiting|waiting-upstream|next|someday` to replace
-any current `state:*` label while preserving other labels. Transition commands
-expect existing state labels; run setup before using them. Add `--comment TEXT`
-to record transition context on the task.
+Labels describe workflow state and task type only. Relations describe dependencies,
+hierarchy, and order. Use `vikunja-cli task transition TASK --state waiting|next|someday`
+to replace any current `state:*` label while preserving other labels. Transition
+commands expect existing state labels; run setup before using them. Add
+`--comment TEXT` to record transition context on the task.
+
+Use `blocked`/`blocking` relations for blockers, `subtask`/`parenttask` for
+hierarchy, and `precedes`/`follows` for ordering. Do not create labels for those
+relation-backed concepts.
 
 ## Notifications
 

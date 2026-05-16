@@ -15,6 +15,9 @@ from vikunja_cli.commands import (
     cmd_bucket_move_task,
     cmd_label_replace_on_task,
     cmd_notification_read_all,
+    cmd_relation_add,
+    cmd_relation_list,
+    cmd_relation_remove,
     cmd_setup_labels,
     cmd_task_create,
     cmd_task_list,
@@ -743,6 +746,58 @@ def test_setup_labels_does_not_recreate_existing_labels(
     assert data["missing"] == []
     assert data["created"] == []
     assert data["ok"] is True
+
+
+def test_relation_list_returns_task_related_tasks(capsys: pytest.CaptureFixture[str]) -> None:
+    client = RecordingClient()
+    client.responses[("GET", "/tasks/5")] = {
+        "id": 5,
+        "related_tasks": {
+            "blocked": [{"id": 8, "identifier": "PROJ-8", "title": "Upstream fix"}],
+            "subtask": [{"id": 9, "identifier": "PROJ-9", "title": "Write docs"}],
+        },
+    }
+
+    cmd_relation_list(client, ns(task="5"))
+
+    assert client.calls == [("GET", "/tasks/5", None, None)]
+    assert json.loads(capsys.readouterr().out) == {
+        "blocked": [{"id": 8, "identifier": "PROJ-8", "title": "Upstream fix"}],
+        "subtask": [{"id": 9, "identifier": "PROJ-9", "title": "Write docs"}],
+    }
+
+
+def test_relation_add_resolves_task_refs_and_puts_relation() -> None:
+    client = RecordingClient()
+    client.responses[("GET", "/tasks")] = [
+        {"id": 41, "identifier": "PROJ-41"},
+        {"id": 42, "identifier": "PROJ-42"},
+    ]
+
+    cmd_relation_add(client, ns(task="PROJ-41", kind="blocked", other="PROJ-42"))
+
+    assert client.calls == [
+        ("GET", "/tasks", None, {"s": "PROJ-41", "per_page": 50}),
+        ("GET", "/tasks", None, {"s": "PROJ-42", "per_page": 50}),
+        (
+            "PUT",
+            "/tasks/41/relations",
+            {"other_task_id": 42, "relation_kind": "blocked"},
+            None,
+        ),
+    ]
+
+
+def test_relation_remove_resolves_other_and_deletes_relation() -> None:
+    client = RecordingClient()
+    client.responses[("GET", "/tasks")] = [{"id": 42, "identifier": "PROJ-42"}]
+
+    cmd_relation_remove(client, ns(task="5", kind="related", other="PROJ-42"))
+
+    assert client.calls == [
+        ("GET", "/tasks", None, {"s": "PROJ-42", "per_page": 50}),
+        ("DELETE", "/tasks/5/relations/related/42", None, None),
+    ]
 
 
 def test_task_transition_replaces_old_state_label_and_preserves_other_labels() -> None:

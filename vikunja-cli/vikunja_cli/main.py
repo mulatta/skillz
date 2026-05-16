@@ -9,6 +9,7 @@ from typing import Any
 
 from vikunja_cli.client import Client
 from vikunja_cli.commands import (
+    RELATION_KINDS,
     cmd_attachment_delete,
     cmd_attachment_download,
     cmd_attachment_list,
@@ -35,6 +36,9 @@ from vikunja_cli.commands import (
     cmd_notification_read_all,
     cmd_project_create,
     cmd_project_delete,
+    cmd_relation_add,
+    cmd_relation_list,
+    cmd_relation_remove,
     cmd_project_list,
     cmd_project_show,
     cmd_project_update,
@@ -97,6 +101,7 @@ def _build_parser() -> argparse.ArgumentParser:
     _add_project(sub)
     _add_task(sub)
     _add_attachment(sub)
+    _add_relation(sub)
     _add_label(sub)
     _add_comment(sub)
     _add_notification(sub)
@@ -241,6 +246,20 @@ def _add_attachment(sub: argparse._SubParsersAction[argparse.ArgumentParser]) ->
     s.add_argument("--task", required=True)
     s.add_argument("--attachment", required=True, type=int)
     s.add_argument("--yes", action="store_true")
+
+
+def _add_relation(sub: argparse._SubParsersAction[argparse.ArgumentParser]) -> None:
+    relation = sub.add_parser("relation", help="Manage task relations")
+    relation_sub = relation.add_subparsers(dest="subcmd")
+
+    s = relation_sub.add_parser("list")
+    s.add_argument("--task", required=True)
+
+    for name in ("add", "remove"):
+        s = relation_sub.add_parser(name)
+        s.add_argument("--task", required=True)
+        s.add_argument("--kind", required=True, choices=RELATION_KINDS)
+        s.add_argument("--other", required=True)
 
 
 def _add_label(sub: argparse._SubParsersAction[argparse.ArgumentParser]) -> None:
@@ -444,6 +463,9 @@ _HANDLERS: dict[tuple[str, str | None], Handler] = {
     ("attachment", "upload"): cmd_attachment_upload,
     ("attachment", "download"): cmd_attachment_download,
     ("attachment", "delete"): cmd_attachment_delete,
+    ("relation", "list"): cmd_relation_list,
+    ("relation", "add"): cmd_relation_add,
+    ("relation", "remove"): cmd_relation_remove,
     ("label", "list"): cmd_label_list,
     ("label", "show"): cmd_label_show,
     ("label", "create"): cmd_label_create,
