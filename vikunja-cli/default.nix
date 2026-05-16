@@ -13,7 +13,7 @@ python3Packages.buildPythonApplication {
 
   build-system = [ python3Packages.hatchling ];
 
-  dependencies = [ ];
+  dependencies = [ python3Packages.jinja2 ];
 
   nativeCheckInputs = [ python3Packages.pytestCheckHook ];
 
