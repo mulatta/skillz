@@ -6,6 +6,7 @@ from pathlib import Path
 from typing import Any
 
 import pytest
+import yaml
 
 from vikunja_cli.commands import (
     cmd_attachment_delete,
@@ -87,16 +88,77 @@ def write_task_template(
     root: Path,
     name: str,
     *,
-    template: str = "## Goal\n{{ goal }}\n",
-    schema: dict[str, Any] | None = None,
-    defaults: dict[str, Any] | None = None,
+    checklist_min: int = 1,
+    checklist_max: int = 5,
+    priority: int = 4,
+    labels: list[str] | None = None,
+    invalid_extra: dict[str, Any] | None = None,
 ) -> Path:
-    template_root = root / name
-    template_root.mkdir(parents=True)
-    (template_root / "template.md.njk").write_text(template)
-    (template_root / "schema.json").write_text(json.dumps(schema or {}))
-    (template_root / "defaults.json").write_text(json.dumps(defaults or {}))
-    return template_root
+    path = root / f"{name}.md"
+    path.parent.mkdir(parents=True, exist_ok=True)
+    data: dict[str, Any] = {
+        "name": name,
+        "description": f"{name} context",
+        "defaults": {"priority": priority, "labels": labels or []},
+        "schema": {
+            "$schema": "https://json-schema.org/draft/2020-12/schema",
+            "type": "object",
+            "title": f"{name} context",
+            "description": f"{name} context",
+            "additionalProperties": False,
+            "required": ["summary", "checklist"],
+            "properties": {
+                "summary": {"type": "string", "minLength": 1},
+                "checklist": {
+                    "type": "array",
+                    "items": {"type": "string"},
+                    "minItems": checklist_min,
+                    "maxItems": checklist_max,
+                },
+                "notes": {"type": "array", "items": {"type": "string"}, "maxItems": 6},
+                "proof": {"type": "array", "items": {"type": "string"}, "maxItems": 3},
+                "sources": {
+                    "type": "array",
+                    "items": {"$ref": "#/$defs/Source"},
+                    "maxItems": 5,
+                },
+            },
+            "$defs": {
+                "SourceKind": {
+                    "type": "string",
+                    "enum": [
+                        "url",
+                        "webmail",
+                        "file",
+                        "attached",
+                        "notmuch",
+                        "maildir",
+                        "issue",
+                        "pr",
+                        "ci",
+                        "docs",
+                        "other",
+                    ],
+                },
+                "Source": {
+                    "type": "object",
+                    "additionalProperties": False,
+                    "required": ["kind", "locator"],
+                    "properties": {
+                        "kind": {"$ref": "#/$defs/SourceKind"},
+                        "locator": {"type": "string", "minLength": 1},
+                        "title": {"type": "string"},
+                    },
+                },
+            },
+            "x-note_hints": [],
+        },
+        "attachment_expectations": [],
+    }
+    if invalid_extra:
+        data.update(invalid_extra)
+    path.write_text("---\n" + yaml.safe_dump(data, sort_keys=False) + "---\n\n# Template\n")
+    return path
 
 
 def write_context(root: Path, value: dict[str, Any]) -> Path:
@@ -257,10 +319,21 @@ def test_task_create_without_template_keeps_existing_body() -> None:
     ]
 
 
+def _summary_checklist_html(summary: str, item: str) -> str:
+    return (
+        "<h2>Summary</h2>\n"
+        f"<p>{summary}</p>\n"
+        "<h2>Checklist</h2>\n"
+        '<ul data-type="taskList">\n'
+        f'<li data-type="taskItem" data-checked="false"><p>{item}</p></li>\n'
+        "</ul>\n"
+    )
+
+
 def test_task_create_from_template_uses_vikunja_html_description(tmp_path: Path) -> None:
     client = RecordingClient()
     write_task_template(tmp_path, "submission")
-    context = write_context(tmp_path, {"goal": "Ship template create"})
+    context = write_context(tmp_path, {"summary": "Ship template create", "checklist": ["Ship"]})
 
     cmd_task_create(
         client,
@@ -273,7 +346,8 @@ def test_task_create_from_template_uses_vikunja_html_description(tmp_path: Path)
             "/projects/7/tasks",
             {
                 "title": "Made from template",
-                "description": "<h2>Goal</h2>\n<p>Ship template create</p>\n",
+                "description": _summary_checklist_html("Ship template create", "Ship"),
+                "priority": 4,
             },
             None,
         )
@@ -283,7 +357,7 @@ def test_task_create_from_template_uses_vikunja_html_description(tmp_path: Path)
 def test_task_create_from_template_respects_explicit_description(tmp_path: Path) -> None:
     client = RecordingClient()
     write_task_template(tmp_path, "submission")
-    context = write_context(tmp_path, {"goal": "Rendered body"})
+    context = write_context(tmp_path, {"summary": "Rendered body", "checklist": ["Render"]})
 
     cmd_task_create(
         client,
@@ -299,7 +373,7 @@ def test_task_create_from_template_respects_explicit_description(tmp_path: Path)
         (
             "PUT",
             "/projects/7/tasks",
-            {"title": "Made from template", "description": "Explicit body"},
+            {"title": "Made from template", "description": "Explicit body", "priority": 4},
             None,
         )
     ]
@@ -307,10 +381,10 @@ def test_task_create_from_template_respects_explicit_description(tmp_path: Path)
 
 def test_task_create_from_template_missing_required_fails_by_default(tmp_path: Path) -> None:
     client = RecordingClient()
-    write_task_template(tmp_path, "submission", schema={"required": ["goal"]})
+    write_task_template(tmp_path, "submission")
     context = write_context(tmp_path, {})
 
-    with pytest.raises(InputError, match="template missing required fields: goal"):
+    with pytest.raises(InputError, match="template missing required fields: summary, checklist"):
         cmd_task_create(
             client,
             task_create_ns(template="submission", template_dir=str(tmp_path), context=str(context)),
@@ -321,7 +395,7 @@ def test_task_create_from_template_missing_required_fails_by_default(tmp_path: P
 
 def test_task_create_from_template_allow_missing_permits_creation(tmp_path: Path) -> None:
     client = RecordingClient()
-    write_task_template(tmp_path, "submission", schema={"required": ["goal"]})
+    write_task_template(tmp_path, "submission")
     context = write_context(tmp_path, {})
 
     cmd_task_create(
@@ -338,15 +412,19 @@ def test_task_create_from_template_allow_missing_permits_creation(tmp_path: Path
         (
             "PUT",
             "/projects/7/tasks",
-            {"title": "Made from template", "description": "<h2>Goal</h2>\n"},
+            {
+                "title": "Made from template",
+                "description": "<h2>Summary</h2>\n<h2>Checklist</h2>\n",
+                "priority": 4,
+            },
             None,
         )
     ]
 
 
 def test_task_create_from_template_default_priority_only_when_absent(tmp_path: Path) -> None:
-    write_task_template(tmp_path, "submission", defaults={"priority": 4})
-    context = write_context(tmp_path, {"goal": "Prioritize"})
+    write_task_template(tmp_path, "submission", priority=4)
+    context = write_context(tmp_path, {"summary": "Prioritize", "checklist": ["Do"]})
 
     default_client = RecordingClient()
     cmd_task_create(
@@ -370,7 +448,7 @@ def test_task_create_from_template_default_priority_only_when_absent(tmp_path: P
         "/projects/7/tasks",
         {
             "title": "Made from template",
-            "description": "<h2>Goal</h2>\n<p>Prioritize</p>\n",
+            "description": _summary_checklist_html("Prioritize", "Do"),
             "priority": 4,
         },
         None,
@@ -380,7 +458,7 @@ def test_task_create_from_template_default_priority_only_when_absent(tmp_path: P
         "/projects/7/tasks",
         {
             "title": "Made from template",
-            "description": "<h2>Goal</h2>\n<p>Prioritize</p>\n",
+            "description": _summary_checklist_html("Prioritize", "Do"),
             "priority": 2,
         },
         None,
@@ -397,9 +475,9 @@ def test_task_create_from_template_applies_default_labels(tmp_path: Path) -> Non
     write_task_template(
         tmp_path,
         "submission",
-        defaults={"labels": ["type:submission", "state:next", "state:next"]},
+        labels=["type:submission", "state:next", "state:next"],
     )
-    context = write_context(tmp_path, {"goal": "Label it"})
+    context = write_context(tmp_path, {"summary": "Label it", "checklist": ["Do"]})
 
     cmd_task_create(
         client,
@@ -412,7 +490,11 @@ def test_task_create_from_template_applies_default_labels(tmp_path: Path) -> Non
         (
             "PUT",
             "/projects/7/tasks",
-            {"title": "Made from template", "description": "<h2>Goal</h2>\n<p>Label it</p>\n"},
+            {
+                "title": "Made from template",
+                "description": _summary_checklist_html("Label it", "Do"),
+                "priority": 4,
+            },
             None,
         ),
         ("POST", "/tasks/42/labels/bulk", {"labels": [{"id": 10}, {"id": 11}]}, None),
@@ -422,8 +504,8 @@ def test_task_create_from_template_applies_default_labels(tmp_path: Path) -> Non
 def test_task_create_from_template_resolves_default_labels_before_creation(tmp_path: Path) -> None:
     client = RecordingClient()
     client.responses[("PAGINATE", "/labels")] = []
-    write_task_template(tmp_path, "submission", defaults={"labels": ["type:submission"]})
-    context = write_context(tmp_path, {"goal": "Missing label"})
+    write_task_template(tmp_path, "submission", labels=["type:submission"])
+    context = write_context(tmp_path, {"summary": "Missing label", "checklist": ["Do"]})
 
     with pytest.raises(InputError, match="no label exactly matches"):
         cmd_task_create(
@@ -432,20 +514,6 @@ def test_task_create_from_template_resolves_default_labels_before_creation(tmp_p
         )
 
     assert client.calls == [("PAGINATE", "/labels", None, {"s": "type:submission"})]
-
-
-def test_task_create_from_template_rejects_default_shortcuts(tmp_path: Path) -> None:
-    client = RecordingClient()
-    write_task_template(tmp_path, "submission", defaults={"type": "submission", "label": "next"})
-    context = write_context(tmp_path, {"goal": "No shortcuts"})
-
-    with pytest.raises(InputError, match="template default type is unsupported"):
-        cmd_task_create(
-            client,
-            task_create_ns(template="submission", template_dir=str(tmp_path), context=str(context)),
-        )
-
-    assert client.calls == []
 
 
 def test_task_create_with_attach_rejects_missing_file_before_create(tmp_path: Path) -> None:
@@ -524,8 +592,8 @@ def test_task_create_from_template_with_attach_resolves_labels_before_create(
     client = RecordingClient()
     client.responses[("PUT", "/projects/7/tasks")] = {"id": 46, "title": "Made from template"}
     client.responses[("PAGINATE", "/labels")] = [{"id": 10, "title": "type:submission"}]
-    write_task_template(tmp_path, "submission", defaults={"labels": ["type:submission"]})
-    context = write_context(tmp_path, {"goal": "Attach proof"})
+    write_task_template(tmp_path, "submission", labels=["type:submission"])
+    context = write_context(tmp_path, {"summary": "Attach proof", "checklist": ["Attach"]})
     attachment = tmp_path / "proof.txt"
     attachment.write_text("proof")
 
@@ -544,7 +612,11 @@ def test_task_create_from_template_with_attach_resolves_labels_before_create(
         (
             "PUT",
             "/projects/7/tasks",
-            {"title": "Made from template", "description": "<h2>Goal</h2>\n<p>Attach proof</p>\n"},
+            {
+                "title": "Made from template",
+                "description": _summary_checklist_html("Attach proof", "Attach"),
+                "priority": 4,
+            },
             None,
         ),
         ("POST", "/tasks/46/labels/bulk", {"labels": [{"id": 10}]}, None),
@@ -585,19 +657,10 @@ def test_attachment_list_calls_task_attachment_endpoint() -> None:
     assert client.calls == [("GET", "/tasks/5/attachments", None, None)]
 
 
-def test_attachment_delete_requires_yes() -> None:
-    client = RecordingClient()
-
-    with pytest.raises(InputError, match="requires --yes"):
-        cmd_attachment_delete(client, ns(task="5", attachment=7, yes=False))
-
-    assert client.calls == []
-
-
 def test_attachment_delete_calls_task_attachment_endpoint() -> None:
     client = RecordingClient()
 
-    cmd_attachment_delete(client, ns(task="5", attachment=7, yes=True))
+    cmd_attachment_delete(client, ns(task="5", attachment=7))
 
     assert client.calls == [("DELETE", "/tasks/5/attachments/7", None, None)]
 

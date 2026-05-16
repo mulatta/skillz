@@ -144,7 +144,6 @@ def _add_project(sub: argparse._SubParsersAction[argparse.ArgumentParser]) -> No
 
     s = project_sub.add_parser("archive")
     s.add_argument("project")
-    s.add_argument("--yes", action="store_true")
     s.set_defaults(is_archived=True, title=None, description=None, color=None)
 
     s = project_sub.add_parser("unarchive")
@@ -153,7 +152,6 @@ def _add_project(sub: argparse._SubParsersAction[argparse.ArgumentParser]) -> No
 
     s = project_sub.add_parser("delete")
     s.add_argument("project")
-    s.add_argument("--yes", action="store_true")
 
 
 def _project_update_args(parser: argparse.ArgumentParser) -> None:
@@ -214,7 +212,6 @@ def _add_task(sub: argparse._SubParsersAction[argparse.ArgumentParser]) -> None:
 
     s = task_sub.add_parser("delete")
     s.add_argument("task")
-    s.add_argument("--yes", action="store_true")
 
 
 def _task_field_args(parser: argparse.ArgumentParser) -> None:
@@ -246,7 +243,6 @@ def _add_attachment(sub: argparse._SubParsersAction[argparse.ArgumentParser]) ->
     s = attachment_sub.add_parser("delete")
     s.add_argument("--task", required=True)
     s.add_argument("--attachment", required=True, type=int)
-    s.add_argument("--yes", action="store_true")
 
 
 def _add_relation(sub: argparse._SubParsersAction[argparse.ArgumentParser]) -> None:
@@ -285,7 +281,6 @@ def _add_label(sub: argparse._SubParsersAction[argparse.ArgumentParser]) -> None
 
     s = label_sub.add_parser("delete")
     s.add_argument("label")
-    s.add_argument("--yes", action="store_true")
 
     s = label_sub.add_parser("add-to-task")
     s.add_argument("--task", required=True)
@@ -325,7 +320,6 @@ def _add_comment(sub: argparse._SubParsersAction[argparse.ArgumentParser]) -> No
     s = comment_sub.add_parser("delete")
     s.add_argument("--task", required=True)
     s.add_argument("--comment", required=True)
-    s.add_argument("--yes", action="store_true")
 
 
 def _add_notification(sub: argparse._SubParsersAction[argparse.ArgumentParser]) -> None:
@@ -374,7 +368,6 @@ def _add_view(sub: argparse._SubParsersAction[argparse.ArgumentParser]) -> None:
     s = view_sub.add_parser("delete")
     s.add_argument("view")
     s.add_argument("--project", required=True)
-    s.add_argument("--yes", action="store_true")
 
 
 def _add_template(sub: argparse._SubParsersAction[argparse.ArgumentParser]) -> None:
@@ -408,7 +401,7 @@ def _add_template(sub: argparse._SubParsersAction[argparse.ArgumentParser]) -> N
 
 
 def _template_common_args(parser: argparse.ArgumentParser) -> None:
-    parser.add_argument("--template-dir", help="Template directory (default: XDG config path)")
+    parser.add_argument("--template-dir", help="Template directory (default: XDG data path)")
 
 
 def _add_bucket(sub: argparse._SubParsersAction[argparse.ArgumentParser]) -> None:
@@ -437,7 +430,6 @@ def _add_bucket(sub: argparse._SubParsersAction[argparse.ArgumentParser]) -> Non
     s = bucket_sub.add_parser("delete")
     s.add_argument("bucket")
     _bucket_context_args(s)
-    s.add_argument("--yes", action="store_true")
 
 
 def _bucket_context_args(parser: argparse.ArgumentParser) -> None:

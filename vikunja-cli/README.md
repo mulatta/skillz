@@ -11,7 +11,6 @@ access.
   `rbw get ...`.
 - Keep commands allowlisted. No `raw`, `api`, or arbitrary-path escape hatch.
 - Prefer stable, agent-readable output. Add `-j`/`--json` for raw JSON.
-- Make destructive operations explicit with `--yes`.
 
 ## Bootstrap
 
@@ -66,9 +65,9 @@ vikunja-cli project list [--search TEXT] [--archived] [--all]
 vikunja-cli project show <project>
 vikunja-cli project create --title TITLE [--description TEXT] [--color HEX] [--parent PROJECT]
 vikunja-cli project update <project> [--title TITLE] [--description TEXT] [--color HEX]
-vikunja-cli project archive <project> --yes
+vikunja-cli project archive <project>
 vikunja-cli project unarchive <project>
-vikunja-cli project delete <project> --yes
+vikunja-cli project delete <project>
 
 # Tasks
 vikunja-cli task list [--project PROJECT] [--filter FILTER] [--search TEXT] [--sort-by FIELD] [--order-by asc|desc] [--expand FIELD] [--all]
@@ -81,7 +80,7 @@ vikunja-cli task transition <task> --state waiting|next|someday [--comment TEXT]
 vikunja-cli task complete <task>
 vikunja-cli task reopen <task>
 vikunja-cli task duplicate <task>
-vikunja-cli task delete <task> --yes
+vikunja-cli task delete <task>
 
 # Templates: local metadata/render only, no Vikunja credentials required
 vikunja-cli template list [--template-dir DIR]
@@ -96,7 +95,7 @@ vikunja-cli template schema TEMPLATE [--template-dir DIR]
 vikunja-cli attachment list --task TASK
 vikunja-cli attachment upload --task TASK --file FILE [--file FILE ...]
 vikunja-cli attachment download --task TASK --attachment ID --output PATH
-vikunja-cli attachment delete --task TASK --attachment ID --yes
+vikunja-cli attachment delete --task TASK --attachment ID
 
 # Relations
 vikunja-cli relation list --task TASK
@@ -108,7 +107,7 @@ vikunja-cli label list [--search TEXT] [--all]
 vikunja-cli label show <label>
 vikunja-cli label create --title TITLE [--description TEXT] [--color HEX]
 vikunja-cli label update <label> [--title TITLE] [--description TEXT] [--color HEX]
-vikunja-cli label delete <label> --yes
+vikunja-cli label delete <label>
 vikunja-cli label add-to-task --task TASK --label LABEL
 vikunja-cli label remove-from-task --task TASK --label LABEL
 vikunja-cli label replace-on-task --task TASK --label LABEL [--label LABEL ...]
@@ -117,7 +116,7 @@ vikunja-cli label replace-on-task --task TASK --label LABEL [--label LABEL ...]
 vikunja-cli comment list --task TASK [--order asc|desc]
 vikunja-cli comment add --task TASK --message TEXT
 vikunja-cli comment update --task TASK --comment COMMENT --message TEXT
-vikunja-cli comment delete --task TASK --comment COMMENT --yes
+vikunja-cli comment delete --task TASK --comment COMMENT
 
 # Notifications: focused on actionable due/reminder signals
 vikunja-cli notification list --kind due|reminder|overdue [--unread]
@@ -133,14 +132,14 @@ vikunja-cli view update <view> --project PROJECT --bucket-mode none|manual|filte
 vikunja-cli view update <view> --project PROJECT --bucket-mode filter \
   --bucket-filter "Overdue=done = false && due_date < now" \
   --bucket-filter "High priority=priority >= 4"
-vikunja-cli view delete <view> --project PROJECT --yes
+vikunja-cli view delete <view> --project PROJECT
 
 # Buckets: manual kanban columns
 vikunja-cli bucket list --project PROJECT --view VIEW
 vikunja-cli bucket create --project PROJECT --view VIEW --title TITLE [--limit N]
 vikunja-cli bucket update <bucket> --project PROJECT --view VIEW [--title TITLE] [--limit N]
 vikunja-cli bucket move-task --project PROJECT --view VIEW --task TASK --bucket BUCKET
-vikunja-cli bucket delete <bucket> --project PROJECT --view VIEW --yes
+vikunja-cli bucket delete <bucket> --project PROJECT --view VIEW
 ```
 
 Examples:
@@ -153,31 +152,46 @@ vikunja-cli relation add --task PROJ-42 --kind blocked --other PROJ-41
 
 ## Templates
 
-Templates are local data files under:
+Templates are local Markdown files with YAML frontmatter under:
 
 ```text
-${XDG_DATA_HOME:-~/.local/share}/vikunja-cli/templates/<name>/
+${XDG_DATA_HOME:-~/.local/share}/vikunja-cli/templates/<name>.md
 ```
 
 When no explicit directory is passed, template lookup searches XDG data paths:
 `$XDG_DATA_HOME/vikunja-cli/templates` followed by each
-`$XDG_DATA_DIRS/vikunja-cli/templates` entry. The template root may contain
-`common.schema.json`, a wide shared context model, and `common.template.md.njk`,
-the shared description layout. Each template directory contains an optional
-`template.md.njk` override, optional `schema.json` patch, and optional
-`defaults.json`. `template schema` returns the merged common schema and template
-patch for context filling. `template render` returns review Markdown, Vikunja
-HTML, defaults, merged schema, and missing required fields. `template validate`
-checks one template or `--all` template directories, and requires exactly one of
+`$XDG_DATA_DIRS/vikunja-cli/templates` entry. Each template file defines a work
+shape, defaults, and the task context schema directly in YAML frontmatter. The
+schema includes source types and template-specific limits, so there is no
+separate model or generated schema drift. `vikunja-cli` reads that
+frontmatter, validates context against the schema subset it supports, renders
+fixed Markdown, and converts it to Vikunja HTML. `template schema` returns the
+schema from the template file. `template render` returns review Markdown,
+Vikunja HTML, defaults, schema, and missing required fields. `template validate`
+checks one template or `--all` template files, and requires exactly one of
 `TEMPLATE` or `--all`. `template required` returns compact required/optional
-context metadata and raw defaults for planning. Template commands are local and
-do not read Vikunja credentials.
+context metadata and defaults for planning. Template commands are local and do
+not read Vikunja credentials.
 
 Use templates at creation time:
 
 ```bash
 vikunja-cli task create --project Inbox --title "Submit patch" \
   --template submission --context context.json
+```
+
+Use `sources[]` entries as openable locators:
+
+```json
+{
+  "sources": [
+    {
+      "kind": "webmail",
+      "locator": "https://mail.mulatta.io/ko?email=boiqaaalse",
+      "title": "원본 메일"
+    }
+  ]
+}
 ```
 
 Attach source/evidence files during creation:
@@ -193,31 +207,59 @@ being stored as the task description. Explicit CLI fields have highest priority:
 `--description` overrides rendered content, and `--priority` overrides template
 defaults. Missing required context fails unless `--allow-missing` is set.
 
-`schema.json` is a JSON-schema-style patch over `common.schema.json`:
+Template Markdown shape:
 
-```json
-{
-  "description": "External form/document/package submission.",
-  "properties": {
-    "checklist": { "minItems": 3, "maxItems": 5 },
-    "proof": { "minItems": 1 }
-  },
-  "x-note_hints": ["channel", "format", "recipient", "signature requirements"]
-}
-```
+```markdown
+---
+name: submission
+description: External form/document/package submission.
+defaults:
+  priority: 4
+  labels:
+    - type:submission
+    - state:next
+schema:
+  type: object
+  required: [summary, checklist, proof]
+  properties:
+    summary:
+      type: string
+      minLength: 1
+    checklist:
+      type: array
+      items: { type: string }
+      minItems: 3
+      maxItems: 5
+    proof:
+      type: array
+      items: { type: string }
+      minItems: 1
+  $defs:
+    SourceKind:
+      type: string
+      enum:
+        [
+          url,
+          webmail,
+          file,
+          attached,
+          notmuch,
+          maildir,
+          issue,
+          pr,
+          ci,
+          docs,
+          other,
+        ]
+attachment_expectations:
+  - Receipt, confirmation email, screenshot, or submitted record.
+---
 
-Supported `defaults.json` fields for task creation:
-
-```json
-{
-  "priority": 4,
-  "labels": ["type:submission", "state:next"]
-}
+# submission
 ```
 
 Labels are resolved by title before task creation, then applied through Vikunja's
-bulk label endpoint after creation. Use explicit `labels` entries only; shortcut
-fields such as `type` or `label` are rejected.
+bulk label endpoint after creation.
 
 Use `VIKUNJA_TEMPLATE_DIR` or `--template-dir` on `template` commands to override
 the template root. `task create --template` uses the same lookup rules.

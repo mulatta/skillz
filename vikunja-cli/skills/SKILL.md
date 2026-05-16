@@ -20,14 +20,14 @@ vikunja-cli -j notification list --kind due --unread
 ## Safety
 
 - Mutating commands require an explicit user request in the current conversation.
-- Destructive commands require `--yes` (`task delete`, `attachment delete`, `project delete`, etc.).
+- Destructive commands are available only in the trusted local CLI; agent workflows must use n8n-hooks instead.
 - Run `vikunja-cli -j setup labels` before template-backed creation or transitions in a fresh instance.
 - Use `vikunja-cli -j setup labels --create` only after the user agrees to create workflow labels.
 
 ## Common workflows
 
 ```bash
-# Inspect merged schema, then create task from local template and attach source/evidence files
+# Inspect schema from Markdown+YAML template, then create task and attach source/evidence files
 vikunja-cli -j template schema submission
 vikunja-cli -j task create --project Inbox --title "Submit patch" \
   --template submission --context context.json \

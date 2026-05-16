@@ -13,9 +13,20 @@ python3Packages.buildPythonApplication {
 
   build-system = [ python3Packages.hatchling ];
 
-  dependencies = [ python3Packages.jinja2 ];
+  dependencies = [ python3Packages.pyyaml ];
 
-  nativeCheckInputs = [ python3Packages.pytestCheckHook ];
+  nativeCheckInputs = [
+    python3Packages.mypy
+    python3Packages.pytestCheckHook
+    python3Packages.ruff
+    python3Packages.types-pyyaml
+  ];
+
+  preCheck = ''
+    ruff format --check .
+    ruff check .
+    mypy vikunja_cli tests
+  '';
 
   postInstall = ''
     mkdir -p $out/share/skills

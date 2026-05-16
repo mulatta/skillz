@@ -59,6 +59,6 @@ Safe relation kinds are `blocked`, `blocking`, `subtask`, `parenttask`, `precede
 
 ## Type labels
 
-Templates apply `type:*` labels from `defaults.json` during task creation. They are resolved before the task is created, so missing labels fail early instead of leaving a partially configured task.
+Templates apply `type:*` labels from Markdown+YAML frontmatter during task creation. They are resolved before the task is created, so missing labels fail early instead of leaving a partially configured task.
 
 Use `setup labels` when a template create fails with a missing `type:*` or `state:*` label.
