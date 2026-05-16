@@ -73,6 +73,39 @@ def test_task_move_parser_accepts_target_project() -> None:
     assert ns.project == "Inbox"
 
 
+def test_relation_add_parser_accepts_safe_kinds_and_dispatches() -> None:
+    ns = _build_parser().parse_args(
+        ["relation", "add", "--task", "PROJ-1", "--kind", "blocked", "--other", "PROJ-2"]
+    )
+
+    assert ns.command == "relation"
+    assert ns.subcmd == "add"
+    assert ns.task == "PROJ-1"
+    assert ns.kind == "blocked"
+    assert ns.other == "PROJ-2"
+    assert _HANDLERS[("relation", "add")]
+
+
+def test_relation_list_parser_accepts_task_and_dispatches() -> None:
+    ns = _build_parser().parse_args(["relation", "list", "--task", "PROJ-1"])
+
+    assert ns.command == "relation"
+    assert ns.subcmd == "list"
+    assert ns.task == "PROJ-1"
+    assert _HANDLERS[("relation", "list")]
+
+
+def test_relation_remove_parser_accepts_safe_kinds_and_dispatches() -> None:
+    ns = _build_parser().parse_args(
+        ["relation", "remove", "--task", "PROJ-1", "--kind", "subtask", "--other", "PROJ-2"]
+    )
+
+    assert ns.command == "relation"
+    assert ns.subcmd == "remove"
+    assert ns.kind == "subtask"
+    assert _HANDLERS[("relation", "remove")]
+
+
 def test_setup_labels_parser_accepts_create() -> None:
     ns = _build_parser().parse_args(["setup", "labels", "--create"])
 

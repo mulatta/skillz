@@ -28,6 +28,16 @@ WORKFLOW_LABEL_TITLES = [
     "type:workaround",
 ]
 
+RELATION_KINDS = [
+    "blocked",
+    "blocking",
+    "subtask",
+    "parenttask",
+    "precedes",
+    "follows",
+    "related",
+]
+
 
 class ClientLike(Protocol):
     def get(self, path: str, query: dict[str, Any] | None = None) -> Any: ...
@@ -301,6 +311,41 @@ def cmd_task_delete(client: ClientLike, ns: argparse.Namespace) -> None:
     tid = resolvers.task_id(client, ns.task)
     data = client.delete(f"/tasks/{tid}")
     emit(data or {"deleted": tid}, use_json=ns.use_json)
+
+
+def cmd_relation_list(client: ClientLike, ns: argparse.Namespace) -> None:
+    tid = resolvers.task_id(client, ns.task)
+    task = client.get(f"/tasks/{tid}")
+    if not isinstance(task, dict):
+        raise InputError("task show response was not an object")
+    related = task.get("related_tasks", {})
+    emit(related, use_json=ns.use_json, text_fn=_print_relations)
+
+
+def cmd_relation_add(client: ClientLike, ns: argparse.Namespace) -> None:
+    tid = resolvers.task_id(client, ns.task)
+    other_id = resolvers.task_id(client, ns.other)
+    data = client.put(
+        f"/tasks/{tid}/relations",
+        {"other_task_id": other_id, "relation_kind": ns.kind},
+    )
+    emit(data, use_json=ns.use_json)
+
+
+def cmd_relation_remove(client: ClientLike, ns: argparse.Namespace) -> None:
+    tid = resolvers.task_id(client, ns.task)
+    other_id = resolvers.task_id(client, ns.other)
+    data = client.delete(f"/tasks/{tid}/relations/{ns.kind}/{other_id}")
+    emit(
+        data
+        or {
+            "task_id": tid,
+            "relation_kind": ns.kind,
+            "other_task_id": other_id,
+            "removed": True,
+        },
+        use_json=ns.use_json,
+    )
 
 
 def cmd_label_list(client: ClientLike, ns: argparse.Namespace) -> None:
@@ -833,6 +878,22 @@ def _print_labels(items: Any) -> None:
         for item in _as_dicts(items)
     ]
     emit_table(["id", "title", "color"], rows)
+
+
+def _print_relations(item: Any) -> None:
+    rows: list[list[str]] = []
+    if isinstance(item, dict):
+        for kind, tasks in item.items():
+            for task in _as_dicts(tasks):
+                rows.append(
+                    [
+                        short(kind),
+                        str(task.get("id", "-")),
+                        short(task.get("identifier")),
+                        short(task.get("title")),
+                    ]
+                )
+    emit_table(["kind", "id", "identifier", "title"], rows)
 
 
 def _print_attachments(items: Any) -> None:
