@@ -6,6 +6,12 @@ description: Manage n8n via its REST API. Use when user asks to access n8n.
 Default output is LLM-friendly text. `-j` for JSON. Use `-` as filename for stdin.
 Round-trip editing: `n8n-cli workflow get <id> -j > wf.json` → edit → `n8n-cli workflow update <id> wf.json`.
 
+Set up once if credentials are missing:
+
+```bash
+n8n-cli setup --api-url https://n8n.example.com --api-key-command "rbw get n8n-api-key"
+```
+
 ```bash
 # Credentials
 n8n-cli credential list

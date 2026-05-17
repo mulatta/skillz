@@ -9,7 +9,8 @@ Use `miniflux-cli` for Miniflux/RSS content. It reads Miniflux through the API
 and renders entries as Markdown. It does not manage workflow processing state.
 
 Configuration is provided by `$XDG_CONFIG_HOME/miniflux-cli/config.json` or
-environment variables. Do not print tokens or `rbw` values.
+environment variables. Do not print tokens or `rbw` values. If credentials are
+missing, set up once with `miniflux-cli setup --api-url URL --token-command CMD`.
 
 ## CLI structure
 

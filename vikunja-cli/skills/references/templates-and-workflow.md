@@ -77,7 +77,7 @@ vikunja-cli -j task create --project Inbox --title "Submit patch" \
 
 Labels are for workflow state and task type only. Use task relations for dependencies, subtasks, and ordering.
 
-Template YAML frontmatter contains default `priority` and explicit `labels` entries. Template labels are resolved before task creation, so missing labels fail early. Run `vikunja-cli -j setup labels` if a template create reports missing labels.
+Template YAML frontmatter contains default `priority` and explicit `labels` entries. Template labels are resolved before task creation, so missing labels fail early. Run `vikunja-cli -j label ensure` if a template create reports missing labels.
 
 ## Description contract
 

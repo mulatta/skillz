@@ -13,7 +13,13 @@ from pathlib import Path
 from typing import Any
 
 from miniflux_cli.client import MinifluxClient, MinifluxError, resolve_category_id
-from miniflux_cli.config import ConfigError, load_config, xdg_cache_home
+from miniflux_cli.config import (
+    ConfigError,
+    check_token_command,
+    load_config,
+    write_config,
+    xdg_cache_home,
+)
 from miniflux_cli.markdown import entry_to_markdown
 
 
@@ -21,6 +27,17 @@ def build_client(args: argparse.Namespace) -> MinifluxClient:
     config_path = Path(args.config) if args.config else None
     config = load_config(config_path)
     return MinifluxClient(api_url=config.api_url, token=config.token)
+
+
+def cmd_setup(args: argparse.Namespace) -> int:
+    config_path = Path(args.config) if args.config else None
+    path = write_config(args.api_url, args.token_command, config_path)
+    print(f"Wrote {path}")
+    if check_token_command(args.token_command):
+        print("Token command works")
+    else:
+        print("Warning: token command did not return a token", file=sys.stderr)
+    return 0
 
 
 def cmd_list_categories(args: argparse.Namespace) -> int:
@@ -260,6 +277,13 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("-j", "--json", action="store_true", help="Print JSON")
     parser.add_argument("--config", help="Config JSON path")
     sub = parser.add_subparsers(dest="command", required=True)
+
+    setup_parser = sub.add_parser("setup", help="Write config and check token command")
+    setup_parser.add_argument("--api-url", required=True, help="Miniflux API URL")
+    setup_parser.add_argument(
+        "--token-command", required=True, help="Command that prints API token"
+    )
+    setup_parser.set_defaults(func=cmd_setup)
 
     list_parser = sub.add_parser("list", help="List Miniflux resources")
     list_sub = list_parser.add_subparsers(dest="resource", required=True)

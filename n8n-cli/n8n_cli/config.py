@@ -7,7 +7,13 @@ import sys
 from pathlib import Path
 from typing import Any
 
-CONFIG_DIR = Path.home() / ".config" / "n8n-cli"
+
+def xdg_config_home() -> Path:
+    value = os.environ.get("XDG_CONFIG_HOME")
+    return Path(value) if value else Path.home() / ".config"
+
+
+CONFIG_DIR = xdg_config_home() / "n8n-cli"
 CONFIG_FILE = CONFIG_DIR / "config.json"
 
 
@@ -102,6 +108,24 @@ def _resolve_timeout(cfg: dict[str, Any]) -> int:
                 file=sys.stderr,
             )
     return timeout
+
+
+def write_config(api_url: str, api_key_command: str, config_path: str | None = None) -> Path:
+    """Write setup config without storing the secret."""
+    path = Path(config_path) if config_path else CONFIG_FILE
+    if not api_url.strip():
+        msg = "api_url must not be empty"
+        raise ValueError(msg)
+    if not api_key_command.strip():
+        msg = "api_key_command must not be empty"
+        raise ValueError(msg)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    data = {
+        "api_url": api_url.rstrip("/"),
+        "api_key_command": api_key_command,
+    }
+    path.write_text(json.dumps(data, indent=2) + "\n")
+    return path
 
 
 def resolve_credentials(

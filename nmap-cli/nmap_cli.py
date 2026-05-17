@@ -286,6 +286,7 @@ def setup(
     save_config(config_path, config)
     load_config(config_path)
     print(f"Wrote {config_path}")
+    print("Credential commands work")
 
 
 def load_config(path: Path | None = None) -> Credentials:

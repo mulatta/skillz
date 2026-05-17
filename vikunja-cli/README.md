@@ -12,13 +12,13 @@ access.
 - Keep commands allowlisted. No `raw`, `api`, or arbitrary-path escape hatch.
 - Prefer stable, agent-readable output. Add `-j`/`--json` for raw JSON.
 
-## Bootstrap
+## Setup
 
-`bootstrap` writes config, reads the token through `api_key_command`, and
-verifies it with a lightweight authenticated API call.
+`setup` writes config and confirms `api_key_command` returns a non-empty value.
+It does not call the Vikunja API.
 
 ```bash
-vikunja-cli bootstrap \
+vikunja-cli setup \
   --base-url https://vikunja.example.com \
   --api-key-command "rbw get vikunja-api-token"
 ```
@@ -57,8 +57,11 @@ vikunja-cli -j task list --project Inbox --all
 ```
 
 ```bash
-# Setup
-vikunja-cli setup labels [--create]
+# Credentials
+vikunja-cli setup --base-url URL --api-key-command CMD
+
+# Workflow labels
+vikunja-cli label ensure [--create]
 
 # Projects
 vikunja-cli project list [--search TEXT] [--archived] [--all]
@@ -311,7 +314,7 @@ The initial allowlist is intentionally small: `blocked`, `blocking`, `subtask`,
 
 ## Semantic workflow labels
 
-Use `vikunja-cli setup labels` to verify required workflow labels. Add
+Use `vikunja-cli label ensure` to verify required workflow labels. Add
 `--create` to create missing defaults:
 
 ```text
@@ -329,7 +332,7 @@ type:workaround
 Labels describe workflow state and task type only. Relations describe dependencies,
 hierarchy, and order. Use `vikunja-cli task transition TASK --state waiting|next|someday`
 to replace any current `state:*` label while preserving other labels. Transition
-commands expect existing state labels; run setup before using them. Add
+commands expect existing state labels; run label ensure before using them. Add
 `--comment TEXT` to record transition context on the task.
 
 Use `blocked`/`blocking` relations for blockers, `subtask`/`parenttask` for

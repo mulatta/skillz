@@ -5,6 +5,8 @@ description: Current API docs + code snippets for third-party libraries/framewor
 
 Two-step: `search` resolves a library name to a Context7 ID, then `docs` fetches a few focused snippets for that ID. IDs are not guessable — always search first. Both args are required for both commands.
 
+Optional API keys are configured with `context7-cli setup --api-key-command CMD`. Do not print tokens or secret-manager command output.
+
 ```bash
 # 1. Find the library ID — output shows IDs, ⭐, snippet count, and available versions
 context7-cli search nextjs "middleware"

@@ -436,15 +436,14 @@ def setup(api_key_command: str) -> None:
     """Setup API key command"""
     config = {"api_key_command": api_key_command}
     save_config(config)
+    print(f"Wrote {CONFIG_FILE}")
 
     # Test the command
     api_key = get_api_key(config)
     if api_key:
-        print("Setup complete! API key command works.")
+        print("API key command works")
     else:
-        print(
-            "Warning: API key command did not return a key. Please check your command."
-        )
+        print("Warning: API key command did not return a key")
 
 
 def search(query: str) -> None:

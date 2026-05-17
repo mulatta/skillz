@@ -1,13 +1,13 @@
-# Setup and workflow labels
+# Workflow label prerequisites
 
-Use this reference before template-backed task creation, semantic transitions, or first-time Vikunja workflow setup.
+Use this reference before template-backed task creation, semantic transitions, or first-time Vikunja workflow label checks.
 
 Labels describe workflow state and task type only. Relations describe dependencies, hierarchy, and order. Do not use labels to model blockers, subtasks, parents, or ordering.
 
 ## Check setup
 
 ```bash
-vikunja-cli -j setup labels
+vikunja-cli -j label ensure
 ```
 
 The command verifies all workflow labels required by local templates and transitions:
@@ -27,7 +27,7 @@ type:workaround
 If labels are missing, ask the user before creating them:
 
 ```bash
-vikunja-cli -j setup labels --create
+vikunja-cli -j label ensure --create
 ```
 
 ## Semantic states
@@ -61,4 +61,4 @@ Safe relation kinds are `blocked`, `blocking`, `subtask`, `parenttask`, `precede
 
 Templates apply `type:*` labels from Markdown+YAML frontmatter during task creation. They are resolved before the task is created, so missing labels fail early instead of leaving a partially configured task.
 
-Use `setup labels` when a template create fails with a missing `type:*` or `state:*` label.
+Use `label ensure` when a template create fails with a missing `type:*` or `state:*` label.

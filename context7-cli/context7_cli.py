@@ -10,6 +10,7 @@ Usage:
     context7-cli docs <library_id> <query>           Get documentation context
     context7-cli docs --json <library_id> <query>    Get docs (JSON output)
     context7-cli -k <key> search ...                 Use explicit API key
+    context7-cli setup --api-key-command "rbw get context7-api-key"
     context7-cli --help                              Show this help
 
 Options:
@@ -90,12 +91,19 @@ class SearchResponse:
     error: str | None = None
 
 
+def default_config_path() -> Path:
+    config_home = os.environ.get("XDG_CONFIG_HOME")
+    base = Path(config_home) if config_home else Path.home() / ".config"
+    return base / "context7" / "config.json"
+
+
+def config_file_path(config_path: str | None = None) -> Path:
+    return Path(config_path) if config_path else default_config_path()
+
+
 def load_config(config_path: str | None = None) -> dict[str, Any]:
     """Load configuration from file."""
-    if config_path:
-        config_file = Path(config_path)
-    else:
-        config_file = Path.home() / ".config" / "context7" / "config.json"
+    config_file = config_file_path(config_path)
 
     if not config_file.exists():
         return {}
@@ -103,6 +111,20 @@ def load_config(config_path: str | None = None) -> dict[str, Any]:
     with config_file.open() as f:
         data: dict[str, Any] = json.load(f)
         return data
+
+
+def write_config(api_key_command: str, config_path: str | None = None) -> Path:
+    """Write setup config without storing the secret."""
+    if not api_key_command.strip():
+        msg = "api_key_command must not be empty"
+        raise ValueError(msg)
+    path = config_file_path(config_path)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(
+        json.dumps({"password_command": api_key_command}, indent=2) + "\n",
+        encoding="utf-8",
+    )
+    return path
 
 
 def get_api_key_from_command(command: str) -> str | None:
@@ -418,6 +440,20 @@ def parse_args(args: list[str]) -> ParsedArgs:
     )
 
 
+def handle_setup(parsed: ParsedArgs) -> None:
+    if len(parsed.remaining) != 2 or parsed.remaining[0] != "--api-key-command":
+        print_error("setup requires --api-key-command CMD")
+    try:
+        path = write_config(parsed.remaining[1], parsed.config_path)
+    except ValueError as exc:
+        die(str(exc))
+    print(f"Wrote {path}")
+    if get_api_key_from_command(parsed.remaining[1]):
+        print("API key command works")
+    else:
+        die("api_key_command did not return a key")
+
+
 def main() -> None:
     """Main entry point."""
     args = sys.argv[1:]
@@ -427,11 +463,15 @@ def main() -> None:
 
     parsed = parse_args(args)
 
-    # Resolve API key from all sources
-    config.api_key = resolve_api_key(parsed.api_key, parsed.config_path)
-
     if not parsed.command:
         print_error("No command specified")
+
+    if parsed.command == "setup":
+        handle_setup(parsed)
+        return
+
+    # Resolve API key from all sources
+    config.api_key = resolve_api_key(parsed.api_key, parsed.config_path)
 
     if parsed.command == "search":
         if len(parsed.remaining) < 2:

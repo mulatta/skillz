@@ -2,7 +2,11 @@ from __future__ import annotations
 
 import pytest
 
-from vikunja_cli.main import _HANDLERS, _build_parser
+from pathlib import Path
+from unittest.mock import patch
+import json
+
+from vikunja_cli.main import _HANDLERS, _build_parser, main
 
 
 def test_task_update_parser_accepts_title_and_project() -> None:
@@ -115,19 +119,69 @@ def test_template_schema_parser_accepts_template_and_dispatches() -> None:
     assert ("template", "schema") in _HANDLERS
 
 
-def test_setup_labels_parser_accepts_create() -> None:
-    ns = _build_parser().parse_args(["setup", "labels", "--create"])
+def test_setup_parser_accepts_command_config() -> None:
+    ns = _build_parser().parse_args(
+        [
+            "--config",
+            "/tmp/vikunja.json",
+            "setup",
+            "--base-url",
+            "https://vikunja.example.com",
+            "--api-key-command",
+            "printf token",
+        ]
+    )
 
+    assert ns.config == "/tmp/vikunja.json"
     assert ns.command == "setup"
-    assert ns.subcmd == "labels"
+    assert ns.base_url == "https://vikunja.example.com"
+    assert ns.api_key_command == "printf token"
+
+
+def test_setup_writes_config_and_checks_command(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    config = tmp_path / "config.json"
+
+    with patch(
+        "sys.argv",
+        [
+            "vikunja-cli",
+            "--config",
+            str(config),
+            "setup",
+            "--base-url",
+            "https://vikunja.example.com/",
+            "--api-key-command",
+            "printf token",
+        ],
+    ):
+        main()
+
+    data = json.loads(config.read_text())
+    assert data == {
+        "base_url": "https://vikunja.example.com",
+        "api_key_command": "printf token",
+    }
+    out = capsys.readouterr().out
+    assert f"Wrote {config}" in out
+    assert "API key command works" in out
+    assert "token" not in out.replace("API key command works", "")
+
+
+def test_label_ensure_parser_accepts_create() -> None:
+    ns = _build_parser().parse_args(["label", "ensure", "--create"])
+
+    assert ns.command == "label"
+    assert ns.subcmd == "ensure"
     assert ns.create is True
 
 
-def test_setup_labels_parser_defaults_to_check_only() -> None:
-    ns = _build_parser().parse_args(["setup", "labels"])
+def test_label_ensure_parser_defaults_to_check_only() -> None:
+    ns = _build_parser().parse_args(["label", "ensure"])
 
-    assert ns.command == "setup"
-    assert ns.subcmd == "labels"
+    assert ns.command == "label"
+    assert ns.subcmd == "ensure"
     assert ns.create is False
 
 

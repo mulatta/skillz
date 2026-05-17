@@ -71,34 +71,31 @@ from vikunja_cli.errors import CLIError
 Handler = Callable[[Any, argparse.Namespace], None]
 
 
-def _make_client() -> Client:
-    base_url, api_key, timeout = resolve_credentials()
+def _make_client(config_path: str | None = None) -> Client:
+    base_url, api_key, timeout = resolve_credentials(config_path)
     return Client(base_url, api_key, timeout)
 
 
-def _cmd_bootstrap(ns: argparse.Namespace) -> None:
-    config_path = write_config(ns.base_url, ns.api_key_command)
+def _cmd_setup(ns: argparse.Namespace) -> None:
+    config_path = write_config(ns.base_url, ns.api_key_command, ns.config)
     token = run_api_key_command(ns.api_key_command)
-    if not token:
-        raise CLIError("api_key_command did not return a token")
-    client = Client(ns.base_url, token, ns.timeout)
-    user = client.get("/user")
-    username = user.get("username") if isinstance(user, dict) else None
-    suffix = f" as {username}" if username else ""
-    print(f"Configured {config_path}{suffix}")
+    print(f"Wrote {config_path}")
+    if token:
+        print("API key command works")
+    else:
+        print("Warning: API key command did not return a token", file=sys.stderr)
 
 
 def _build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="vikunja-cli", description="Agent-oriented Vikunja CLI")
     parser.add_argument("-j", "--json", action="store_true", dest="use_json", help="Output JSON")
+    parser.add_argument("--config", help="Config JSON path")
     sub = parser.add_subparsers(dest="command")
 
-    s = sub.add_parser("bootstrap", help="Write config and verify API token")
+    s = sub.add_parser("setup", help="Write config and check API key command")
     s.add_argument("--base-url", required=True, help="Vikunja base URL")
     s.add_argument("--api-key-command", required=True, help="Command that prints API token")
-    s.add_argument("--timeout", type=int, default=30, help="Verification timeout in seconds")
 
-    _add_setup(sub)
     _add_project(sub)
     _add_task(sub)
     _add_attachment(sub)
@@ -110,14 +107,6 @@ def _build_parser() -> argparse.ArgumentParser:
     _add_bucket(sub)
     _add_template(sub)
     return parser
-
-
-def _add_setup(sub: argparse._SubParsersAction[argparse.ArgumentParser]) -> None:
-    setup = sub.add_parser("setup", help="Verify or create workflow prerequisites")
-    setup_sub = setup.add_subparsers(dest="subcmd")
-
-    s = setup_sub.add_parser("labels", help="Verify or create default workflow labels")
-    s.add_argument("--create", action="store_true", help="Create missing workflow labels")
 
 
 def _add_project(sub: argparse._SubParsersAction[argparse.ArgumentParser]) -> None:
@@ -262,6 +251,9 @@ def _add_relation(sub: argparse._SubParsersAction[argparse.ArgumentParser]) -> N
 def _add_label(sub: argparse._SubParsersAction[argparse.ArgumentParser]) -> None:
     label = sub.add_parser("label", help="Manage labels")
     label_sub = label.add_subparsers(dest="subcmd")
+
+    s = label_sub.add_parser("ensure", help="Verify or create default workflow labels")
+    s.add_argument("--create", action="store_true", help="Create missing workflow labels")
 
     s = label_sub.add_parser("list")
     s.add_argument("--search")
@@ -438,7 +430,7 @@ def _bucket_context_args(parser: argparse.ArgumentParser) -> None:
 
 
 _HANDLERS: dict[tuple[str, str | None], Handler] = {
-    ("setup", "labels"): cmd_setup_labels,
+    ("label", "ensure"): cmd_setup_labels,
     ("project", "list"): cmd_project_list,
     ("project", "show"): cmd_project_show,
     ("project", "create"): cmd_project_create,
@@ -505,15 +497,15 @@ def main(argv: list[str] | None = None) -> None:
         sys.exit(0)
 
     try:
-        if ns.command == "bootstrap":
-            _cmd_bootstrap(ns)
+        if ns.command == "setup":
+            _cmd_setup(ns)
             return
         key = (ns.command, getattr(ns, "subcmd", None))
         handler = _HANDLERS.get(key)
         if handler is None:
             parser.parse_args([ns.command, "--help"])
             return
-        client = None if ns.command == "template" else _make_client()
+        client = None if ns.command == "template" else _make_client(ns.config)
         handler(client, ns)
     except CLIError as exc:
         print(f"Error: {exc}", file=sys.stderr)
