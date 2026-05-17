@@ -167,6 +167,28 @@ def test_create_link_payload(server: tuple[str, int], capsys: pytest.CaptureFixt
     }
 
 
+def test_create_link_requires_existing_collection(
+    server: tuple[str, int], capsys: pytest.CaptureFixture[str]
+) -> None:
+    with pytest.raises(SystemExit) as exc:
+        run_cli(
+            server,
+            [
+                "link",
+                "create",
+                "https://example.com",
+                "--collection",
+                "Missing",
+            ],
+            capsys,
+        )
+
+    err = capsys.readouterr().err
+    assert exc.value.code == 1
+    assert "collection not found: Missing" in err
+    assert [req["path"] for req in State.requests] == ["/api/v1/collections"]
+
+
 def test_delete_requires_yes(server: tuple[str, int], capsys: pytest.CaptureFixture[str]) -> None:
     with pytest.raises(SystemExit) as exc:
         run_cli(server, ["link", "delete", "7"], capsys)

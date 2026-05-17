@@ -48,4 +48,8 @@ linkwarden-cli token list
 linkwarden-cli api GET /api/v1/users/me
 ```
 
+`--collection` on link/RSS create resolves an existing collection by ID or exact
+name. Create missing collections explicitly with `collection create`; link create
+never sends `collection: {name}` to Linkwarden.
+
 Add `-j`/`--json` before the command for raw JSON output.

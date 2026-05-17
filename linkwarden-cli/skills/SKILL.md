@@ -3,7 +3,7 @@ name: linkwarden-cli
 description: Manage Linkwarden bookmarks, collections, tags, highlights, RSS subscriptions, archives, and API tokens through a restricted CLI. Use when the user asks to save, search, organize, archive, or delete Linkwarden links.
 ---
 
-Use `linkwarden-cli` for Linkwarden bookmark-management workflows. Prefer high-level commands over `api`; use `api` only when the user explicitly asks for a raw API call or the CLI lacks a needed endpoint.
+Use `linkwarden-cli` for Linkwarden bookmark-management workflows. Prefer high-level commands over `api`; use `api` only when the user explicitly asks for a raw API call or the CLI lacks a needed endpoint. Link/RSS `--collection` must resolve to an existing collection ID or exact name; create missing collections explicitly with `collection create`.
 
 Do not print tokens, environment values, or secret-manager command output. If credentials are missing, set up once:
 
