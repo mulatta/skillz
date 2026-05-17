@@ -24,6 +24,7 @@ skillz/
 - `crabfit-cli` - create and manage Crab.fit scheduling events
 - `crwl-cli` - crawl web pages and extract markdown
 - `gmaps-cli` - search places and get directions with Google Maps
+- `linkwarden-cli` - manage Linkwarden bookmarks and collections
 - `miniflux-cli` - read Miniflux RSS entries and enclosures
 - `nmap-cli` - use NAVER Cloud Maps APIs
 - `n8n-cli` - inspect and manage n8n workflows/API objects
