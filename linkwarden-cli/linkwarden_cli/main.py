@@ -232,10 +232,7 @@ def cmd_rss_create(client: Client, ns: argparse.Namespace) -> None:
     body: dict[str, Any] = {"name": ns.name, "url": ns.url}
     if ns.collection:
         collection = collection_ref(client, ns.collection)
-        if "id" in collection:
-            body["collectionId"] = collection["id"]
-        else:
-            body["collectionName"] = collection["name"]
+        body["collectionId"] = collection["id"]
     result = client.post("/api/v1/rss", body)
     emit(result, use_json=ns.use_json, text_fn=print_rss)
 
@@ -275,7 +272,7 @@ def collection_ref(client: Client, value: str) -> dict[str, Any]:
         return {"id": matches[0].get("id"), "name": matches[0].get("name")}
     if len(matches) > 1:
         raise InputError(f"collection name is ambiguous: {value}")
-    return {"name": value}
+    raise InputError(f"collection not found: {value}")
 
 
 def require_yes(ns: argparse.Namespace) -> None:
