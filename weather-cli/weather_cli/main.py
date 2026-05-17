@@ -619,10 +619,11 @@ def setup(service_key_command: str) -> None:
     config = load_config()
     config[SERVICE_KEY_COMMAND_FIELD] = service_key_command
     save_config(config)
+    print(f"Wrote {config_file()}")
     if run_command(service_key_command):
-        print("Setup complete! Service key command works.")
+        print("Service key command works")
     else:
-        print("Warning: service key command did not return a usable key.")
+        print("Warning: service key command did not return a usable key")
 
 
 def service_key_from_env() -> str | None:

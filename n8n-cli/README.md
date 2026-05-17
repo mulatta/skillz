@@ -23,7 +23,15 @@ export N8N_API_KEY="your-api-key"
 
 ### Config file (preferred)
 
-Create `~/.config/n8n-cli/config.json`:
+Use setup to write `~/.config/n8n-cli/config.json` and confirm the command returns a key:
+
+```bash
+n8n-cli setup \
+  --api-url https://your-n8n.example.com \
+  --api-key-command "rbw get n8n-api-key"
+```
+
+Or create the file manually:
 
 ```json
 {

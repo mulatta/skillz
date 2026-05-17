@@ -69,6 +69,30 @@ def default_config_path() -> Path:
     return xdg_config_home() / "miniflux-cli" / "config.json"
 
 
+def write_config(api_url: str, token_command: str, path: Path | None = None) -> Path:
+    config_path = path or default_config_path()
+    if not api_url.strip():
+        msg = "api_url must not be empty"
+        raise ConfigError(msg)
+    if not token_command.strip():
+        msg = "token_command must not be empty"
+        raise ConfigError(msg)
+    config_path.parent.mkdir(parents=True, exist_ok=True)
+    data = {
+        "api_url": api_url.rstrip("/"),
+        "token_command": token_command,
+    }
+    config_path.write_text(json.dumps(data, indent=2) + "\n", encoding="utf-8")
+    return config_path
+
+
+def check_token_command(command: str) -> bool:
+    try:
+        return bool(_run_token_command(command))
+    except ConfigError:
+        return False
+
+
 def load_config(path: Path | None = None) -> Config:
     config_path = path or default_config_path()
     data = _load_json(config_path)

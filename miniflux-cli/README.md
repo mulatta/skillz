@@ -6,7 +6,15 @@ in a separate ledger/tool.
 
 ## Configuration
 
-`$XDG_CONFIG_HOME/miniflux-cli/config.json`:
+Use setup to write `$XDG_CONFIG_HOME/miniflux-cli/config.json` and confirm the command returns a token:
+
+```bash
+miniflux-cli setup \
+  --api-url https://rss.example.test \
+  --token-command "rbw get miniflux-api-key"
+```
+
+Config file shape:
 
 ```json
 {

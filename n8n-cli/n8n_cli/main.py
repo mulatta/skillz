@@ -16,15 +16,15 @@ from n8n_cli.commands import (
     test_wf,
     workflow,
 )
-from n8n_cli.config import CONFIG_FILE, resolve_credentials
+from n8n_cli.config import CONFIG_FILE, resolve_credentials, run_secret_command, write_config
 from n8n_cli.errors import CLIError, ConfigError
 
 Handler = Callable[[Client, argparse.Namespace], None]
 
 
-def _make_client() -> Client:
+def _make_client(config_path: str | None = None) -> Client:
     """Create a client from environment variables or config file."""
-    api_url, api_key, timeout = resolve_credentials()
+    api_url, api_key, timeout = resolve_credentials(config_path)
     if not api_url or not api_key:
         missing = []
         if not api_url:
@@ -35,10 +35,25 @@ def _make_client() -> Client:
     return Client(api_url, api_key, timeout)
 
 
+def _cmd_setup(ns: argparse.Namespace) -> None:
+    config_path = write_config(ns.api_url, ns.api_key_command, ns.config)
+    token = run_secret_command(ns.api_key_command)
+    print(f"Wrote {config_path}")
+    if token:
+        print("API key command works")
+    else:
+        print("Warning: API key command did not return a key", file=sys.stderr)
+
+
 def _build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(prog="n8n-cli", description="Python CLI for n8n API")
     p.add_argument("-j", "--json", action="store_true", dest="use_json", help="Output JSON")
+    p.add_argument("--config", help="Config JSON path")
     sub = p.add_subparsers(dest="command")
+
+    s = sub.add_parser("setup", help="Write config and check API key command")
+    s.add_argument("--api-url", required=True, help="n8n base URL")
+    s.add_argument("--api-key-command", required=True, help="Command that prints API key")
 
     # -- credential ----------------------------------------------------------
     cred = sub.add_parser("credential", help="Manage credentials")
@@ -297,6 +312,14 @@ def main() -> None:
         parser.print_help()
         sys.exit(0)
 
+    if ns.command == "setup":
+        try:
+            _cmd_setup(ns)
+        except (CLIError, ValueError) as e:
+            print(f"Error: {e}", file=sys.stderr)
+            sys.exit(1)
+        return
+
     # For grouped commands, check subcmd
     key = (ns.command, getattr(ns, "subcmd", None))
     handler = _HANDLERS.get(key)
@@ -306,7 +329,7 @@ def main() -> None:
         return
 
     try:
-        client = _make_client()
+        client = _make_client(ns.config)
         handler(client, ns)
     except CLIError as e:
         print(f"Error: {e}", file=sys.stderr)

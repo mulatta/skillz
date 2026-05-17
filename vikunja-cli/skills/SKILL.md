@@ -21,8 +21,8 @@ vikunja-cli -j notification list --kind due --unread
 
 - Mutating commands require an explicit user request in the current conversation.
 - Destructive commands are available only in the trusted local CLI; agent workflows must use n8n-hooks instead.
-- Run `vikunja-cli -j setup labels` before template-backed creation or transitions in a fresh instance.
-- Use `vikunja-cli -j setup labels --create` only after the user agrees to create workflow labels.
+- Run `vikunja-cli -j label ensure` before template-backed creation or transitions in a fresh instance.
+- Use `vikunja-cli -j label ensure --create` only after the user agrees to create workflow labels.
 
 ## Common workflows
 
@@ -52,14 +52,14 @@ vikunja-cli -j bucket move-task --project Roadmap --view Kanban --task 123 --buc
 
 Read only the relevant reference:
 
-- `references/setup-and-labels.md` — bootstrap workflow labels; label vs relation roles; semantic states and transitions.
+- `references/setup-and-labels.md` — workflow label prerequisites; label vs relation roles; semantic states and transitions.
 - `references/templates-and-workflow.md` — choose templates, inspect required context, render/create tasks, attach evidence.
 - `references/attachments.md` — upload/list/download/delete attachments and partial-failure behavior.
 - `references/filters.md` — task/view filters, overdue/due/high-priority examples, filter bucket mode.
 - `references/views-and-buckets.md` — project views, kanban buckets, manual vs filter buckets.
 
-Bootstrap once if the CLI is not configured:
+Set up credentials once if the CLI is not configured:
 
 ```bash
-vikunja-cli bootstrap --base-url https://vikunja.example.com --api-key-command "rbw get vikunja-api-token"
+vikunja-cli setup --base-url https://vikunja.example.com --api-key-command "rbw get vikunja-api-token"
 ```

@@ -33,7 +33,7 @@ def load_config(config_path: str | None = None) -> dict[str, Any]:
 
 
 def write_config(base_url: str, api_key_command: str, config_path: str | None = None) -> Path:
-    """Write bootstrap config."""
+    """Write credential config."""
     path = Path(config_path) if config_path else CONFIG_FILE
     command = shlex.split(api_key_command)
     if not command:
@@ -79,7 +79,7 @@ def resolve_credentials(config_path: str | None = None) -> tuple[str, str, int]:
     """Resolve base URL, API token, and timeout.
 
     Priority: environment variables > config command. Direct tokens in config are
-    intentionally unsupported so bootstrap never stores secrets.
+    intentionally unsupported so setup never stores secrets.
     """
     cfg = load_config(config_path)
 
