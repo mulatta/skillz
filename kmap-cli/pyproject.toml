@@ -1,0 +1,16 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "kmap-cli"
+version = "0.1.0"
+description = "CLI tool for TMAP places and public transit routes"
+requires-python = ">=3.12"
+dependencies = []
+
+[project.scripts]
+kmap-cli = "kmap_cli:main"
+
+[tool.hatch.build.targets.wheel]
+only-include = ["kmap_cli.py", "py.typed"]

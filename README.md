@@ -24,6 +24,7 @@ skillz/
 - `crabfit-cli` - create and manage Crab.fit scheduling events
 - `crwl-cli` - crawl web pages and extract markdown
 - `gmaps-cli` - search places and get directions with Google Maps
+- `kmap-cli` - search Korean places and public transit routes with TMAP
 - `linkwarden-cli` - manage Linkwarden bookmarks and collections
 - `miniflux-cli` - read Miniflux RSS entries and enclosures
 - `nmap-cli` - use NAVER Cloud Maps APIs

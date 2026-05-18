@@ -15,6 +15,7 @@
   crabfit-cli = { };
   crwl-cli = { };
   gmaps-cli = { };
+  kmap-cli = { };
   linkwarden-cli = { };
   miniflux-cli = { };
   nmap-cli = { };

@@ -34,6 +34,7 @@ in
   crabfit-cli = callPackage ../crabfit-cli { };
   crwl-cli = callPackage ../crwl-cli { inherit crawl4ai; };
   gmaps-cli = callPackage ../gmaps-cli { };
+  kmap-cli = callPackage ../kmap-cli { };
   linkwarden-cli = callPackage ../linkwarden-cli { };
   miniflux-cli = callPackage ../miniflux-cli { };
   nmap-cli = callPackage ../nmap-cli { };
