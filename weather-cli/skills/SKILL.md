@@ -67,8 +67,7 @@ nmap-cli geocode "분당구 불정로 6"
 nmap-cli reverse "127.1054328,37.3595963"
 ```
 
-If user gives `lng,lat` from `nmap-cli`, pass weather-cli as `--lat <lat> --lon
-<lng>` or directly as a coordinate string; weather-cli detects both `lat,lon`
+If user gives `lng,lat` from `nmap-cli`, pass weather-cli as `--lat <lat> --lon <lng>` or directly as a coordinate string; weather-cli detects both `lat,lon`
 and `lng,lat` when ranges are unambiguous.
 
 # Troubleshooting
@@ -81,7 +80,7 @@ If KMA returns unauthorized:
    weather-cli --nx 60 --ny 127
    ```
 
-2. If that fails, check data.go.kr key and API application status for
+1. If that fails, check data.go.kr key and API application status for
    `기상청_단기예보 조회서비스` / `VilageFcstInfoService_2.0`.
-3. If only address lookup fails, check `nmap-cli` setup or use `--geocoder
-nominatim` / `--lat --lon` / `--nx --ny`.
+
+1. If only address lookup fails, check `nmap-cli` setup or use `--geocoder nominatim` / `--lat --lon` / `--nx --ny`.

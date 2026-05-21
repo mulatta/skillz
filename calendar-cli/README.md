@@ -11,18 +11,18 @@ email, and replying to invitations with RSVP responses (via msmtp).
 
 ## Subcommands
 
-| Command     | Description                                            |
+| Command | Description |
 | ----------- | ------------------------------------------------------ |
-| `calendars` | List available calendars                               |
-| `list`      | List events (date range, calendar filter)              |
-| `show`      | Show a single event by UID                             |
-| `search`    | Search events by text (summary, location, description) |
-| `new`       | Create a new local event                               |
-| `edit`      | Edit an existing event                                 |
-| `delete`    | Delete an event by UID                                 |
-| `invite`    | Create and send a meeting invitation via email         |
-| `import`    | Import invites, process RSVP replies & cancellations   |
-| `reply`     | RSVP to a calendar invitation                          |
+| `calendars` | List available calendars |
+| `list` | List events (date range, calendar filter) |
+| `show` | Show a single event by UID |
+| `search` | Search events by text (summary, location, description) |
+| `new` | Create a new local event |
+| `edit` | Edit an existing event |
+| `delete` | Delete an event by UID |
+| `invite` | Create and send a meeting invitation via email |
+| `import` | Import invites, process RSVP replies & cancellations |
+| `reply` | RSVP to a calendar invitation |
 
 ## Structured references
 

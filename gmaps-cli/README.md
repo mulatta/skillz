@@ -14,16 +14,17 @@ Maps API.
 ## Setup
 
 1. Get a Google Maps API key:
+
    - Go to [Google Cloud Console](https://console.cloud.google.com/)
    - Create a new project or select existing one
    - Enable "Places API" and "Directions API"
    - Create credentials → API key
    - Optionally restrict the key to Places API and Directions API
 
-2. Store your API key securely (e.g., using `pass`, `rbw`, or environment
+1. Store your API key securely (e.g., using `pass`, `rbw`, or environment
    variable)
 
-3. Setup gmaps-cli with a command to retrieve your API key:
+1. Setup gmaps-cli with a command to retrieve your API key:
 
    ```bash
    # Using pass

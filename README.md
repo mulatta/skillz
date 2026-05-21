@@ -53,11 +53,11 @@ nix flake check
 ## Adding a CLI Tool
 
 1. Create `<tool-name>/` directory with source code
-2. Create `<tool-name>/skills/SKILL.md`
-3. Add `<tool-name>/default.nix` for packaging
-4. Install `<tool-name>/skills` to `$out/share/skills/<tool-name>/`
-5. Register the package in `nix/packages.nix`
-6. Register the installable skill in `nix/skills.nix`
+1. Create `<tool-name>/skills/SKILL.md`
+1. Add `<tool-name>/default.nix` for packaging
+1. Install `<tool-name>/skills` to `$out/share/skills/<tool-name>/`
+1. Register the package in `nix/packages.nix`
+1. Register the installable skill in `nix/skills.nix`
 
 ## Adding a Skill
 

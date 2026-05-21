@@ -4,6 +4,11 @@
   programs.nixfmt.enable = true;
   programs.ruff.format = true;
   programs.prettier.enable = true;
+  programs.mdformat = {
+    enable = true;
+    plugins = ps: [ ps.mdformat-frontmatter ];
+    settings.wrap = "keep";
+  };
   programs.shellcheck.enable = true;
   programs.shfmt.enable = true;
 
@@ -51,8 +56,14 @@
     };
   };
 
+  settings.formatter.prettier.excludes = [
+    "*.md"
+    "*.mdx"
+  ];
+
   settings.global.excludes = [
     "*.lock"
     "*.toml"
+    "biorefs-cli/references/api-specs/raw/*"
   ];
 }

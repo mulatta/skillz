@@ -12,11 +12,11 @@ Do not use HubSign, custom signing servers, or direct iPhone deployment. Build s
 # Workflow
 
 1. Write Cherri source under `$HOME/.claude/outputs/<name>.cherri` unless user gives path.
-2. Look up actions before guessing names or arguments.
-3. Validate source.
-4. Build signed `.shortcut` under `$HOME/.claude/outputs`.
-5. Open/import only when user asks or after explaining user must confirm import in Shortcuts app.
-6. Run installed shortcuts only after they exist in macOS Shortcuts.
+1. Look up actions before guessing names or arguments.
+1. Validate source.
+1. Build signed `.shortcut` under `$HOME/.claude/outputs`.
+1. Open/import only when user asks or after explaining user must confirm import in Shortcuts app.
+1. Run installed shortcuts only after they exist in macOS Shortcuts.
 
 ```bash
 # Discover actions and docs
@@ -93,15 +93,15 @@ const response = downloadURL("https://api.example.com", {"Authorization": "Beare
 
 # Command guide
 
-| Need                     | Command                                                         | Notes                                                         |
+| Need | Command | Notes |
 | ------------------------ | --------------------------------------------------------------- | ------------------------------------------------------------- |
-| Compile check            | `shortcuts-cli validate FILE.cherri`                            | Uses unsigned temp artifact; not importable                   |
-| Build importable file    | `shortcuts-cli build FILE.cherri`                               | Requires macOS local signing                                  |
-| Build and open import UI | `shortcuts-cli build FILE.cherri --open`                        | User must confirm in Shortcuts app                            |
-| Share with anyone        | `shortcuts-cli build FILE.cherri --share anyone`                | Default is contacts/people who know me                        |
-| Find action syntax       | `shortcuts-cli actions QUERY`                                   | Wraps `cherri --action`                                       |
-| Browse category docs     | `shortcuts-cli docs CATEGORY`                                   | Categories include `web`, `scripting`, `shortcuts`, `network` |
-| Decompile                | `shortcuts-cli decompile LINK_OR_UNSIGNED --output FILE.cherri` | Signed local files are not supported by Cherri decompile      |
+| Compile check | `shortcuts-cli validate FILE.cherri` | Uses unsigned temp artifact; not importable |
+| Build importable file | `shortcuts-cli build FILE.cherri` | Requires macOS local signing |
+| Build and open import UI | `shortcuts-cli build FILE.cherri --open` | User must confirm in Shortcuts app |
+| Share with anyone | `shortcuts-cli build FILE.cherri --share anyone` | Default is contacts/people who know me |
+| Find action syntax | `shortcuts-cli actions QUERY` | Wraps `cherri --action` |
+| Browse category docs | `shortcuts-cli docs CATEGORY` | Categories include `web`, `scripting`, `shortcuts`, `network` |
+| Decompile | `shortcuts-cli decompile LINK_OR_UNSIGNED --output FILE.cherri` | Signed local files are not supported by Cherri decompile |
 
 # Safety rules
 
