@@ -73,12 +73,12 @@ biorefs-cli ncbi link --dbfrom gene --db pubmed --id 672
 ### Papers
 
 ```bash
-biorefs-cli paper search 'BRCA1 PARP inhibitor resistance' --limit 50 --json
-biorefs-cli paper fetch --pmid 23103855 --json
-biorefs-cli paper fulltext --pmid 23103855 --sections methods,results
-biorefs-cli paper related --pmid 23103855 --mode similar --limit 20
-biorefs-cli paper cite --pmid 23103855 --format bibtex
-biorefs-cli paper convert --doi 10.1158/2159-8290.cd-12-0049
+biorefs-cli paper search 'BRCA1 PARP inhibitor resistance' --source pubmed --limit 50 --json
+biorefs-cli paper fetch --pmid 23103855 --include abstract,authors,mesh,grants,ids --json
+biorefs-cli paper fulltext --pmid 23103855 --sections methods,results --source auto --json
+biorefs-cli paper related --pmid 23103855 --mode similar --limit 20 --json
+biorefs-cli paper cite --pmid 23103855 --format bibtex --strict
+biorefs-cli paper convert --doi 10.1158/2159-8290.cd-12-0049 --json
 ```
 
 ### Genes, RNA/transcripts, proteins

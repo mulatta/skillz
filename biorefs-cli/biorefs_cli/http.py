@@ -8,13 +8,15 @@ import secrets
 import time
 from dataclasses import dataclass
 from typing import cast
-from urllib.parse import urlparse
+from urllib.parse import urljoin, urlparse
 
 from biorefs_cli.errors import HTTPError, RateLimitError
 from biorefs_cli.rate_limit import RateLimiter, get_global_rate_limiter
 
 JsonValue = str | int | float | bool | None | dict[str, "JsonValue"] | list["JsonValue"]
 JsonObject = dict[str, JsonValue]
+REDIRECT_STATUSES = frozenset({301, 302, 303, 307, 308})
+MAX_REDIRECTS = 5
 
 
 @dataclass(frozen=True, slots=True)
@@ -74,11 +76,13 @@ class HttpClient:
         rate_limit_source: str | None = None,
     ) -> HttpResponse:
         last_error: HTTPError | None = None
-        source = rate_limit_source or infer_rate_limit_source(url)
         for attempt in range(self.retry_policy.attempts):
             try:
-                self.rate_limiter.acquire(source)
-                response = self._get_once(url, headers=headers or {})
+                response = self._get_with_redirects(
+                    url,
+                    headers=headers or {},
+                    rate_limit_source=rate_limit_source,
+                )
             except OSError:
                 last_error = HTTPError("network request failed")
                 self._sleep(attempt, None)
@@ -101,6 +105,28 @@ class HttpClient:
         if last_error is not None:
             raise last_error
         msg = "network request failed"
+        raise HTTPError(msg)
+
+    def _get_with_redirects(
+        self,
+        url: str,
+        *,
+        headers: dict[str, str],
+        rate_limit_source: str | None,
+    ) -> HttpResponse:
+        current_url = url
+        for _redirect in range(MAX_REDIRECTS + 1):
+            self.rate_limiter.acquire(
+                rate_limit_source or infer_rate_limit_source(current_url)
+            )
+            response = self._get_once(current_url, headers=headers)
+            if response.status not in REDIRECT_STATUSES:
+                return response
+            location = response.headers.get("location")
+            if not location:
+                return response
+            current_url = urljoin(current_url, location)
+        msg = "too many redirects"
         raise HTTPError(msg)
 
     def _get_once(self, url: str, *, headers: dict[str, str]) -> HttpResponse:
@@ -154,6 +180,7 @@ HOST_RATE_LIMIT_SOURCES = {
     "api.semanticscholar.org": "semantic-scholar",
     "api.unpaywall.org": "unpaywall",
     "eutils.ncbi.nlm.nih.gov": "ncbi",
+    "pmc.ncbi.nlm.nih.gov": "ncbi",
     "pubchem.ncbi.nlm.nih.gov": "pubchem",
     "www.ebi.ac.uk": "europepmc",
     "www.ncbi.nlm.nih.gov": "ncbi",

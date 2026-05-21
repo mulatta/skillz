@@ -42,6 +42,23 @@ class RecordingHttpClient(HttpClient):
         return HttpResponse(status=200, headers={}, body=b'{"ok": true}')
 
 
+class RedirectHttpClient(HttpClient):
+    def __init__(self, limiter: RecordingLimiter) -> None:
+        super().__init__(timeout_seconds=3, rate_limiter=limiter)
+        self.urls: list[str] = []
+
+    def _get_once(self, url: str, *, headers: dict[str, str]) -> HttpResponse:
+        assert headers is not None
+        self.urls.append(url)
+        if len(self.urls) == 1:
+            return HttpResponse(
+                status=301,
+                headers={"location": "https://pmc.ncbi.nlm.nih.gov/tools/idconv/"},
+                body=b"",
+            )
+        return HttpResponse(status=200, headers={}, body=b'{"ok": true}')
+
+
 def test_aliases_share_ncbi_key_policy() -> None:
     ncbi = get_rate_limit_policy("ncbi")
 
@@ -116,12 +133,29 @@ def test_http_client_allows_explicit_rate_limit_source() -> None:
     assert limiter.sources == ["pmc"]
 
 
+def test_http_client_follows_redirects_and_rechecks_rate_source() -> None:
+    limiter = RecordingLimiter()
+    client = RedirectHttpClient(limiter)
+
+    response = client.get_json("https://www.ncbi.nlm.nih.gov/pmc/utils/idconv/v1.0/")
+
+    assert response == {"ok": True}
+    assert client.urls == [
+        "https://www.ncbi.nlm.nih.gov/pmc/utils/idconv/v1.0/",
+        "https://pmc.ncbi.nlm.nih.gov/tools/idconv/",
+    ]
+    assert limiter.sources == ["ncbi", "ncbi"]
+
+
 def test_infer_rate_limit_source_for_supported_hosts() -> None:
     assert (
         infer_rate_limit_source(
             "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esearch.fcgi"
         )
         == "ncbi"
+    )
+    assert (
+        infer_rate_limit_source("https://pmc.ncbi.nlm.nih.gov/tools/idconv/") == "ncbi"
     )
     assert (
         infer_rate_limit_source(
