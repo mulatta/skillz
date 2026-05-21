@@ -7,7 +7,7 @@ description: Biomedical literature, reference, and entity research helper. Use w
 
 Use `biorefs-cli` workflows for biomedical references and connected bio entities. Prefer stable identifiers and source provenance over broad web search.
 
-Current package implements the generic `biorefs-cli ncbi` escape hatch and contains design docs/API references. If higher-level binary commands are not implemented yet, use these workflows as implementation guidance and call underlying APIs directly with the same output discipline.
+Current package implements identifier-first paper, NCBI entity, OpenAlex, PubChem compound/assay, and generic NCBI commands. Use API references for details, fallback policy, and fields not yet exposed by the CLI.
 
 ## Core rules
 
@@ -19,7 +19,7 @@ Current package implements the generic `biorefs-cli ncbi` escape hatch and conta
 - Distinguish `metadata-only`, `abstract-only`, and `full-text` evidence.
 - Never invent citations. Report missing fields and ambiguous matches explicitly.
 - Keep every claim tied to PMID, PMCID, DOI, OpenAlex ID, PubChem CID/AID, NCBI Gene ID, accession, and source URL when available.
-- Use bounded concurrency, retries/backoff, timeouts, and cache when implementing calls. Do not flood NCBI or other public APIs.
+- Use the CLI/shared clients so source-specific rate limits, retries/backoff, and timeouts apply. Do not flood NCBI or other public APIs.
 - Do not print API keys or secret-command output.
 
 ## Choose reference docs
@@ -110,9 +110,9 @@ For machine-readable output, use stable JSON with:
 - `missing`
 - `tried` for unavailable full text or failed conversions
 
-## Current command sketch
+## Current CLI commands
 
-Available generic NCBI commands:
+Generic NCBI commands:
 
 ```bash
 biorefs-cli ncbi search --db pubmed --query 'BRCA1[Title/Abstract]' --limit 20 --json
@@ -121,7 +121,7 @@ biorefs-cli ncbi fetch --db protein --id NP_009225 --format fasta --raw
 biorefs-cli ncbi link --dbfrom gene --db pubmed --id 672 --json
 ```
 
-When implemented, prefer these higher-level commands:
+Higher-level commands:
 
 ```bash
 biorefs-cli paper search 'BRCA1 PARP inhibitor resistance' --limit 50 --json
@@ -136,8 +136,21 @@ biorefs-cli gene fetch --gene-id 672 --links pubmed,protein,nucleotide,clinvar
 biorefs-cli nucleotide fetch --accession NM_007294 --format fasta
 biorefs-cli protein fetch --accession NP_009225 --format fasta
 
-biorefs-cli compound search olaparib
-biorefs-cli compound fetch --cid 23725625 --properties --synonyms --xrefs
+biorefs-cli compound search olaparib --type name
+biorefs-cli compound fetch --cid 23725625 --include properties,synonyms,description
+biorefs-cli compound xrefs --cid 23725625 --to pubmed,gene,protein
 biorefs-cli compound bioactivity --cid 23725625 --active-only
 biorefs-cli assay search --target BRCA1
 ```
+
+## Deferred beyond MVP
+
+Keep these out of default context unless the user asks for deeper implementation planning:
+
+- Persistent XDG cache for API responses and identifier normalization.
+- More uniform JSON schema across every command.
+- Europe PMC fullTextXML and publisher OA HTML/JATS retrieval beyond current PMC-first path.
+- Batch DOI/PMID/CID/Gene workflows with bounded concurrency.
+- Semantic Scholar CLI commands for TLDR, recommendations, influential citations, and citation contexts.
+- Cross-entity evidence graph linking papers, genes, proteins, compounds, assays, and PubMed evidence.
+- Broader recorded fixtures for malformed/partial API responses.
