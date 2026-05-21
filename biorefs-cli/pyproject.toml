@@ -1,0 +1,16 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "biorefs-cli"
+version = "0.1.0"
+description = "Biomedical reference research CLI scaffold"
+requires-python = ">=3.12"
+dependencies = []
+
+[project.scripts]
+biorefs-cli = "biorefs_cli.main:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["biorefs_cli"]

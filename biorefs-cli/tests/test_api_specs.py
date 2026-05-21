@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
-from typing import TypedDict
+from typing import TypedDict, cast
 
 
 class ExpectedSpec(TypedDict):
@@ -54,7 +54,7 @@ EXPECTED: dict[str, ExpectedSpec] = {
 
 def load_json(path: Path) -> dict[str, object]:
     with path.open(encoding="utf-8") as handle:
-        return json.load(handle)
+        return cast("dict[str, object]", json.load(handle))
 
 
 def test_documented_swagger_endpoints_exist() -> None:
