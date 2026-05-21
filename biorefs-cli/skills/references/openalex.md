@@ -21,7 +21,7 @@ Legal full text must come from PMC, Europe PMC, bioRxiv/medRxiv, publisher OA li
 - Base URL: `https://api.openalex.org`
 - Main biorefs endpoint: `GET /works` and `GET /works/{id}`
 - Auth: no API key required for biorefs use.
-- Polite pool: include `mailto=` on every request when `OPENALEX_EMAIL` or configured email exists.
+- Polite pool: include `mailto=` on every request when configured email exists.
 
 Example:
 
@@ -37,7 +37,7 @@ Operational rules:
 - Respect `Retry-After` when present.
 - Set connect/read timeouts.
 - Cache GET responses under XDG cache paths.
-- CLI remains synchronous; internals may use async HTTP.
+- CLI remains synchronous; use bounded requests and source-specific rate limiting.
 
 ## Work lookup by identifier
 
@@ -169,7 +169,7 @@ Fetch these fields for paper enrichment:
 | `authorships` | Authors, positions, corresponding flag, institutions, countries, raw affiliations |
 | `primary_location` | Version-of-record or closest primary host |
 | `best_oa_location` | Best OA host selected by OpenAlex |
-| `locations` | All known locations with source, landing page, PDF URL, license, version |
+| `locations` | All known locations with source, landing page URL, optional PDF URL metadata, license, version |
 | `open_access` | `is_oa`, `oa_status`, `oa_url`, repository full-text flag |
 | `referenced_works` | OpenAlex IDs cited by this work |
 | `referenced_works_count` | Count of references |
@@ -210,15 +210,15 @@ Discovery order:
 
 1. `open_access.oa_url` if present.
 1. `best_oa_location` when `is_oa=true`.
-1. `locations[]` where `is_oa=true`, preferring `pdf_url` for PDF retrieval and `landing_page_url` for source landing pages.
+1. `locations[]` where `is_oa=true`, preferring `landing_page_url` for source landing pages; preserve `pdf_url` as metadata only.
 1. Cross-check PMCID with PMC and Europe PMC before publisher/repository scraping.
 
 Return source transparency for every OA candidate:
 
 ```json
 {
-  "url": "https://example.org/article.pdf",
-  "url_type": "pdf",
+  "url": "https://example.org/article",
+  "url_type": "landing-page",
   "is_oa": true,
   "license": "cc-by",
   "version": "publishedVersion",
@@ -236,7 +236,7 @@ Limitations:
 
 - `oa_status=bronze` may be free-to-read without reusable license.
 - `license` can be null or stale.
-- `pdf_url` can be missing, blocked, stale, or point to a landing page.
+- `pdf_url` can be missing, blocked, stale, or point to a landing page; do not treat it as fetched full text.
 - Repository versions can be `acceptedVersion` or `submittedVersion`, not version of record.
 - Publisher access can change after indexing.
 - OpenAlex metadata does not prove text-mining rights. Preserve license and source fields.
@@ -245,7 +245,6 @@ Unavailable examples:
 
 ```json
 {"status":"unavailable","reason":"no-oa","tried":["openalex:open_access.is_oa=false"]}
-{"status":"unavailable","reason":"no-pdf-url","tried":["openalex:oa_location_without_pdf"]}
 {"status":"unavailable","reason":"fulltext-not-in-openalex","tried":["openalex:metadata_only"]}
 ```
 
@@ -306,7 +305,7 @@ Graph output should include:
 
 ## Trend and group-by patterns
 
-Use `group_by=` for research landscape summaries. MVP focuses paper enrichment, so trend commands are secondary.
+Use `group_by=` for research landscape summaries. Paper enrichment is the primary workflow, so trend commands are secondary.
 
 Examples:
 
@@ -409,7 +408,6 @@ Unavailable reason codes:
 | `partial-abstract` | Reconstruction had gaps or inconsistent positions |
 | `no-oa` | No OA URL/location found |
 | `closed-access` | `open_access.is_oa=false` |
-| `no-pdf-url` | OA location exists but direct PDF URL absent |
 | `fulltext-not-in-openalex` | OpenAlex has metadata only; use other full-text source |
 | `rate-limited` | `429` after retries |
 | `timeout` | Request timeout after retries |

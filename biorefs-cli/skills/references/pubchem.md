@@ -1,6 +1,6 @@
 # PubChem reference for biorefs-cli
 
-PubChem support lives inside `biorefs-cli` under `compound` and `assay`. Do not create a separate PubChem CLI. Use PubChem for compound, substance, assay, target, safety, xref, and literature evidence. Keep genes, RNA/transcripts, proteins, and PubMed as first-class NCBI/Entrez workflows, then use PubChem cross-references to connect compounds to genes, proteins, pathways, and PubMed.
+PubChem support lives inside `biorefs-cli` under `compound` and `assay`. Use PubChem for compound, substance, assay, target, safety, xref, and literature evidence. Keep genes, RNA/transcripts, proteins, and PubMed as first-class NCBI/Entrez workflows, then use PubChem cross-references to connect compounds to genes, proteins, pathways, and PubMed.
 
 No API key is required. Do not scrape paywalled pages. Every returned claim should include source/provenance.
 
@@ -312,7 +312,7 @@ Use `assay search` for these intents:
 
 PubChem has no API key but enforces fair-use throttling. Use conservative defaults:
 
-- Bounded async HTTP internally; synchronous CLI UX.
+- Use bounded requests and source-specific rate limiting; keep CLI UX synchronous.
 - Global PubChem concurrency: 2-4 in-flight requests by default.
 - Request rate: stay below 5 requests/second and 400 requests/minute.
 - Timeout: 10-30 seconds per request depending on endpoint; longer only for list-key polling with total deadline.

@@ -36,7 +36,7 @@ Polite client requirements:
 
 - Send descriptive `User-Agent`, including package/version and contact email.
 - Include `mailto=<email>` query parameter when available, or email in User-Agent.
-- Reuse configured email such as `OPENALEX_EMAIL` only if user intends it as public API contact; otherwise add future `CROSSREF_EMAIL` config.
+- Use the configured `email` value as the public API contact when available.
 - Bound concurrency and retry with backoff. Respect `429`, `403`, and `5xx` responses.
 - Use timeouts and XDG cache. CLI command remains synchronous.
 
