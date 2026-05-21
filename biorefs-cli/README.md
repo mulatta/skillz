@@ -24,17 +24,18 @@ The CLI exposes high-level agent-friendly commands backed by direct HTTP API cli
 
 ```text
 biorefs-cli
+├── setup       # write config and check credential commands
 ├── paper       # PubMed, PMC, DOI, citations, related papers, full text
 ├── gene        # NCBI Gene lookup and links
-├── protein     # NCBI Protein / RefSeq protein lookup and FASTA
 ├── nucleotide  # NCBI Nucleotide / RefSeq RNA/DNA lookup and FASTA
+├── protein     # NCBI Protein / RefSeq protein lookup and FASTA
 ├── compound    # PubChem compounds, xrefs, safety, bioactivity
 ├── assay       # PubChem BioAssay lookup
 ├── openalex    # OpenAlex enrichment, OA locations, citation graph
 └── ncbi        # generic Entrez search/fetch/summary/link escape hatch
 ```
 
-Internals should use async HTTP with bounded concurrency, rate limiting, retries, timeouts, and XDG cache paths. CLI commands stay synchronous from the user perspective.
+Internals should use async HTTP with bounded concurrency, source-specific rate limiting, retries, timeouts, and XDG cache paths. CLI commands stay synchronous from the user perspective.
 
 ## Data sources
 
@@ -138,20 +139,28 @@ Return structured unavailable reasons instead of silent failure:
 Follow XDG Base Directory paths:
 
 ```text
-$XDG_CONFIG_HOME/biorefs-cli/config.toml
+$XDG_CONFIG_HOME/biorefs-cli/config.json
 $XDG_CACHE_HOME/biorefs-cli/cache.sqlite
 $XDG_DATA_HOME/biorefs-cli/
 ```
 
-Environment/config fields:
+Initial setup writes JSON config:
 
-- `NCBI_EMAIL` or configured email for NCBI tool/email parameter.
-- `NCBI_API_KEY` optional for higher NCBI rate limits.
-- `OPENALEX_EMAIL` optional but recommended for polite pool.
-- `UNPAYWALL_EMAIL` optional for OA DOI resolution.
-- `SEMANTIC_SCHOLAR_API_KEY` optional future fallback.
+```bash
+biorefs-cli setup --email user@example.org --timeout-seconds 30
+biorefs-cli setup --ncbi-api-key-command 'security find-generic-password -s ncbi -w' --check
+```
 
-Do not print secrets or command output used to fetch secrets.
+Config fields:
+
+- `email` for public APIs that accept contact info.
+- `ncbi_api_key_command` optional command that prints an NCBI API key to stdout.
+- `semantic_scholar_api_key_command` optional command that prints a Semantic Scholar API key to stdout.
+- `timeout_seconds` default request and credential-command timeout.
+
+Store API key commands only, never API key values. Do not print secrets or command output used to fetch secrets.
+
+Rate-limit compliance is internal and has no CLI flags. The shared HTTP layer applies source-specific policies for supported hosts. Policies assume configured credentials/keys where services distinguish authenticated and unauthenticated limits.
 
 ## Planned implementation phases
 

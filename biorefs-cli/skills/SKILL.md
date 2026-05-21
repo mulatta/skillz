@@ -7,7 +7,7 @@ description: Biomedical literature, reference, and entity research helper. Use w
 
 Use `biorefs-cli` workflows for biomedical references and connected bio entities. Prefer stable identifiers and source provenance over broad web search.
 
-Current package contains design docs and API references. If binary commands are not implemented yet, use these workflows as implementation guidance and call underlying APIs directly with the same output discipline.
+Current package implements the generic `biorefs-cli ncbi` escape hatch and contains design docs/API references. If higher-level binary commands are not implemented yet, use these workflows as implementation guidance and call underlying APIs directly with the same output discipline.
 
 ## Core rules
 
@@ -112,7 +112,16 @@ For machine-readable output, use stable JSON with:
 
 ## Current command sketch
 
-When implemented, prefer these commands:
+Available generic NCBI commands:
+
+```bash
+biorefs-cli ncbi search --db pubmed --query 'BRCA1[Title/Abstract]' --limit 20 --json
+biorefs-cli ncbi summary --db gene --id 672 --json
+biorefs-cli ncbi fetch --db protein --id NP_009225 --format fasta --raw
+biorefs-cli ncbi link --dbfrom gene --db pubmed --id 672 --json
+```
+
+When implemented, prefer these higher-level commands:
 
 ```bash
 biorefs-cli paper search 'BRCA1 PARP inhibitor resistance' --limit 50 --json
