@@ -186,10 +186,8 @@ PARSER_CASES: tuple[tuple[str, ...], ...] = (
         "fetch",
         "--cid",
         "23725625",
-        "--name",
-        "olaparib",
         "--include",
-        "synonyms,xrefs",
+        "synonyms,description",
         "--json",
     ),
     ("compound", "xrefs", "--cid", "23725625", "--to", "pubmed,gene", "--json"),
@@ -216,7 +214,7 @@ PARSER_CASES: tuple[tuple[str, ...], ...] = (
         "5",
         "--json",
     ),
-    ("assay", "fetch", "--aid", "123", "--include", "summary", "--json"),
+    ("assay", "fetch", "--aid", "123", "--include", "description", "--json"),
     (
         "openalex",
         "work",
@@ -333,7 +331,6 @@ def test_placeholders_exit_cleanly(capsys: pytest.CaptureFixture[str]) -> None:
         (("paper", "search", "BRCA1"), "paper search"),
         (("nucleotide", "fetch"), "nucleotide fetch"),
         (("protein", "fetch"), "protein fetch"),
-        (("compound", "search", "olaparib"), "compound search"),
         (("assay", "search"), "assay search"),
         (("openalex", "work"), "openalex work"),
     )
