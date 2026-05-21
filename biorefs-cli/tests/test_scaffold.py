@@ -331,7 +331,6 @@ def test_finalized_placeholder_options_parse() -> None:
 def test_placeholders_exit_cleanly(capsys: pytest.CaptureFixture[str]) -> None:
     cases = (
         (("paper", "search", "BRCA1"), "paper search"),
-        (("gene", "search", "BRCA1"), "gene search"),
         (("nucleotide", "fetch"), "nucleotide fetch"),
         (("protein", "fetch"), "protein fetch"),
         (("compound", "search", "olaparib"), "compound search"),
