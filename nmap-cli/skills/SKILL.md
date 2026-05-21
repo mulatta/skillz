@@ -11,13 +11,13 @@ Configuration comes from `$XDG_CONFIG_HOME/nmap-cli/config.json` or environment 
 
 # Choose command
 
-| User needs                                                   | Command             | Notes                                                                  |
+| User needs | Command | Notes |
 | ------------------------------------------------------------ | ------------------- | ---------------------------------------------------------------------- |
-| Address → coordinates                                        | `geocode`           | Address search, not rich POI/business search                           |
-| Coordinates → address                                        | `reverse`           | Input must be `longitude,latitude`                                     |
-| Driving route                                                | `route`             | Inputs can be addresses or `longitude,latitude`; route is driving only |
-| Map image file                                               | `static`            | Write images under `$HOME/.claude/outputs` unless user gives path      |
-| Transit/walking route, international POI, rich place details | Prefer another tool | NAVER Cloud Maps REST APIs here do not cover these well                |
+| Address → coordinates | `geocode` | Address search, not rich POI/business search |
+| Coordinates → address | `reverse` | Input must be `longitude,latitude` |
+| Driving route | `route` | Inputs can be addresses or `longitude,latitude`; route is driving only |
+| Map image file | `static` | Write images under `$HOME/.claude/outputs` unless user gives path |
+| Transit/walking route, international POI, rich place details | Prefer another tool | NAVER Cloud Maps REST APIs here do not cover these well |
 
 # Setup
 

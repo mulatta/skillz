@@ -30,26 +30,26 @@ Environment alternatives:
 
 # Commands
 
-| User needs                  | Command                                                | Notes                                                                    |
+| User needs | Command | Notes |
 | --------------------------- | ------------------------------------------------------ | ------------------------------------------------------------------------ | ------------ | ------------------------------------------------------ | -------------------- |
-| Place search                | `place QUERY`                                          | TMAP POI search with API result data                                     |
-| NAVER place URL             | `place QUERY --provider naver --open`                  | URL only; no NAVER API result JSON                                       |
-| Kakao place URL             | `place QUERY --provider kakao --open`                  | URL only; no Kakao API result JSON                                       |
-| Nearby search               | `nearby QUERY --near LOCATION --radius-km N`           | TMAP distance search; `LOCATION` can be saved alias, `lng,lat`, or query |
-| NAVER nearby URL            | `nearby QUERY --near LOCATION --provider naver --open` | Builds `LOCATION QUERY` map search URL                                   |
-| Kakao nearby URL            | `nearby QUERY --near LOCATION --provider kakao --open` | Builds `LOCATION QUERY` map search URL                                   |
-| Public transit route JSON   | `transit ORIGIN DEST`                                  | TMAP `/transit/routes`; requires TMAP key                                |
-| Transit alternatives        | `transit ORIGIN DEST --count N`                        | `N` is alternatives per segment, 1-10                                    |
-| Transit via waypoints       | `transit ORIGIN DEST --via VIA`                        | Split calls; fixed waypoint order; not globally optimized                |
-| Time-specific transit route | `transit ORIGIN DEST --at yyyymmddhhmi`                | TMAP `searchDttm`                                                        |
-| NAVER route handoff         | `route-url ORIGIN DEST --provider naver`               | URL only; uses TMAP to resolve coordinates                               |
-| Kakao route handoff         | `route-url ORIGIN DEST --provider kakao`               | URL only; uses TMAP to resolve coordinates                               |
-| Route mode handoff          | `route-url ORIGIN DEST --mode transit                  | driving                                                                  | walking      | bicycle`                                               | Default is `transit` |
-| Address to coordinate       | `geocode ADDRESS`                                      | TMAP geocoding                                                           |
-| Coordinate to address       | `reverse LNG,LAT`                                      | TMAP reverse geocoding                                                   |
-| Save aliases                | `saved add ALIAS LOCATION`                             | Stored under XDG data home                                               |
-| Use saved aliases           | `transit home work`                                    | Resolves local saved places first                                        |
-| Open human review page      | `open QUERY --provider naver                           | kakao                                                                    | tmap --open` | Opens map search URL; does not fetch reviews/menu JSON |
+| Place search | `place QUERY` | TMAP POI search with API result data |
+| NAVER place URL | `place QUERY --provider naver --open` | URL only; no NAVER API result JSON |
+| Kakao place URL | `place QUERY --provider kakao --open` | URL only; no Kakao API result JSON |
+| Nearby search | `nearby QUERY --near LOCATION --radius-km N` | TMAP distance search; `LOCATION` can be saved alias, `lng,lat`, or query |
+| NAVER nearby URL | `nearby QUERY --near LOCATION --provider naver --open` | Builds `LOCATION QUERY` map search URL |
+| Kakao nearby URL | `nearby QUERY --near LOCATION --provider kakao --open` | Builds `LOCATION QUERY` map search URL |
+| Public transit route JSON | `transit ORIGIN DEST` | TMAP `/transit/routes`; requires TMAP key |
+| Transit alternatives | `transit ORIGIN DEST --count N` | `N` is alternatives per segment, 1-10 |
+| Transit via waypoints | `transit ORIGIN DEST --via VIA` | Split calls; fixed waypoint order; not globally optimized |
+| Time-specific transit route | `transit ORIGIN DEST --at yyyymmddhhmi` | TMAP `searchDttm` |
+| NAVER route handoff | `route-url ORIGIN DEST --provider naver` | URL only; uses TMAP to resolve coordinates |
+| Kakao route handoff | `route-url ORIGIN DEST --provider kakao` | URL only; uses TMAP to resolve coordinates |
+| Route mode handoff | `route-url ORIGIN DEST --mode transit                  | driving                                                                  | walking      | bicycle` | Default is `transit` |
+| Address to coordinate | `geocode ADDRESS` | TMAP geocoding |
+| Coordinate to address | `reverse LNG,LAT` | TMAP reverse geocoding |
+| Save aliases | `saved add ALIAS LOCATION` | Stored under XDG data home |
+| Use saved aliases | `transit home work` | Resolves local saved places first |
+| Open human review page | `open QUERY --provider naver                           | kakao                                                                    | tmap --open` | Opens map search URL; does not fetch reviews/menu JSON |
 
 # Examples
 

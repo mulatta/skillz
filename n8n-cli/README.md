@@ -40,13 +40,13 @@ Or create the file manually:
 }
 ```
 
-| Field             | Description                                   |
+| Field | Description |
 | ----------------- | --------------------------------------------- |
-| `api_url`         | n8n instance URL                              |
-| `api_key`         | API key (direct, less secure)                 |
+| `api_url` | n8n instance URL |
+| `api_key` | API key (direct, less secure) |
 | `api_key_command` | Shell command to retrieve API key (preferred) |
-| `api_url_command` | Shell command to retrieve API URL             |
-| `timeout`         | Request timeout in seconds (default: 30)      |
+| `api_url_command` | Shell command to retrieve API URL |
+| `timeout` | Request timeout in seconds (default: 30) |
 
 Priority: environment variables > `*_command` > direct values.
 

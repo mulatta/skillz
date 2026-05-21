@@ -14,14 +14,14 @@ browser automation.
 
 Choose approach before crawling:
 
-| Situation                                                                           | Approach                                     |
+| Situation | Approach |
 | ----------------------------------------------------------------------------------- | -------------------------------------------- |
-| Single page (article, docs, blog post)                                              | `crwl-cli fetch URL`                         |
-| Multiple pages linked from one page (product listings, search results, index pages) | JSON links pipeline                          |
-| Public CMS homepage with notices, menus, sliders, or portal links                   | `--format json --scan-full-page --block-ads` |
-| JS-rendered content missing                                                         | Add `--wait-for` or `--scan-full-page`       |
-| Ad/tracker noise                                                                    | Add `--block-ads`                            |
-| Basic bot blocking on public page                                                   | Add `--stealth --user-agent-mode random`     |
+| Single page (article, docs, blog post) | `crwl-cli fetch URL` |
+| Multiple pages linked from one page (product listings, search results, index pages) | JSON links pipeline |
+| Public CMS homepage with notices, menus, sliders, or portal links | `--format json --scan-full-page --block-ads` |
+| JS-rendered content missing | Add `--wait-for` or `--scan-full-page` |
+| Ad/tracker noise | Add `--block-ads` |
+| Basic bot blocking on public page | Add `--stealth --user-agent-mode random` |
 
 **Never manually copy URLs from markdown output.** For link discovery, crawl
 with `--format json` and extract `.links` with `jq`. Markdown links may be
@@ -137,13 +137,13 @@ crwl-cli fetch --urls-file urls.txt --format json
 
 # Troubleshooting
 
-| Problem                 | Try                                                            |
+| Problem | Try |
 | ----------------------- | -------------------------------------------------------------- |
-| Empty markdown          | `--format raw`, `--wait-for SELECTOR`, or `--scan-full-page`   |
-| Too much noise          | `--css SELECTOR` or `--exclude-tags TAGS`                      |
-| Slow pages              | `--timeout 60000`                                              |
-| Images slow things down | `--text-mode`                                                  |
-| Ad/tracker noise        | `--block-ads`                                                  |
-| Basic bot block         | `--stealth --user-agent-mode random`                           |
-| Need links              | `--format json`, then read `.links.internal[]` / `.external[]` |
-| Login required          | Stop. `crwl-cli` is for public headless crawling only.         |
+| Empty markdown | `--format raw`, `--wait-for SELECTOR`, or `--scan-full-page` |
+| Too much noise | `--css SELECTOR` or `--exclude-tags TAGS` |
+| Slow pages | `--timeout 60000` |
+| Images slow things down | `--text-mode` |
+| Ad/tracker noise | `--block-ads` |
+| Basic bot block | `--stealth --user-agent-mode random` |
+| Need links | `--format json`, then read `.links.internal[]` / `.external[]` |
+| Login required | Stop. `crwl-cli` is for public headless crawling only. |

@@ -16,9 +16,9 @@ See [skills/SKILL.md](skills/SKILL.md) for detailed usage instructions and examp
 
 ## Configuration
 
-| Environment Variable | Description  | Default                |
+| Environment Variable | Description | Default |
 | -------------------- | ------------ | ---------------------- |
-| `CRABFIT_API_URL`    | API base URL | `https://api.crab.fit` |
+| `CRABFIT_API_URL` | API base URL | `https://api.crab.fit` |
 
 ## License
 
