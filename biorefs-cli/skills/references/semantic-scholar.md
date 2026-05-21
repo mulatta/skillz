@@ -6,7 +6,7 @@ Semantic Scholar support is optional/deferred for `biorefs-cli`. Use OpenAlex fi
 
 - Graph API base URL: `https://api.semanticscholar.org/graph/v1`
 - Recommendations API base URL: `https://api.semanticscholar.org/recommendations/v1`
-- API key is optional. Do not require it for MVP.
+- API key is optional. Do not require it for normal use.
 - If configured, send key as case-sensitive header:
 
 ```http
@@ -137,14 +137,14 @@ Both endpoints support `offset`, `limit` (up to 1000), and `fields`. Paginate un
 | `referenceCount` | Total referenced paper count | Source-specific count. |
 | `influentialCitationCount` | Count of citations flagged influential | Main Semantic Scholar value-add. |
 | `tldr` | Model and short summary text | Optional value-add; may be missing. |
-| `openAccessPdf` | PDF URL, OA status, license, disclaimer | Use as fallback after PMC/Europe PMC/OpenAlex. Verify license/disclaimer. |
+| `openAccessPdf` | PDF URL, OA status, license, disclaimer | Preserve as OA metadata; current CLI does not fetch PDFs. |
 | `fieldsOfStudy` | High-level fields from external sources | Optional classification. |
 | `s2FieldsOfStudy` | Field classifications with source | Useful for Semantic Scholar model provenance. |
 | `publicationTypes` | Article type labels | Useful filters, not PubMed publication type replacement. |
 
 ## OpenAlex vs Semantic Scholar
 
-Prefer OpenAlex for MVP when task needs:
+Prefer OpenAlex when task needs:
 
 - DOI/PMID/PMCID/OpenAlex ID mapping.
 - `best_oa_location` and `locations` for open-access full text.
@@ -158,7 +158,6 @@ Use Semantic Scholar as optional enrichment when task needs:
 - TLDR summaries.
 - `fieldsOfStudy` or `s2FieldsOfStudy` classifications.
 - Recommendations from seed papers.
-- `openAccessPdf` fallback when primary OA sources fail.
 - Semantic Scholar paper URL or CorpusID interoperability.
 
 Never let Semantic Scholar replace PubMed/PMC as biomedical source of record. For citation export and biomedical metadata, prefer PubMed/Crossref/OpenAlex depending on available identifier and command purpose.
@@ -194,7 +193,7 @@ Return recommendations separately from citations/references. Label result proven
 ## Rate limits, retries, timeouts, cache
 
 - API key raises rate limits but is optional. Without key, keep concurrency and request rate conservative.
-- Internals should use async HTTP with bounded concurrency; CLI remains synchronous.
+- Use bounded requests and source-specific rate limiting; CLI remains synchronous.
 - Use per-host rate limiter shared by Graph and Recommendations calls.
 - Retry only transient failures: `429`, `500`, `502`, `503`, `504`, connection reset, and timeout.
 - Honor `Retry-After` when present. Otherwise use exponential backoff with jitter.

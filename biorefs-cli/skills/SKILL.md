@@ -53,7 +53,7 @@ Read only the relevant reference file:
 1. Try PMC EFetch JATS/XML.
 1. Try Europe PMC fullTextXML.
 1. Use OpenAlex only to find OA candidate URLs.
-1. Try bioRxiv/medRxiv JATS/PDF for preprints.
+1. Use reference docs for additional legal OA fallbacks when PMC is unavailable.
 1. Optionally use Unpaywall when email is configured.
 1. Follow publisher/repository OA URLs only when access/license is explicit.
 1. If none succeeds, return structured unavailable reason; do not substitute abstract as full text.

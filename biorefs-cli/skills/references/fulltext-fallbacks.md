@@ -1,6 +1,6 @@
 # Full-text fallback API reference
 
-Purpose: retrieve legal open-access full text for `biorefs-cli paper fulltext`. Never use Sci-Hub, shadow libraries, credential sharing, or paywall scraping. OpenAlex and Unpaywall are discovery aids; they are not full-text stores.
+Purpose: retrieve legal open-access full text for `biorefs-cli paper fulltext`. Never use Sci-Hub, shadow libraries, credential sharing, paywall scraping, or local PDF extraction. OpenAlex and Unpaywall are discovery aids; they are not full-text stores. Current CLI full-text support is PMC-first through PMCID conversion and PMC EFetch; other sources below are reference notes for legal fallback expansion.
 
 ## Contents
 
@@ -11,7 +11,7 @@ Purpose: retrieve legal open-access full text for `biorefs-cli paper fulltext`. 
 - [bioRxiv and medRxiv](#biorxiv-and-medrxiv)
 - [OpenAlex OA discovery fields](#openalex-oa-discovery-fields)
 - [Optional Unpaywall DOI resolver](#optional-unpaywall-doi-resolver)
-- [Publisher OA landing pages and PDFs](#publisher-oa-landing-pages-and-pdfs)
+- [Publisher OA landing pages](#publisher-oa-landing-pages)
 - [Parsing expectations](#parsing-expectations)
 - [Structured unavailable output](#structured-unavailable-output)
 
@@ -41,18 +41,17 @@ Try tiers in this order and stop at first tier that returns parseable, legal ful
 1. **OpenAlex OA locations**
    - Fetch Work by DOI, PMID, PMCID, or OpenAlex ID.
    - Inspect `best_oa_location`, `locations`, and `open_access`.
-   - Do not treat OpenAlex as content. Use only explicit OA landing/PDF URLs as candidates for later tiers.
+   - Do not treat OpenAlex as content. Use only explicit OA landing-page URLs as candidates for later tiers.
 1. **bioRxiv/medRxiv preprints**
    - If DOI/server indicates bioRxiv or medRxiv, query server API metadata.
-   - Prefer JATS/XML full text when link is explicit; fall back to PDF text extraction.
-   - Stop when parseable full text exists.
+   - Prefer JATS/XML full text when link is explicit.
+   - Stop when parseable structured full text exists.
 1. **Optional Unpaywall DOI resolver**
-   - Use only when `UNPAYWALL_EMAIL` is configured and DOI exists.
+   - Use only when configured `email` exists and DOI exists.
    - Inspect OA locations; add explicit OA URLs to publisher/repository candidates.
-1. **Publisher OA landing page/PDF**
+1. **Publisher OA landing page**
    - Follow only explicit OA URLs from source metadata, OpenAlex, Europe PMC, Unpaywall, Crossref license links, or preprint metadata.
-   - Fetch PDF only when URL is direct/public and license/access markers indicate OA.
-   - Stop on parseable HTML article, JATS XML, or PDF text.
+   - Stop on parseable HTML article or JATS XML with clear OA/license markers.
 
 If no tier succeeds, return `status: unavailable` with structured `reason` and `tried` outcomes. Do not silently return abstract text as full text.
 
@@ -62,8 +61,8 @@ Stop with `status: available` only when fetched content includes one of:
 
 - JATS/XML article with `<body>`, `<sec>`, `<p>`, tables, figures, or references.
 - Europe PMC `fullTextXML` OA article XML.
-- bioRxiv/medRxiv JATS or server-linked OA PDF.
-- Publisher/repository OA PDF or article HTML with clear OA/license/access markers.
+- bioRxiv/medRxiv JATS/XML.
+- Publisher/repository article HTML or JATS/XML with clear OA/license/access markers.
 
 Return `status: abstract-only` when metadata and abstract exist but no legal full text exists. This must be distinct from `available` and `unavailable`.
 
@@ -234,15 +233,13 @@ Metadata fields commonly used:
 Full-text link patterns:
 
 - Landing page: `https://www.biorxiv.org/content/{doi}v{version}` or `https://www.medrxiv.org/content/{doi}v{version}`.
-- PDF: append `.full.pdf` to server content URL when public.
 - JATS/XML: append `.source.xml` or use explicit XML/JATS links discovered from landing page metadata when available.
 
-Use JATS/XML before PDF. PDF text extraction loses structure, table layout, superscripts/subscripts, references, and figure text order.
+Do not infer support for local or fetched PDF parsing from preprint metadata. Keep PDF URLs as source metadata unless a later implementation explicitly adds legal PDF handling.
 
 Outcomes:
 
 - `preprint:jats:hit`
-- `preprint:pdf:hit`
 - `preprint:metadata-only`
 - `preprint:not-preprint-doi`
 - `preprint:no-oa-file`
@@ -271,7 +268,7 @@ Location fields:
 
 - `is_oa`: require `true` before using URL as OA candidate.
 - `landing_page_url`: candidate article/repository landing page.
-- `pdf_url`: candidate direct PDF.
+- `pdf_url`: candidate direct PDF metadata; current CLI does not fetch PDFs.
 - `license` / `license_id`: OA license, e.g. `cc-by`.
 - `version`: `publishedVersion`, `acceptedVersion`, or `submittedVersion`.
 - `is_accepted`, `is_published`: version hints.
@@ -288,12 +285,12 @@ Outcomes:
 
 ## Optional Unpaywall DOI resolver
 
-Use only when DOI exists and `UNPAYWALL_EMAIL` is configured.
+Use only when DOI exists and configured `email` is available.
 
 Endpoint pattern:
 
 ```text
-https://api.unpaywall.org/v2/{doi}?email={UNPAYWALL_EMAIL}
+https://api.unpaywall.org/v2/{doi}?email={configured-email}
 ```
 
 Use as DOI OA discovery, not as content store. Inspect:
@@ -303,38 +300,34 @@ Use as DOI OA discovery, not as content store. Inspect:
 - `best_oa_location`
 - `oa_locations[]`
 - `url_for_landing_page`
-- `url_for_pdf`
+- `url_for_pdf` (metadata only unless PDF handling is explicitly implemented)
 - `license`
 - `host_type`
 - `version`
 
 Only follow URLs from OA locations. Record `unpaywall:disabled` when email missing; do not fail overall resolution because Unpaywall is optional.
 
-## Publisher OA landing pages and PDFs
+## Publisher OA landing pages
 
 Use publisher/repository URLs only when evidence indicates legal OA:
 
 - URL came from PMC/Europe PMC/OpenAlex/Unpaywall/Crossref license/preprint metadata as OA.
 - Page or metadata shows Creative Commons/open license or explicit free full text.
-- PDF URL is direct and public without cookies, login, tokens, institutional proxy, or access-control bypass.
 
 Do not:
 
 - Circumvent paywalls, robots, referrer checks, session gates, CAPTCHAs, or institutional auth.
-- Guess hidden PDF URLs for closed pages.
 - Scrape pages that expose abstract only while full text is gated.
 
 Prefer structured formats in this order:
 
 1. JATS/XML from explicit link.
 1. Semantic HTML article body with license marker.
-1. PDF text fallback.
 
 Publisher outcomes:
 
 - `publisher:jats:hit`
 - `publisher:html:hit`
-- `publisher:pdf:hit`
 - `publisher:abstract-only`
 - `publisher:license-missing`
 - `publisher:paywalled`
@@ -354,13 +347,6 @@ For XML/JATS, extract structured evidence with source provenance:
 - Supplementary material: record links/labels; fetch only legal OA files when requested.
 
 For HTML, require article-body selectors plus OA/license marker. Preserve section headings and provenance URL.
-
-For PDF fallback:
-
-- Use only as last legal full-text fallback.
-- Mark evidence quality as `pdf-text`.
-- Warn that layout, tables, math, references, and figure captions may be noisy.
-- Do not treat failed OCR or empty extraction as full text.
 
 Evidence classification:
 
@@ -430,7 +416,7 @@ Each `tried` item should include `tier`, `outcome`, optional `url`, optional `st
 
 ## HTTP/client behavior
 
-Internals should use async HTTP with bounded concurrency. CLI remains synchronous.
+Use bounded requests, source-specific rate limits, and synchronous CLI UX.
 
 Implementation expectations for future code:
 
