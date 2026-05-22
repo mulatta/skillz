@@ -10,6 +10,7 @@
 #             per-skill homeModules variant).
 {
   buildbot-pr-check = { };
+  biorefs-cli = { };
   calendar-cli = { };
   context7-cli = { };
   crabfit-cli = { };
