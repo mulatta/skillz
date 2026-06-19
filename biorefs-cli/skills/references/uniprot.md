@@ -14,8 +14,10 @@ use it for 3D structure files.
   literature PMIDs.
 - Out of scope: 3D coordinates, structural alignment, ligands, docking, model
   building. UniProt surfaces PDB cross-references as **pointers only** (PDB id,
-  method, resolution, chains). Hand those ids to dedicated structural-biology
-  tooling; biorefs-cli never downloads structure files.
+  method, resolution, chains). Hand those ids to the `structbio-cli` skill (or
+  any structural-biology tooling) when structure files are needed; biorefs-cli
+  never downloads structure files. The pointers are usable output on their own,
+  so biorefs-cli does not depend on structbio-cli.
 - UniProt accessions are the seam: `uniprot fetch` emits PDB ids, NCBI GeneID,
   and RefSeq accessions; other commands and external structure tools consume
   them. biorefs-cli owns identity resolution, not structural analysis.
@@ -72,25 +74,27 @@ Optional output keys are omitted when empty.
 ### Paper -> related proteins
 
 1. From a paper, extract gene symbols or protein names.
-2. `uniprot search gene:SYMBOL --taxon 9606 --reviewed` to get canonical
+1. `uniprot search gene:SYMBOL --taxon 9606 --reviewed` to get canonical
    accessions and protein names.
-3. For deeper evidence, `uniprot fetch --accession ACC` and follow
+1. For deeper evidence, `uniprot fetch --accession ACC` and follow
    `literature_pmids` into `paper`/`ncbi` commands.
 
 ### Protein -> related research
 
 1. `uniprot fetch --accession ACC --include literature,xrefs`.
-2. `literature_pmids` are the curated references; resolve with
+1. `literature_pmids` are the curated references; resolve with
    `paper fetch --pmid` or `ncbi summary --db pubmed`.
-3. `xrefs.GeneID` links to `gene fetch --gene-id`; `xrefs.RefSeq` links to
+1. `xrefs.GeneID` links to `gene fetch --gene-id`; `xrefs.RefSeq` links to
    `protein fetch`/`nucleotide fetch` for sequence-of-record records.
 
 ### Protein -> structure (handoff)
 
 1. `uniprot fetch --accession ACC --include xrefs` returns `pdb` pointers
    (`id`, `method`, `resolution`, `chains`).
-2. Pass the PDB id to structural tooling for file download/analysis. Do not
-   attempt structure retrieval inside biorefs-cli.
+1. Pass the PDB id to the `structbio-cli` skill — `structbio-cli info <id>` for
+   metadata, `structbio-cli fetch <id>` for the coordinate file — or to any other
+   structural tooling. Do not attempt structure retrieval inside biorefs-cli.
+   When only the ids matter, the pointers are already a complete answer.
 
 ## Division of labor with NCBI
 
