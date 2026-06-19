@@ -15,7 +15,7 @@ Current package implements identifier-first paper, NCBI entity, OpenAlex, PubChe
 - Use APIs directly; do not depend on EDirect or clone `esearch | efetch | xtract` pipelines.
 - Use OpenAlex for identifier enrichment, OA location discovery, citation graph, and trends. Do not treat OpenAlex as full text.
 - Use PubChem inside this workflow for compounds, assays, xrefs, safety, and bioactivity; do not split to a separate PubChem skill.
-- Use UniProt inside this workflow for canonical protein identity, function, entity cross-references, and curated literature links. Surface PDB only as cross-reference pointers (id, method, resolution); never download or analyze structure files here. Hand PDB ids to dedicated structural-biology tooling.
+- Use UniProt inside this workflow for canonical protein identity, function, entity cross-references, and curated literature links. Surface PDB only as cross-reference pointers (id, method, resolution); never download or analyze structure files here. PDB ids are complete output on their own; when structure files, metadata, or analysis are needed, hand the ids to the `structbio-cli` skill (or any structural-biology tooling). biorefs-cli does not require structbio-cli, and vice versa.
 - Retrieve only legal open-access full text. Never use Sci-Hub, credential sharing, paywall bypass, or hidden publisher scraping.
 - Distinguish `metadata-only`, `abstract-only`, and `full-text` evidence.
 - Never invent citations. Report missing fields and ambiguous matches explicitly.
@@ -83,7 +83,7 @@ Read only the relevant reference file:
    includes function, cross-references, and literature PMIDs.
 1. Follow `literature_pmids` into `paper`/`ncbi` for protein -> related research.
 1. Follow `xrefs.GeneID`/`xrefs.RefSeq` into `gene`/`protein`/`nucleotide`.
-1. Treat `pdb` entries as pointers only; hand ids to structural-biology tooling.
+1. Treat `pdb` entries as pointers only; when structures are needed, hand the ids to the `structbio-cli` skill (or other structural-biology tooling).
 1. Prefer UniProt for canonical identity and cross-references; prefer NCBI for
    RefSeq/GenBank source records and Entrez link traversal.
 
