@@ -17,6 +17,7 @@ from biorefs_cli.commands import (
     paper,
     protein,
     setup,
+    uniprot,
 )
 from biorefs_cli.errors import CLIError
 
@@ -29,6 +30,7 @@ COMMAND_MODULES = (
     gene,
     nucleotide,
     protein,
+    uniprot,
     compound,
     assay,
     openalex,
