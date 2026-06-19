@@ -1,6 +1,6 @@
 ---
 name: biorefs-cli
-description: Biomedical literature, reference, and entity research helper. Use whenever the user asks for PubMed/PMC/NCBI/Entrez paper search, PMID/PMCID/DOI conversion, biomedical citation/BibTeX/RIS export, legal OA full-text lookup, gene/protein/RNA/transcript evidence, OpenAlex citation/OA enrichment, Semantic Scholar enrichment, PubChem compound/assay/bioactivity lookup, or bio/medical literature review evidence collection.
+description: Biomedical literature, reference, and entity research helper. Use whenever the user asks for PubMed/PMC/NCBI/Entrez paper search, PMID/PMCID/DOI conversion, biomedical citation/BibTeX/RIS export, legal OA full-text lookup, gene/protein/RNA/transcript evidence, UniProt protein annotation/function/cross-reference/PDB-pointer lookup, OpenAlex citation/OA enrichment, Semantic Scholar enrichment, PubChem compound/assay/bioactivity lookup, or bio/medical literature review evidence collection.
 ---
 
 # biorefs-cli
@@ -15,6 +15,7 @@ Current package implements identifier-first paper, NCBI entity, OpenAlex, PubChe
 - Use APIs directly; do not depend on EDirect or clone `esearch | efetch | xtract` pipelines.
 - Use OpenAlex for identifier enrichment, OA location discovery, citation graph, and trends. Do not treat OpenAlex as full text.
 - Use PubChem inside this workflow for compounds, assays, xrefs, safety, and bioactivity; do not split to a separate PubChem skill.
+- Use UniProt inside this workflow for canonical protein identity, function, entity cross-references, and curated literature links. Surface PDB only as cross-reference pointers (id, method, resolution); never download or analyze structure files here. Hand PDB ids to dedicated structural-biology tooling.
 - Retrieve only legal open-access full text. Never use Sci-Hub, credential sharing, paywall bypass, or hidden publisher scraping.
 - Distinguish `metadata-only`, `abstract-only`, and `full-text` evidence.
 - Never invent citations. Report missing fields and ambiguous matches explicitly.
@@ -30,6 +31,7 @@ Read only the relevant reference file:
 | --- | --- |
 | PubMed/PMC metadata, paper search, PMID/PMCID/DOI, abstracts | `references/pubmed-pmc.md` |
 | Generic NCBI Entrez DB search/fetch/link, gene/protein/nucleotide/taxonomy | `references/ncbi-entrez.md` |
+| UniProt protein annotation, function, GeneID/RefSeq/Ensembl xrefs, PDB pointers, curated literature PMIDs | `references/uniprot.md` |
 | Legal OA full-text resolver, PMC/Europe PMC/bioRxiv/Unpaywall/publisher fallback | `references/fulltext-fallbacks.md` |
 | OpenAlex DOI/PMID/PMCID enrichment, OA locations, citation graph, trends | `references/openalex.md` |
 | Citation export, Crossref DOI metadata, BibTeX/RIS, deposited references | `references/crossref.md` |
@@ -72,6 +74,18 @@ Read only the relevant reference file:
 1. Link across entities with ELink.
 1. Link entity evidence to PubMed/PMC records.
 1. Fetch FASTA/GenBank only when user asks for sequences.
+
+### Protein annotation and protein/literature linking
+
+1. Use UniProt to resolve a protein name or gene to a canonical accession
+   (`uniprot search gene:SYMBOL --taxon TAXID --reviewed`).
+1. Fetch curated annotation with `uniprot fetch --accession ACC`; default
+   includes function, cross-references, and literature PMIDs.
+1. Follow `literature_pmids` into `paper`/`ncbi` for protein -> related research.
+1. Follow `xrefs.GeneID`/`xrefs.RefSeq` into `gene`/`protein`/`nucleotide`.
+1. Treat `pdb` entries as pointers only; hand ids to structural-biology tooling.
+1. Prefer UniProt for canonical identity and cross-references; prefer NCBI for
+   RefSeq/GenBank source records and Entrez link traversal.
 
 ### Compound/assay
 
@@ -135,6 +149,10 @@ biorefs-cli gene search BRCA1 --taxon human
 biorefs-cli gene fetch --gene-id 672 --links pubmed,protein,nucleotide,clinvar
 biorefs-cli nucleotide fetch --accession NM_007294 --format fasta
 biorefs-cli protein fetch --accession NP_009225 --format fasta
+
+biorefs-cli uniprot search gene:BRCA1 --taxon 9606 --reviewed --limit 5
+biorefs-cli uniprot fetch --accession P38398 --include function,xrefs,literature
+biorefs-cli uniprot fetch --accession P38398 --format fasta
 
 biorefs-cli compound search olaparib --type name
 biorefs-cli compound fetch --cid 23725625 --include properties,synonyms,description

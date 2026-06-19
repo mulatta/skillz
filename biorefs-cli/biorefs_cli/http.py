@@ -182,6 +182,7 @@ HOST_RATE_LIMIT_SOURCES = {
     "eutils.ncbi.nlm.nih.gov": "ncbi",
     "pmc.ncbi.nlm.nih.gov": "ncbi",
     "pubchem.ncbi.nlm.nih.gov": "pubchem",
+    "rest.uniprot.org": "uniprot",
     "www.ebi.ac.uk": "europepmc",
     "www.ncbi.nlm.nih.gov": "ncbi",
 }

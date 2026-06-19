@@ -63,6 +63,13 @@ API_RATE_LIMIT_POLICIES: dict[str, RateLimitPolicy] = {
         name="semantic-scholar",
         rules=(RateLimitRule("per-second", max_requests=10, period_seconds=1.0),),
     ),
+    "uniprot": RateLimitPolicy(
+        name="uniprot",
+        rules=(
+            RateLimitRule("per-second", max_requests=5, period_seconds=1.0),
+            RateLimitRule("per-minute", max_requests=200, period_seconds=60.0),
+        ),
+    ),
     "biorxiv": RateLimitPolicy(
         name="biorxiv",
         rules=(RateLimitRule("per-second", max_requests=1, period_seconds=1.0),),
