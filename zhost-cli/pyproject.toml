@@ -1,0 +1,31 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "zhost-cli"
+version = "0.1.0"
+description = "Agent-oriented CLI for a self-hosted Zotero sync server (zhost)"
+readme = "README.md"
+requires-python = ">=3.13"
+# pymupdf is used only by `annotate highlight` to compute PDF rects; the rest of
+# the CLI is stdlib-only. Kept as a hard dep so highlight geometry works offline.
+dependencies = ["pymupdf>=1.24"]
+
+[project.scripts]
+zhost-cli = "zhost_cli.main:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["zhost_cli"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py313"
+
+[tool.mypy]
+python_version = "3.13"
+warn_return_any = true
+warn_unused_configs = true
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
