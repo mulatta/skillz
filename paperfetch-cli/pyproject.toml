@@ -1,0 +1,24 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "paperfetch-cli"
+version = "0.1.0"
+description = "On-demand academic paper full-text and PDF fetcher"
+requires-python = ">=3.12"
+dependencies = []
+
+[project.scripts]
+paperfetch-cli = "paperfetch_cli.main:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["paperfetch_cli"]
+
+[tool.mypy]
+strict = true
+
+[[tool.mypy.overrides]]
+module = ["patchright.*", "pyvirtualdisplay.*", "markdownify.*"]
+ignore_missing_imports = true
+implicit_reexport = true

@@ -38,6 +38,7 @@ in
   kmap-cli = callPackage ../kmap-cli { };
   linkwarden-cli = callPackage ../linkwarden-cli { };
   miniflux-cli = callPackage ../miniflux-cli { };
+  paperfetch-cli = callPackage ../paperfetch-cli { inherit patchright; };
   nmap-cli = callPackage ../nmap-cli { };
   n8n-cli = callPackage ../n8n-cli { };
   pexpect-cli = callPackage ../pexpect-cli { };
