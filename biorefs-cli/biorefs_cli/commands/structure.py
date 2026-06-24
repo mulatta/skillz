@@ -12,19 +12,31 @@ from __future__ import annotations
 import json
 import re
 from dataclasses import dataclass, field
-from datetime import UTC, datetime
 from pathlib import Path
 from typing import TYPE_CHECKING, Protocol, cast
 
 from biorefs_cli.config import Config, load_config
 from biorefs_cli.errors import CLIError, HTTPError
+from biorefs_cli.http import HttpClient, JsonObject
+from biorefs_cli.jsonshape import (
+    object_list,
+    object_or_none,
+    optional_int,
+    optional_str,
+    retrieved_at,
+    string_list,
+)
 from biorefs_cli.output import display, markdown_table, print_json
-from biorefs_cli.rcsb_graphql import EntryMeta, MetadataBackend, RcsbGraphQLClient
+from biorefs_cli.rcsb_graphql import (
+    EntryMeta,
+    MetadataBackend,
+    RcsbGraphQLClient,
+    first_resolution,
+    methods,
+)
 
 if TYPE_CHECKING:
     import argparse
-
-    from biorefs_cli.http import HttpClient, JsonObject
 
 USER_AGENT = "biorefs-cli/0.1 (https://github.com/mulatta/skillz)"
 
@@ -85,12 +97,8 @@ class SearchBackend(Protocol):
 
 
 class RcsbSearchClient:
-    def __init__(self, *, config: Config, http: object | None = None) -> None:
-        from biorefs_cli.http import HttpClient
-
-        self.http = cast(
-            "HttpClient", http or HttpClient(timeout_seconds=config.timeout_seconds)
-        )
+    def __init__(self, *, config: Config, http: HttpClient | None = None) -> None:
+        self.http = http or HttpClient(timeout_seconds=config.timeout_seconds)
 
     def search(self, payload: dict[str, object]) -> JsonObject:
         return self.http.post_json(
@@ -383,12 +391,8 @@ class FetchBackend(Protocol):
 
 
 class FetchClient:
-    def __init__(self, *, config: Config, http: object | None = None) -> None:
-        from biorefs_cli.http import HttpClient
-
-        self.http = cast(
-            "HttpClient", http or HttpClient(timeout_seconds=config.timeout_seconds)
-        )
+    def __init__(self, *, config: Config, http: HttpClient | None = None) -> None:
+        self.http = http or HttpClient(timeout_seconds=config.timeout_seconds)
 
     def rcsb_structure(
         self, pdb_id: str, fmt: str, assembly: int | None = None
@@ -523,12 +527,8 @@ class DataBackend(Protocol):
 
 
 class RcsbDataClient:
-    def __init__(self, *, config: Config, http: object | None = None) -> None:
-        from biorefs_cli.http import HttpClient
-
-        self.http = cast(
-            "HttpClient", http or HttpClient(timeout_seconds=config.timeout_seconds)
-        )
+    def __init__(self, *, config: Config, http: HttpClient | None = None) -> None:
+        self.http = http or HttpClient(timeout_seconds=config.timeout_seconds)
 
     def entry(self, pdb_id: str) -> JsonObject:
         return self.http.get_json(
@@ -615,7 +615,7 @@ class InfoService:
         return record.to_json_dict()
 
 
-def build_info_result(records: list[dict[str, object]]) -> object:
+def build_info_result(records: list[dict[str, object]]) -> dict[str, object]:
     if len(records) == 1:
         return records[0]
     return {"source": "rcsb", "records": records}
@@ -640,7 +640,7 @@ def parse_entry(pdb_id: str, entry: dict[str, object]) -> StructureRecord:
     return StructureRecord(
         pdb_id=pdb_id,
         title=optional_str(struct, "title") if struct else None,
-        method=experimental_method(entry),
+        method=methods(entry),
         resolution=first_resolution(info),
         deposit_date=date_only(optional_str(accession, "deposit_date")),
         ligands=string_list(info, "nonpolymer_bound_components"),
@@ -683,24 +683,6 @@ def replace_entities(
         entity_ids=record.entity_ids,
         entities=entities,
     )
-
-
-def experimental_method(entry: dict[str, object]) -> str | None:
-    found = [
-        method
-        for item in object_list(entry, "exptl")
-        if (method := optional_str(item, "method"))
-    ]
-    return ", ".join(found) if found else None
-
-
-def first_resolution(info: dict[str, object]) -> float | None:
-    value = info.get("resolution_combined")
-    if isinstance(value, list) and value:
-        first = value[0]
-        if isinstance(first, (int, float)) and not isinstance(first, bool):
-            return float(first)
-    return None
 
 
 def date_only(value: str | None) -> str | None:
@@ -749,52 +731,9 @@ def ligand_label(value: object) -> str:
 # --- shared helpers --------------------------------------------------------
 
 
-def object_or_none(payload: dict[str, object], key: str) -> dict[str, object] | None:
-    value = payload.get(key)
-    if isinstance(value, dict):
-        return cast("dict[str, object]", value)
-    return None
-
-
-def object_list(payload: dict[str, object], key: str) -> list[dict[str, object]]:
-    value = payload.get(key)
-    if not isinstance(value, list):
-        return []
-    return [item for item in value if isinstance(item, dict)]
-
-
-def string_list(payload: dict[str, object], key: str) -> list[str]:
-    value = payload.get(key)
-    if not isinstance(value, list):
-        return []
-    return [item for item in value if isinstance(item, str)]
-
-
-def optional_str(payload: dict[str, object], key: str) -> str | None:
-    value = payload.get(key)
-    if isinstance(value, str) and value:
-        return value
-    return None
-
-
-def optional_int(payload: dict[str, object], key: str) -> int | None:
-    value = payload.get(key)
-    if isinstance(value, bool):
-        return None
-    if isinstance(value, int):
-        return value
-    if isinstance(value, str) and value.isdecimal():
-        return int(value)
-    return None
-
-
 def int_field(payload: dict[str, object], key: str) -> int:
     value = optional_int(payload, key)
     return 0 if value is None else value
-
-
-def retrieved_at() -> str:
-    return datetime.now(UTC).isoformat(timespec="seconds")
 
 
 def search_provenance() -> dict[str, object]:

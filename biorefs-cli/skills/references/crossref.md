@@ -127,7 +127,7 @@ Implementation implications:
 - `paper cite --doi DOI --format bibtex` may fetch BibTeX through DOI content negotiation.
 - `paper cite --pmid PMID --format bibtex` should prefer PubMed metadata, then Crossref by DOI if PubMed lacks needed export fields.
 - `paper convert --doi DOI` should return normalized JSON with source provenance and optionally raw citation exports.
-- `export --format bibtex|ris` should emit one entry per deduplicated work and include missing-field warnings separately.
+- `paper cite --format bibtex|ris` emits a single record's citation and includes missing-field warnings separately.
 - If RIS content negotiation is unsupported or fails, generate RIS locally from normalized metadata and record `generated_from=crossref-json`.
 - If BibTeX content negotiation fails, generate BibTeX locally only from known fields and mark missing fields.
 
@@ -230,7 +230,9 @@ No invented citations: if required fields are absent, emit export with available
 - Include `sources` array showing PubMed/Crossref/OpenAlex fields used.
 - Include `missing` and `warnings` arrays.
 
-`export --format bibtex|ris`:
+Deferred/planned multi-record export:
+
+There is no `export` command in the current CLI; `paper cite` handles single-record citation export. A future dedup-across-records `export --format bibtex|ris` would:
 
 - Export deduplicated records only.
 - Keep stable citation keys; avoid changing keys when enrichment adds fields.
