@@ -173,13 +173,14 @@ class HttpClient:
     ) -> HttpResponse:
         current_method = method
         current_body = body
+        current_headers = headers
         current_url = url
         for _redirect in range(MAX_REDIRECTS + 1):
             self.rate_limiter.acquire(
                 rate_limit_source or infer_rate_limit_source(current_url)
             )
             response = self._once(
-                current_method, current_url, body=current_body, headers=headers
+                current_method, current_url, body=current_body, headers=current_headers
             )
             if response.status not in REDIRECT_STATUSES:
                 return response
@@ -197,6 +198,13 @@ class HttpClient:
             ):
                 current_method = "GET"
                 current_body = None
+                # The body is gone, so drop body-describing headers that would
+                # otherwise advertise a payload on the bodyless GET.
+                current_headers = {
+                    key: value
+                    for key, value in current_headers.items()
+                    if key.lower() not in {"content-type", "content-length"}
+                }
         msg = "too many redirects"
         raise HTTPError(msg)
 
@@ -243,6 +251,11 @@ class HttpClient:
 
 
 def decode_json_object(response: HttpResponse) -> JsonObject:
+    # 204 No Content (and any empty body) is a valid empty result, not an error:
+    # the RCSB Search API returns 204 for a zero-hit query. Treat it as {} so
+    # callers reach their normal empty-result handling instead of a JSON error.
+    if response.status == 204 or not response.body.strip():
+        return {}
     try:
         decoded = json.loads(response.body.decode("utf-8"))
     except (json.JSONDecodeError, UnicodeDecodeError) as exc:

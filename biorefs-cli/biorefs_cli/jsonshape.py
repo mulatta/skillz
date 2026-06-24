@@ -73,24 +73,6 @@ def string_list(payload: dict[str, object], key: str) -> list[str]:
     return [item for item in value if isinstance(item, str)]
 
 
-def first_string_field(payload: dict[str, object], keys: tuple[str, ...]) -> str | None:
-    """Return the first non-empty string among ``payload[key]`` for ``keys``."""
-    for key in keys:
-        value = optional_str(payload, key)
-        if value:
-            return value
-    return None
-
-
-def first_int_field(payload: dict[str, object], keys: tuple[str, ...]) -> int | None:
-    """Return the first parseable int among ``payload[key]`` for ``keys``."""
-    for key in keys:
-        value = optional_int(payload, key)
-        if value is not None:
-            return value
-    return None
-
-
 def retrieved_at() -> str:
     """Return the current UTC time as a second-precision ISO 8601 string."""
     return datetime.now(UTC).isoformat(timespec="seconds")

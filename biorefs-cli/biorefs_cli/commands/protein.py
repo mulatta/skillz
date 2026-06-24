@@ -390,6 +390,9 @@ def optional_string_field(payload: dict[str, object], key: str) -> str | None:
     raise HTTPError(msg)
 
 
+# These intentionally differ from jsonshape.optional_*: the NCBI eSummary
+# parsers here raise HTTPError on unexpected types and coerce int->str, so they
+# delegate to the strict local optional_*_field helpers, not the shared ones.
 def first_string_field(payload: dict[str, object], keys: tuple[str, ...]) -> str | None:
     for key in keys:
         value = optional_string_field(payload, key)

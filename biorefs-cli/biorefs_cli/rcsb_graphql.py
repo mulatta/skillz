@@ -11,6 +11,7 @@ from dataclasses import dataclass
 from typing import Protocol, cast
 
 from biorefs_cli.config import Config
+from biorefs_cli.http import HttpClient
 from biorefs_cli.jsonshape import object_list, object_or_none, optional_str
 
 GRAPHQL_URL = "https://data.rcsb.org/graphql"
@@ -44,12 +45,8 @@ class MetadataBackend(Protocol):
 
 
 class RcsbGraphQLClient:
-    def __init__(self, *, config: Config, http: object | None = None) -> None:
-        from biorefs_cli.http import HttpClient
-
-        self.http = cast(
-            "HttpClient", http or HttpClient(timeout_seconds=config.timeout_seconds)
-        )
+    def __init__(self, *, config: Config, http: HttpClient | None = None) -> None:
+        self.http = http or HttpClient(timeout_seconds=config.timeout_seconds)
 
     def entry_metadata(self, ids: list[str]) -> dict[str, EntryMeta]:
         if not ids:

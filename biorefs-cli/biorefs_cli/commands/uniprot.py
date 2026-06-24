@@ -9,7 +9,6 @@ a protein name resolves to PDB accessions, NCBI Gene/RefSeq, and PubMed IDs.
 
 from __future__ import annotations
 
-import re
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING, Protocol, cast
@@ -18,6 +17,7 @@ from urllib.parse import quote, urlencode
 from biorefs_cli.config import Config, load_config
 from biorefs_cli.errors import CLIError, HTTPError
 from biorefs_cli.http import HttpClient, JsonObject
+from biorefs_cli.identifiers import normalize_uniprot_accession as normalize_accession
 from biorefs_cli.jsonshape import object_or_none, optional_int, optional_str
 from biorefs_cli.output import display, markdown_table, print_json
 
@@ -29,11 +29,6 @@ USER_AGENT = "biorefs-cli/0.1 (https://github.com/mulatta/skillz)"
 RATE_LIMIT_SOURCE = "uniprot"
 DEFAULT_LIMIT = 25
 MAX_LIMIT = 500
-# UniProtKB accession syntax, optional isoform suffix (e.g. P38398-2).
-ACCESSION_RE = re.compile(
-    r"^(?:[OPQ][0-9][A-Z0-9]{3}[0-9]|[A-NR-Z][0-9](?:[A-Z][A-Z0-9]{2}[0-9]){1,2})"
-    r"(?:-[0-9]+)?$"
-)
 
 SEARCH_FIELDS = (
     "accession,id,reviewed,protein_name,gene_names,organism_name,organism_id,length"
@@ -306,14 +301,6 @@ def build_fields(include: tuple[str, ...]) -> str:
             if field not in fields:
                 fields.append(field)
     return ",".join(fields)
-
-
-def normalize_accession(value: str) -> str:
-    accession = value.strip().upper()
-    if not accession or not ACCESSION_RE.fullmatch(accession):
-        msg = f"invalid UniProt accession: {value}"
-        raise CLIError(msg, exit_code=2)
-    return accession
 
 
 def validate_limit(limit: int) -> None:
