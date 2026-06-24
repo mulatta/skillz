@@ -32,3 +32,9 @@ def markdown_table(headers: Iterable[str], rows: Iterable[Iterable[object]]) -> 
 
 def escape_cell(value: str) -> str:
     return value.replace("|", "\\|").replace("\n", " ")
+
+
+def display(value: object) -> str:
+    if value is None:
+        return "-"
+    return str(value)

@@ -44,7 +44,9 @@ class RecordingHttpClient(HttpClient):
         self.urls: list[str] = []
         self.sleep_calls: list[tuple[int, float | None]] = []
 
-    def _get_once(self, url: str, *, headers: dict[str, str]) -> HttpResponse:
+    def _once(
+        self, method: str, url: str, *, body: bytes | None, headers: dict[str, str]
+    ) -> HttpResponse:
         assert headers is not None
         self.urls.append(url)
         return self.responses.pop(0)

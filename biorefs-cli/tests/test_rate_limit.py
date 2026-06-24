@@ -36,7 +36,9 @@ class RecordingHttpClient(HttpClient):
         super().__init__(timeout_seconds=3, rate_limiter=limiter)
         self.urls: list[str] = []
 
-    def _get_once(self, url: str, *, headers: dict[str, str]) -> HttpResponse:
+    def _once(
+        self, method: str, url: str, *, body: bytes | None, headers: dict[str, str]
+    ) -> HttpResponse:
         assert headers is not None
         self.urls.append(url)
         return HttpResponse(status=200, headers={}, body=b'{"ok": true}')
@@ -47,7 +49,9 @@ class RedirectHttpClient(HttpClient):
         super().__init__(timeout_seconds=3, rate_limiter=limiter)
         self.urls: list[str] = []
 
-    def _get_once(self, url: str, *, headers: dict[str, str]) -> HttpResponse:
+    def _once(
+        self, method: str, url: str, *, body: bytes | None, headers: dict[str, str]
+    ) -> HttpResponse:
         assert headers is not None
         self.urls.append(url)
         if len(self.urls) == 1:

@@ -1,6 +1,6 @@
 ---
 name: biorefs-cli
-description: Biomedical literature, reference, and entity research helper. Use whenever the user asks for PubMed/PMC/NCBI/Entrez paper search, PMID/PMCID/DOI conversion, biomedical citation/BibTeX/RIS export, legal OA full-text lookup, gene/protein/RNA/transcript evidence, UniProt protein annotation/function/cross-reference/PDB-pointer lookup, OpenAlex citation/OA enrichment, Semantic Scholar enrichment, PubChem compound/assay/bioactivity lookup, or bio/medical literature review evidence collection.
+description: Biomedical literature, reference, and entity research helper. Use whenever the user asks for PubMed/PMC/NCBI/Entrez paper search, PMID/PMCID/DOI conversion, biomedical citation/BibTeX/RIS export, legal OA full-text lookup, gene/protein/RNA/transcript evidence, UniProt protein annotation/function/cross-reference/PDB-pointer lookup, RCSB PDB / AlphaFold structure search/metadata/coordinate-file retrieval, OpenAlex citation/OA enrichment, Semantic Scholar enrichment, PubChem compound/assay/bioactivity lookup, or bio/medical literature review evidence collection.
 ---
 
 # biorefs-cli
@@ -15,7 +15,8 @@ Current package implements identifier-first paper, NCBI entity, OpenAlex, PubChe
 - Use APIs directly; do not depend on EDirect or clone `esearch | efetch | xtract` pipelines.
 - Use OpenAlex for identifier enrichment, OA location discovery, citation graph, and trends. Do not treat OpenAlex as full text.
 - Use PubChem inside this workflow for compounds, assays, xrefs, safety, and bioactivity; do not split to a separate PubChem skill.
-- Use UniProt inside this workflow for canonical protein identity, function, entity cross-references, and curated literature links. Surface PDB only as cross-reference pointers (id, method, resolution); never download or analyze structure files here. PDB ids are complete output on their own; when structure files, metadata, or analysis are needed, hand the ids to the `structbio-cli` skill (or any structural-biology tooling). biorefs-cli does not require structbio-cli, and vice versa.
+- Use UniProt inside this workflow for canonical protein identity, function, entity cross-references, and curated literature links. UniProt surfaces PDB cross-references as pointers (id, method, resolution); resolve those ids to ranked search results, metadata, and coordinate files with the `structure` commands. Retrieval only — structural analysis (alignment, SASA, folding) is out of scope.
+- Use the `structure` commands for RCSB PDB and AlphaFold retrieval: `structure search` (full text / sequence / UniProt, enriched), `structure fetch` (mmCIF/PDB from RCSB, AlphaFold model by UniProt), `structure info` (method, resolution, ligands, chains, UniProt xref).
 - Retrieve only legal open-access full text. Never use Sci-Hub, credential sharing, paywall bypass, or hidden publisher scraping.
 - Distinguish `metadata-only`, `abstract-only`, and `full-text` evidence.
 - Never invent citations. Report missing fields and ambiguous matches explicitly.
@@ -32,6 +33,7 @@ Read only the relevant reference file:
 | PubMed/PMC metadata, paper search, PMID/PMCID/DOI, abstracts | `references/pubmed-pmc.md` |
 | Generic NCBI Entrez DB search/fetch/link, gene/protein/nucleotide/taxonomy | `references/ncbi-entrez.md` |
 | UniProt protein annotation, function, GeneID/RefSeq/Ensembl xrefs, PDB pointers, curated literature PMIDs | `references/uniprot.md` |
+| RCSB PDB / AlphaFold structure search, metadata, mmCIF/PDB coordinate download | `references/structure.md` |
 | Legal OA full-text resolver, PMC/Europe PMC/bioRxiv/Unpaywall/publisher fallback | `references/fulltext-fallbacks.md` |
 | OpenAlex DOI/PMID/PMCID enrichment, OA locations, citation graph, trends | `references/openalex.md` |
 | Citation export, Crossref DOI metadata, BibTeX/RIS, deposited references | `references/crossref.md` |
@@ -83,7 +85,7 @@ Read only the relevant reference file:
    includes function, cross-references, and literature PMIDs.
 1. Follow `literature_pmids` into `paper`/`ncbi` for protein -> related research.
 1. Follow `xrefs.GeneID`/`xrefs.RefSeq` into `gene`/`protein`/`nucleotide`.
-1. Treat `pdb` entries as pointers only; when structures are needed, hand the ids to the `structbio-cli` skill (or other structural-biology tooling).
+1. Treat `pdb` entries as pointers; resolve them with `structure info <id>` for metadata or `structure fetch <id>` for the coordinate file.
 1. Prefer UniProt for canonical identity and cross-references; prefer NCBI for
    RefSeq/GenBank source records and Entrez link traversal.
 
@@ -153,6 +155,11 @@ biorefs-cli protein fetch --accession NP_009225 --format fasta
 biorefs-cli uniprot search gene:BRCA1 --taxon 9606 --reviewed --limit 5
 biorefs-cli uniprot fetch --accession P38398 --include function,xrefs,literature
 biorefs-cli uniprot fetch --accession P38398 --format fasta
+
+biorefs-cli structure search --uniprot P38398 --method xray --max-resolution 2.5
+biorefs-cli structure info 1T15 1JM7 --include entities
+biorefs-cli structure fetch 1JM7 --assembly 1
+biorefs-cli structure fetch --uniprot P38398
 
 biorefs-cli compound search olaparib --type name
 biorefs-cli compound fetch --cid 23725625 --include properties,synonyms,description

@@ -58,15 +58,29 @@ class HttpClient:
             headers={"Accept": "application/json", **(headers or {})},
             rate_limit_source=rate_limit_source,
         )
-        try:
-            decoded = json.loads(response.body.decode("utf-8"))
-        except json.JSONDecodeError as exc:
-            msg = "remote service returned invalid JSON"
-            raise HTTPError(msg, status=response.status) from exc
-        if not isinstance(decoded, dict):
-            msg = "remote service returned non-object JSON"
-            raise HTTPError(msg, status=response.status)
-        return cast("JsonObject", decoded)
+        return decode_json_object(response)
+
+    def post_json(
+        self,
+        url: str,
+        payload: object,
+        *,
+        headers: dict[str, str] | None = None,
+        rate_limit_source: str | None = None,
+    ) -> JsonObject:
+        body = json.dumps(payload).encode("utf-8")
+        response = self._send(
+            "POST",
+            url,
+            body=body,
+            headers={
+                "Accept": "application/json",
+                "Content-Type": "application/json",
+                **(headers or {}),
+            },
+            rate_limit_source=rate_limit_source,
+        )
+        return decode_json_object(response)
 
     def get(
         self,
@@ -75,12 +89,31 @@ class HttpClient:
         headers: dict[str, str] | None = None,
         rate_limit_source: str | None = None,
     ) -> HttpResponse:
+        return self._send(
+            "GET",
+            url,
+            body=None,
+            headers=headers or {},
+            rate_limit_source=rate_limit_source,
+        )
+
+    def _send(
+        self,
+        method: str,
+        url: str,
+        *,
+        body: bytes | None,
+        headers: dict[str, str],
+        rate_limit_source: str | None,
+    ) -> HttpResponse:
         last_error: HTTPError | None = None
         for attempt in range(self.retry_policy.attempts):
             try:
-                response = self._get_with_redirects(
+                response = self._with_redirects(
+                    method,
                     url,
-                    headers=headers or {},
+                    body=body,
+                    headers=headers,
                     rate_limit_source=rate_limit_source,
                 )
             except OSError:
@@ -107,10 +140,12 @@ class HttpClient:
         msg = "network request failed"
         raise HTTPError(msg)
 
-    def _get_with_redirects(
+    def _with_redirects(
         self,
+        method: str,
         url: str,
         *,
+        body: bytes | None,
         headers: dict[str, str],
         rate_limit_source: str | None,
     ) -> HttpResponse:
@@ -119,7 +154,7 @@ class HttpClient:
             self.rate_limiter.acquire(
                 rate_limit_source or infer_rate_limit_source(current_url)
             )
-            response = self._get_once(current_url, headers=headers)
+            response = self._once(method, current_url, body=body, headers=headers)
             if response.status not in REDIRECT_STATUSES:
                 return response
             location = response.headers.get("location")
@@ -129,7 +164,14 @@ class HttpClient:
         msg = "too many redirects"
         raise HTTPError(msg)
 
-    def _get_once(self, url: str, *, headers: dict[str, str]) -> HttpResponse:
+    def _once(
+        self,
+        method: str,
+        url: str,
+        *,
+        body: bytes | None,
+        headers: dict[str, str],
+    ) -> HttpResponse:
         parsed = urlparse(url)
         if parsed.scheme != "https" or parsed.hostname is None:
             msg = "URL must use https"
@@ -141,7 +183,7 @@ class HttpClient:
             parsed.hostname, timeout=self.timeout_seconds
         )
         try:
-            connection.request("GET", target, headers=headers)
+            connection.request(method, target, body=body, headers=headers)
             response = connection.getresponse()
             raw_headers = {key.lower(): value for key, value in response.getheaders()}
             return HttpResponse(
@@ -164,6 +206,18 @@ class HttpClient:
         time.sleep(delay)
 
 
+def decode_json_object(response: HttpResponse) -> JsonObject:
+    try:
+        decoded = json.loads(response.body.decode("utf-8"))
+    except (json.JSONDecodeError, UnicodeDecodeError) as exc:
+        msg = "remote service returned invalid JSON"
+        raise HTTPError(msg, status=response.status) from exc
+    if not isinstance(decoded, dict):
+        msg = "remote service returned non-object JSON"
+        raise HTTPError(msg, status=response.status)
+    return cast("JsonObject", decoded)
+
+
 def parse_retry_after(value: str | None) -> float | None:
     if value is None:
         return None
@@ -183,6 +237,10 @@ HOST_RATE_LIMIT_SOURCES = {
     "pmc.ncbi.nlm.nih.gov": "ncbi",
     "pubchem.ncbi.nlm.nih.gov": "pubchem",
     "rest.uniprot.org": "uniprot",
+    "data.rcsb.org": "rcsb",
+    "files.rcsb.org": "rcsb",
+    "search.rcsb.org": "rcsb",
+    "alphafold.ebi.ac.uk": "alphafold",
     "www.ebi.ac.uk": "europepmc",
     "www.ncbi.nlm.nih.gov": "ncbi",
 }
