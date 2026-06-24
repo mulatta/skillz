@@ -38,7 +38,9 @@ class SequenceHttpClient(HttpClient):
         self.urls: list[str] = []
         self.sleeps: list[tuple[int, float | None]] = []
 
-    def _get_once(self, url: str, *, headers: dict[str, str]) -> HttpResponse:
+    def _once(
+        self, method: str, url: str, *, body: bytes | None, headers: dict[str, str]
+    ) -> HttpResponse:
         assert headers is not None
         self.urls.append(url)
         return self.responses.pop(0)
@@ -52,7 +54,9 @@ class NetworkFailHttpClient(HttpClient):
         super().__init__(timeout_seconds=3, retry_policy=RetryPolicy(attempts=2))
         self.sleeps: list[tuple[int, float | None]] = []
 
-    def _get_once(self, url: str, *, headers: dict[str, str]) -> HttpResponse:
+    def _once(
+        self, method: str, url: str, *, body: bytes | None, headers: dict[str, str]
+    ) -> HttpResponse:
         assert url.startswith("https://")
         assert headers is not None
         raise OSError
@@ -65,7 +69,9 @@ class RedirectLoopHttpClient(HttpClient):
     def __init__(self) -> None:
         super().__init__(timeout_seconds=3)
 
-    def _get_once(self, url: str, *, headers: dict[str, str]) -> HttpResponse:
+    def _once(
+        self, method: str, url: str, *, body: bytes | None, headers: dict[str, str]
+    ) -> HttpResponse:
         assert headers is not None
         return HttpResponse(status=302, headers={"location": url}, body=b"")
 

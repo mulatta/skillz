@@ -12,15 +12,14 @@ use it for 3D structure files.
   (TrEMBL) status, protein/gene names, organism, length, function, sequence
   (FASTA), entity cross-references (GeneID, RefSeq, Ensembl), and curated
   literature PMIDs.
-- Out of scope: 3D coordinates, structural alignment, ligands, docking, model
-  building. UniProt surfaces PDB cross-references as **pointers only** (PDB id,
-  method, resolution, chains). Hand those ids to the `structbio-cli` skill (or
-  any structural-biology tooling) when structure files are needed; biorefs-cli
-  never downloads structure files. The pointers are usable output on their own,
-  so biorefs-cli does not depend on structbio-cli.
+- Out of scope here: 3D coordinates, structural alignment, ligands, docking,
+  model building. UniProt surfaces PDB cross-references as **pointers only** (PDB
+  id, method, resolution, chains). Resolve those ids to search results, metadata,
+  or coordinate files with the `structure` commands (see `references/structure.md`).
+  Structural analysis (alignment, SASA, folding) is out of scope for the whole skill.
 - UniProt accessions are the seam: `uniprot fetch` emits PDB ids, NCBI GeneID,
-  and RefSeq accessions; other commands and external structure tools consume
-  them. biorefs-cli owns identity resolution, not structural analysis.
+  and RefSeq accessions; the `structure`, `gene`, `protein`, and `nucleotide`
+  commands consume them.
 
 ## Base URL and endpoints
 
@@ -91,10 +90,9 @@ Optional output keys are omitted when empty.
 
 1. `uniprot fetch --accession ACC --include xrefs` returns `pdb` pointers
    (`id`, `method`, `resolution`, `chains`).
-1. Pass the PDB id to the `structbio-cli` skill — `structbio-cli info <id>` for
-   metadata, `structbio-cli fetch <id>` for the coordinate file — or to any other
-   structural tooling. Do not attempt structure retrieval inside biorefs-cli.
-   When only the ids matter, the pointers are already a complete answer.
+1. Pass the PDB id to the `structure` commands — `structure info <id>` for
+   metadata, `structure fetch <id>` for the coordinate file, or `structure search --uniprot ACC` to rank all structures for the protein. When only the ids
+   matter, the pointers are already a complete answer.
 
 ## Division of labor with NCBI
 

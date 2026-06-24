@@ -18,7 +18,7 @@ Agent-oriented CLI for biomedical literature, NCBI entity lookup, open-access fu
 - Process local PDFs or infer identifiers from files.
 - Make every NCBI database a first-class command at once.
 - Replace specialized tools such as BLAST, SRA Toolkit, or cheminformatics suites.
-- Download or analyze 3D structure files. UniProt PDB cross-references are surfaced as pointers; structure retrieval and structural analysis belong to dedicated structural-biology tooling.
+- Analyze 3D structures (alignment, SASA, secondary structure, docking, folding). The `structure` commands retrieve coordinate files and metadata, but structural analysis belongs to dedicated structural-biology tooling.
 
 ## Commands
 
@@ -32,6 +32,7 @@ biorefs-cli
 ├── nucleotide  # NCBI Nucleotide / RefSeq RNA/DNA lookup and FASTA
 ├── protein     # NCBI Protein / RefSeq protein lookup and FASTA
 ├── uniprot     # UniProtKB annotation, function, xrefs, PDB pointers, lit links
+├── structure   # RCSB PDB / AlphaFold search, metadata, coordinate download
 ├── compound    # PubChem compounds, xrefs, safety, bioactivity
 ├── assay       # PubChem BioAssay lookup
 ├── openalex    # OpenAlex enrichment, OA locations, citation graph
@@ -46,6 +47,7 @@ Commands are synchronous from the user perspective. The shared HTTP layer applie
 | --- | --- |
 | NCBI E-utilities | PubMed, PMC, Gene, Protein, Nucleotide, taxonomy, links between NCBI databases |
 | UniProtKB REST | Canonical protein identity, function, GeneID/RefSeq/Ensembl xrefs, PDB pointers, curated literature PMIDs |
+| RCSB PDB (Search/Data/GraphQL/files) + AlphaFold DB | Structure search, metadata, and mmCIF/PDB coordinate retrieval |
 | PMC ID Converter | PMID/PMCID/DOI conversion |
 | PMC EFetch | Structured JATS/XML full text where available |
 | OpenAlex | DOI/PMID/PMCID mapping, OA location discovery, citation graph, trends |
@@ -97,6 +99,11 @@ biorefs-cli protein fetch --accession NP_009225 --format fasta
 biorefs-cli uniprot search gene:BRCA1 --taxon 9606 --reviewed --limit 5
 biorefs-cli uniprot fetch --accession P38398 --include function,xrefs,literature
 biorefs-cli uniprot fetch --accession P38398 --format fasta
+
+biorefs-cli structure search --uniprot P38398 --method xray --max-resolution 2.5
+biorefs-cli structure info 1T15 1JM7 --include entities
+biorefs-cli structure fetch 1JM7 --assembly 1
+biorefs-cli structure fetch --uniprot P38398
 ```
 
 ### Compounds and assays

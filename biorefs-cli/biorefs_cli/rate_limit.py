@@ -78,6 +78,14 @@ API_RATE_LIMIT_POLICIES: dict[str, RateLimitPolicy] = {
         name="unpaywall",
         rules=(RateLimitRule("per-second", max_requests=10, period_seconds=1.0),),
     ),
+    "rcsb": RateLimitPolicy(
+        name="rcsb",
+        rules=(RateLimitRule("per-second", max_requests=10, period_seconds=1.0),),
+    ),
+    "alphafold": RateLimitPolicy(
+        name="alphafold",
+        rules=(RateLimitRule("per-second", max_requests=10, period_seconds=1.0),),
+    ),
 }
 
 
