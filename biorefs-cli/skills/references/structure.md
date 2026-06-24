@@ -49,6 +49,8 @@ biorefs-cli structure fetch --uniprot P38398      # AlphaFold model (AF2)
 - `--assembly N` downloads a biological assembly instead of the asymmetric unit —
   important when the biological unit differs from the deposited coordinates (a
   dimer deposited as a monomer, etc.). Applies to PDB ids only, not AlphaFold.
+- `--out-dir DIR` chooses the directory (default: cwd); `--output PATH` pins an
+  exact output file path, overriding `--out-dir` and the default name.
 - Writes the file and prints its path; `--json` adds source, url, bytes, path.
 
 ## `structure info`

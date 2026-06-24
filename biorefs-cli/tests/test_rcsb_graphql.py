@@ -62,3 +62,36 @@ def test_parse_entries_maps_metadata_by_id() -> None:
 def test_parse_entries_handles_empty() -> None:
     assert parse_entries({}) == {}
     assert parse_entries({"data": {"entries": []}}) == {}
+
+
+def test_organisms_dedup_and_order_across_entities() -> None:
+    payload: dict[str, object] = {
+        "data": {
+            "entries": [
+                {
+                    "rcsb_id": "9XYZ",
+                    "struct": {"title": "complex"},
+                    "exptl": [{"method": "X-RAY DIFFRACTION"}],
+                    "rcsb_entry_info": {"resolution_combined": [2.0]},
+                    "polymer_entities": [
+                        {
+                            "rcsb_entity_source_organism": [
+                                {"scientific_name": "Homo sapiens"}
+                            ]
+                        },
+                        {
+                            "rcsb_entity_source_organism": [
+                                {"scientific_name": "Homo sapiens"}
+                            ]
+                        },
+                        {
+                            "rcsb_entity_source_organism": [
+                                {"scientific_name": "Mus musculus"}
+                            ]
+                        },
+                    ],
+                }
+            ]
+        }
+    }
+    assert parse_entries(payload)["9XYZ"].organisms == ["Homo sapiens", "Mus musculus"]

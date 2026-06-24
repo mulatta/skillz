@@ -10,7 +10,6 @@ scope and would belong to a dedicated structural-biology tool.
 from __future__ import annotations
 
 import json
-import re
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import TYPE_CHECKING, Protocol, cast
@@ -18,6 +17,7 @@ from typing import TYPE_CHECKING, Protocol, cast
 from biorefs_cli.config import Config, load_config
 from biorefs_cli.errors import CLIError, HTTPError
 from biorefs_cli.http import HttpClient, JsonObject
+from biorefs_cli.identifiers import normalize_pdb_id, normalize_uniprot_accession
 from biorefs_cli.jsonshape import (
     object_list,
     object_or_none,
@@ -39,35 +39,6 @@ if TYPE_CHECKING:
     import argparse
 
 USER_AGENT = "biorefs-cli/0.1 (https://github.com/mulatta/skillz)"
-
-# --- identifiers -----------------------------------------------------------
-
-PDB_ID_RE = re.compile(r"^[1-9][A-Za-z0-9]{3}$")
-EXTENDED_PDB_ID_RE = re.compile(r"^pdb_[0-9a-z]{8}$")
-UNIPROT_ACCESSION_RE = re.compile(
-    r"^(?:[OPQ][0-9][A-Z0-9]{3}[0-9]|[A-NR-Z][0-9](?:[A-Z][A-Z0-9]{2}[0-9]){1,2})"
-    r"(?:-[0-9]+)?$"
-)
-
-
-def normalize_pdb_id(value: str) -> str:
-    raw = value.strip()
-    extended = raw.lower()
-    if EXTENDED_PDB_ID_RE.fullmatch(extended):
-        return extended
-    upper = raw.upper()
-    if PDB_ID_RE.fullmatch(upper):
-        return upper
-    msg = f"invalid PDB id: {value}"
-    raise CLIError(msg, exit_code=2)
-
-
-def normalize_uniprot_accession(value: str) -> str:
-    accession = value.strip().upper()
-    if not accession or not UNIPROT_ACCESSION_RE.fullmatch(accession):
-        msg = f"invalid UniProt accession: {value}"
-        raise CLIError(msg, exit_code=2)
-    return accession
 
 
 # --- search ----------------------------------------------------------------
@@ -208,9 +179,9 @@ def read_sequence(args: argparse.Namespace) -> str | None:
 
 def clean_sequence(raw: str) -> str:
     residues = [
-        line.strip()
+        stripped
         for line in raw.splitlines()
-        if line.strip() and not line.startswith(">")
+        if (stripped := line.strip()) and not stripped.startswith(">")
     ]
     sequence = "".join(residues).upper()
     if not sequence.isalpha():

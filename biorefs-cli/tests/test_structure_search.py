@@ -149,6 +149,16 @@ def test_run_enriches_hits() -> None:
     assert records[0]["resolution"] == 1.85
 
 
+def test_run_empty_results_no_enrich_no_warning() -> None:
+    backend = FakeBackend({"total_count": 0, "result_set": []})
+    enricher = FakeEnricher()
+    result = SearchService(backend, enricher).run(query(), limit=5, offset=0)
+    assert result["records"] == []
+    assert result["total_count"] == 0
+    assert "warnings" not in result
+    assert enricher.requested is None
+
+
 def test_run_degrades_when_enrichment_fails() -> None:
     backend = FakeBackend(
         {"total_count": 1, "result_set": [{"identifier": "3COJ", "score": 1.0}]}
