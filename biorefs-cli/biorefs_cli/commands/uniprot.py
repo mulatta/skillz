@@ -18,7 +18,8 @@ from urllib.parse import quote, urlencode
 from biorefs_cli.config import Config, load_config
 from biorefs_cli.errors import CLIError, HTTPError
 from biorefs_cli.http import HttpClient, JsonObject
-from biorefs_cli.output import markdown_table, print_json
+from biorefs_cli.jsonshape import object_or_none, optional_int, optional_str
+from biorefs_cli.output import display, markdown_table, print_json
 
 if TYPE_CHECKING:
     import argparse
@@ -510,31 +511,6 @@ def property_map(xref: dict[str, object]) -> dict[str, str]:
     return result
 
 
-def object_or_none(payload: dict[str, object], key: str) -> dict[str, object] | None:
-    value = payload.get(key)
-    if isinstance(value, dict):
-        return cast("dict[str, object]", value)
-    return None
-
-
-def optional_str(payload: dict[str, object], key: str) -> str | None:
-    value = payload.get(key)
-    if isinstance(value, str) and value:
-        return value
-    return None
-
-
-def optional_int(payload: dict[str, object], key: str) -> int | None:
-    value = payload.get(key)
-    if isinstance(value, bool):
-        return None
-    if isinstance(value, int):
-        return value
-    if isinstance(value, str) and value.isdecimal():
-        return int(value)
-    return None
-
-
 def provenance() -> dict[str, object]:
     return {
         "provider": "uniprot",
@@ -571,9 +547,3 @@ def print_search_table(result: dict[str, object]) -> None:
             rows,
         )
     )
-
-
-def display(value: object) -> str:
-    if value is None:
-        return "-"
-    return str(value)

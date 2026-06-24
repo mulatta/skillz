@@ -24,6 +24,8 @@ Input may include `pmcid`, `pmid`, `doi`, or preprint server DOI. Normalize iden
 - DOI: lowercase, strip `https://doi.org/`, keep slash path.
 - OpenAlex Work ID: use only to obtain DOI/PMID/PMCID and OA location hints.
 
+**IMPLEMENTED (PMC tiers 1-2) vs PLANNED (tiers 3-7).** Only the PMC EFetch and PMC ID Converter tiers are wired into `paper fulltext` today; Europe PMC, OpenAlex-URL, bioRxiv/medRxiv, Unpaywall, and publisher tiers are planned reference designs and currently return structured not-implemented/unavailable results. Do not attempt the planned tiers as if built.
+
 Try tiers in this order and stop at first tier that returns parseable, legal full text:
 
 1. **PMC EFetch direct PMCID**

@@ -1,6 +1,6 @@
 ---
 name: biorefs-cli
-description: Biomedical literature, reference, and entity research helper. Use whenever the user asks for PubMed/PMC/NCBI/Entrez paper search, PMID/PMCID/DOI conversion, biomedical citation/BibTeX/RIS export, legal OA full-text lookup, gene/protein/RNA/transcript evidence, UniProt protein annotation/function/cross-reference/PDB-pointer lookup, RCSB PDB / AlphaFold structure search/metadata/coordinate-file retrieval, OpenAlex citation/OA enrichment, Semantic Scholar enrichment, PubChem compound/assay/bioactivity lookup, or bio/medical literature review evidence collection.
+description: Biomedical literature, reference, and entity research helper. Use whenever the user asks for PubMed/PMC/NCBI/Entrez paper search, PMID/PMCID/DOI conversion, biomedical citation/BibTeX/RIS export, legal OA full-text lookup, gene/protein/RNA/transcript evidence, UniProt protein annotation/function/cross-reference/PDB-pointer lookup, RCSB PDB / AlphaFold structure search/metadata/coordinate-file retrieval, OpenAlex citation/OA enrichment, PubChem compound/assay/bioactivity lookup, or bio/medical literature review evidence collection.
 ---
 
 # biorefs-cli
@@ -44,23 +44,21 @@ Read only the relevant reference file:
 
 ### Literature search
 
-1. Search PubMed first.
-1. Fetch PubMed XML metadata for candidate PMIDs.
-1. Normalize IDs: PMID, PMCID, DOI.
-1. Enrich with OpenAlex when citation counts, related works, OA locations, authors/institutions, or trends matter.
-1. Use Crossref for DOI metadata and citation export fallback.
+1. Search PubMed with `paper search` (only `--source pubmed` is implemented; other `--source` values return not-implemented).
+1. Fetch PubMed XML metadata for candidate PMIDs with `paper fetch`.
+1. Normalize IDs with `paper convert`: PMID, PMCID, DOI.
+1. Enrich through the `openalex` commands when citation counts, related works, OA locations, authors/institutions, or trends matter: `openalex work` for identifier/metadata enrichment, `openalex graph --direction references|cited-by` for citation graph, `openalex oa` for OA locations, `openalex trends` for topic trends.
+1. Use Crossref (via `paper cite --format bibtex|ris`) for DOI metadata and citation export fallback.
 1. Return ranked table with identifiers, title, year, journal, evidence level, and source provenance.
 
 ### Full text
 
 1. Convert PMID/DOI to PMCID with PMC ID Converter.
-1. Try PMC EFetch JATS/XML.
-1. Try Europe PMC fullTextXML.
-1. Use OpenAlex only to find OA candidate URLs.
-1. Use reference docs for additional legal OA fallbacks when PMC is unavailable.
-1. Optionally use Unpaywall when email is configured.
-1. Follow publisher/repository OA URLs only when access/license is explicit.
-1. If none succeeds, return structured unavailable reason; do not substitute abstract as full text.
+1. Try PMC EFetch JATS/XML. PMC is the only working full-text path today (`paper fulltext --source pmc|auto`).
+1. Europe PMC fullTextXML is planned/not-implemented: `paper fulltext --source europepmc` returns a structured not-implemented result.
+1. Use the `openalex` commands (`openalex oa`) only to find OA candidate URLs, not as full-text content.
+1. Use reference docs for additional legal OA fallbacks (Europe PMC, Unpaywall, bioRxiv/medRxiv, publisher OA) as planned expansion; they are not yet wired into `paper fulltext`.
+1. If PMC does not succeed, return structured unavailable reason; do not substitute abstract as full text.
 
 ### Citation export
 
@@ -166,6 +164,13 @@ biorefs-cli compound fetch --cid 23725625 --include properties,synonyms,descript
 biorefs-cli compound xrefs --cid 23725625 --to pubmed,gene,protein
 biorefs-cli compound bioactivity --cid 23725625 --active-only
 biorefs-cli assay search --target BRCA1
+biorefs-cli assay fetch --aid 504327 --json
+
+biorefs-cli openalex work --doi 10.1158/2159-8290.cd-12-0049 --json
+biorefs-cli openalex oa --doi 10.1158/2159-8290.cd-12-0049 --json
+biorefs-cli openalex graph --doi 10.1158/2159-8290.cd-12-0049 --direction cited-by --limit 50 --json
+biorefs-cli openalex graph --pmid 23103855 --direction references --json
+biorefs-cli openalex trends 'BRCA1 PARP inhibitor' --group-by publication-year --json
 ```
 
 ## Deferred beyond MVP

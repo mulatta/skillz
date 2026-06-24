@@ -279,8 +279,8 @@ Return full text only when legally available through supported sources. Include 
 
 Use ELink from PubMed to PubMed:
 
-- Similar/neighbor papers: standard PubMed related links.
-- References and cited-by: use returned link sets when available.
+- Similar/neighbor papers: standard PubMed related links. This is the only implemented `paper related` path; it requires `--pmid` and `--mode similar` (other inputs return a structured `unsupported` result).
+- References and cited-by are not yet implemented for `paper related`. For citation-graph references/cited-by, use `openalex graph --direction references|cited-by` instead.
 
 Return mode, source PMID, target PMIDs, link name, score if returned, and provenance. Empty related lists are valid successful results.
 

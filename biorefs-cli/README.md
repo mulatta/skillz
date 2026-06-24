@@ -35,7 +35,7 @@ biorefs-cli
 ├── structure   # RCSB PDB / AlphaFold search, metadata, coordinate download
 ├── compound    # PubChem compounds, xrefs, safety, bioactivity
 ├── assay       # PubChem BioAssay lookup
-├── openalex    # OpenAlex enrichment, OA locations, citation graph
+├── openalex    # OpenAlex enrichment, OA locations, citation graph, trends
 └── ncbi        # generic Entrez search/fetch/summary/link escape hatch
 ```
 
@@ -114,6 +114,7 @@ biorefs-cli compound fetch --cid 23725625 --include properties,synonyms,descript
 biorefs-cli compound xrefs --cid 23725625 --to pubmed,gene,protein
 biorefs-cli compound bioactivity --cid 23725625 --active-only
 biorefs-cli assay search --target BRCA1
+biorefs-cli assay fetch --aid 504327 --json
 ```
 
 ### OpenAlex enrichment
@@ -121,7 +122,9 @@ biorefs-cli assay search --target BRCA1
 ```bash
 biorefs-cli openalex work --doi 10.1158/2159-8290.cd-12-0049
 biorefs-cli openalex graph --doi 10.1158/2159-8290.cd-12-0049 --direction cited-by --limit 50
+biorefs-cli openalex graph --pmid 23103855 --direction references
 biorefs-cli openalex oa --doi 10.1158/2159-8290.cd-12-0049
+biorefs-cli openalex trends 'BRCA1 PARP inhibitor' --group-by publication-year
 ```
 
 ## Full-text behavior

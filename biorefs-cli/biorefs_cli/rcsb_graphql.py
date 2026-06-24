@@ -11,6 +11,7 @@ from dataclasses import dataclass
 from typing import Protocol, cast
 
 from biorefs_cli.config import Config
+from biorefs_cli.jsonshape import object_list, object_or_none, optional_str
 
 GRAPHQL_URL = "https://data.rcsb.org/graphql"
 USER_AGENT = "biorefs-cli/0.1 (https://github.com/mulatta/skillz)"
@@ -126,24 +127,3 @@ def organisms(entry: dict[str, object]) -> list[str]:
             if name is not None and name not in found:
                 found.append(name)
     return found
-
-
-def object_or_none(payload: dict[str, object], key: str) -> dict[str, object] | None:
-    value = payload.get(key)
-    if isinstance(value, dict):
-        return cast("dict[str, object]", value)
-    return None
-
-
-def object_list(payload: dict[str, object], key: str) -> list[dict[str, object]]:
-    value = payload.get(key)
-    if not isinstance(value, list):
-        return []
-    return [item for item in value if isinstance(item, dict)]
-
-
-def optional_str(payload: dict[str, object], key: str) -> str | None:
-    value = payload.get(key)
-    if isinstance(value, str) and value:
-        return value
-    return None

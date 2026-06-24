@@ -4,13 +4,13 @@ from __future__ import annotations
 
 import re
 from dataclasses import dataclass
-from datetime import UTC, datetime
 from typing import TYPE_CHECKING, Protocol, cast
 
 from biorefs_cli.config import load_config
 from biorefs_cli.errors import CLIError, ConfigError, HTTPError
+from biorefs_cli.jsonshape import retrieved_at
 from biorefs_cli.ncbi_client import NCBIClient
-from biorefs_cli.output import markdown_table, print_json
+from biorefs_cli.output import display, markdown_table, print_json
 
 if TYPE_CHECKING:
     import argparse
@@ -432,10 +432,6 @@ def provenance(endpoint: str) -> dict[str, object]:
     }
 
 
-def retrieved_at() -> str:
-    return datetime.now(UTC).isoformat(timespec="seconds")
-
-
 def print_search_table(result: dict[str, object]) -> None:
     raw_records = result.get("records")
     records = raw_records if isinstance(raw_records, list) else []
@@ -461,9 +457,3 @@ def print_search_table(result: dict[str, object]) -> None:
             rows,
         )
     )
-
-
-def display(value: object) -> str:
-    if value is None:
-        return "-"
-    return str(value)

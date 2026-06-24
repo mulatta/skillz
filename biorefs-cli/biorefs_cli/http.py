@@ -16,6 +16,10 @@ from biorefs_cli.rate_limit import RateLimiter, get_global_rate_limiter
 JsonValue = str | int | float | bool | None | dict[str, "JsonValue"] | list["JsonValue"]
 JsonObject = dict[str, JsonValue]
 REDIRECT_STATUSES = frozenset({301, 302, 303, 307, 308})
+# 301/302/303 must convert a POST to a bodyless GET (303 always; 301/302 by
+# near-universal convention). 307/308 preserve method and body.
+REDIRECT_TO_GET_STATUSES = frozenset({301, 302, 303})
+IDEMPOTENT_METHODS = frozenset({"GET", "HEAD"})
 MAX_REDIRECTS = 5
 
 
@@ -67,7 +71,12 @@ class HttpClient:
         *,
         headers: dict[str, str] | None = None,
         rate_limit_source: str | None = None,
+        retry_transient: bool = True,
     ) -> JsonObject:
+        # POST is non-idempotent in general, so transient retries are unsafe.
+        # The only POST callers here (RCSB search/GraphQL) are read-only query
+        # endpoints, so retrying them is safe; they keep ``retry_transient``
+        # on. Callers with side effects must pass ``retry_transient=False``.
         body = json.dumps(payload).encode("utf-8")
         response = self._send(
             "POST",
@@ -79,6 +88,7 @@ class HttpClient:
                 **(headers or {}),
             },
             rate_limit_source=rate_limit_source,
+            retry_transient=retry_transient,
         )
         return decode_json_object(response)
 
@@ -105,7 +115,13 @@ class HttpClient:
         body: bytes | None,
         headers: dict[str, str],
         rate_limit_source: str | None,
+        retry_transient: bool = True,
     ) -> HttpResponse:
+        # Transient retries (429/5xx/OSError) replay the request, which is only
+        # safe for idempotent methods. GET/HEAD always qualify; a non-idempotent
+        # method (e.g. POST) is only retried when the caller asserts the target
+        # is side-effect-free via ``retry_transient``.
+        retryable = retry_transient or method in IDEMPOTENT_METHODS
         last_error: HTTPError | None = None
         for attempt in range(self.retry_policy.attempts):
             try:
@@ -118,17 +134,23 @@ class HttpClient:
                 )
             except OSError:
                 last_error = HTTPError("network request failed")
+                if not retryable:
+                    raise last_error from None
                 self._sleep(attempt, None)
                 continue
             if response.status == 429:
                 retry_after = parse_retry_after(response.headers.get("retry-after"))
                 last_error = RateLimitError(retry_after_seconds=retry_after)
+                if not retryable:
+                    raise last_error
                 self._sleep(attempt, retry_after)
                 continue
             if response.status in self.retry_policy.retry_statuses:
                 last_error = HTTPError(
                     "remote service returned transient error", status=response.status
                 )
+                if not retryable:
+                    raise last_error
                 self._sleep(attempt, None)
                 continue
             if response.status >= 400:
@@ -149,18 +171,32 @@ class HttpClient:
         headers: dict[str, str],
         rate_limit_source: str | None,
     ) -> HttpResponse:
+        current_method = method
+        current_body = body
         current_url = url
         for _redirect in range(MAX_REDIRECTS + 1):
             self.rate_limiter.acquire(
                 rate_limit_source or infer_rate_limit_source(current_url)
             )
-            response = self._once(method, current_url, body=body, headers=headers)
+            response = self._once(
+                current_method, current_url, body=current_body, headers=headers
+            )
             if response.status not in REDIRECT_STATUSES:
                 return response
             location = response.headers.get("location")
             if not location:
                 return response
             current_url = urljoin(current_url, location)
+            # 301/302/303 turn a non-GET (e.g. POST) into a bodyless GET; the
+            # request body no longer applies to the redirect target. 307/308
+            # keep both method and body. GET requests carry no body, so this
+            # leaves GET behaviour unchanged.
+            if (
+                response.status in REDIRECT_TO_GET_STATUSES
+                and current_method not in IDEMPOTENT_METHODS
+            ):
+                current_method = "GET"
+                current_body = None
         msg = "too many redirects"
         raise HTTPError(msg)
 
