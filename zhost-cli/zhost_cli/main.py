@@ -30,7 +30,7 @@ from typing import Any
 from zhost_cli.client import Client
 from zhost_cli.config import load_config, run_key_command, write_config
 from zhost_cli.errors import APIError, CLIError, InputError
-from zhost_cli.keys import valid_object_key
+from zhost_cli.keys import mint_object_key, valid_object_key
 from zhost_cli.output import emit, emit_json, emit_table, read_json_input, short, truncate
 
 Handler = Callable[[Client, argparse.Namespace], None]
@@ -348,23 +348,33 @@ def cmd_api(client: Client, ns: argparse.Namespace) -> None:
 
 def cmd_library_export(client: Client, ns: argparse.Namespace) -> None:
     """Serialize the library to a directory: a record per top-level item with its
-    children, attachment files, and full-text index nested in; plus the
-    collection tree and tag list. The inverse of `library import`."""
+    children, attachment files, and full-text index nested in; plus collections,
+    tags, and settings. Collection-scoped exports include the selected subtree
+    plus ancestors needed to preserve the path."""
     outdir = Path(ns.outdir)
     (outdir / "items").mkdir(parents=True, exist_ok=True)
     version = client.library_version()
 
-    children = children_by_parent(client.query_all("/items"))
+    all_colls = all_collections(client)
+    collection_filter: set[str] | None = None
     if ns.collection:
-        key = find_collection(client, ns.collection)
+        key = find_collection_in(all_colls, ns.collection)
         if key is None:
             raise InputError(f"collection not found: {ns.collection}")
-        tops = client.query_all(f"/collections/{key}/items/top")
+        collections, item_scope = scoped_collections(all_colls, key)
+        tops = tops_in_collections(client, item_scope)
+        collection_filter = set(item_scope)
     else:
+        collections = all_colls
         tops = client.query_all("/items/top")
 
+    children = children_by_parent(client.query_all("/items"))
     for top in tops:
-        kids = children.get(str(top["key"]), [])
+        top = filter_collection_memberships(top, collection_filter)
+        kids = [
+            filter_collection_memberships(k, collection_filter)
+            for k in children.get(str(top["key"]), [])
+        ]
         fulltext: dict[str, Any] = {}
         for child in kids:
             if child.get("data", {}).get("itemType") != "attachment":
@@ -378,10 +388,11 @@ def cmd_library_export(client: Client, ns: argparse.Namespace) -> None:
         record = {"item": top, "children": kids, "fulltext": fulltext}
         (outdir / "items" / f"{top['key']}.json").write_text(json.dumps(record, indent=2))
 
-    collections = all_collections(client)
     (outdir / "collections.json").write_text(json.dumps(collections, indent=2))
     tags = client.request("GET", client.user_path("/tags")).json()
     (outdir / "tags.json").write_text(json.dumps(tags, indent=2))
+    settings = client.settings()
+    (outdir / "settings.json").write_text(json.dumps(settings, indent=2))
     manifest = {
         "libraryVersion": version,
         "counts": {"items": len(tops), "collections": len(collections)},
@@ -391,32 +402,45 @@ def cmd_library_export(client: Client, ns: argparse.Namespace) -> None:
 
 
 def cmd_library_import(client: Client, ns: argparse.Namespace) -> None:
-    """Recreate a library from a `library export` directory. Object keys are
-    preserved, so parent-child and collection links survive the round-trip; run
-    it against an empty (or matching) library."""
+    """Recreate a library from a `library export` directory. Keys are preserved by
+    default; `--new-keys` remaps the archive into a new object set for merging."""
     indir = Path(ns.indir)
     if not (indir / "manifest.json").exists():
         raise InputError(f"not an export directory (no manifest.json): {indir}")
 
     collections = json.loads((indir / "collections.json").read_text())
-    import_collections(client, collections)
+    records = load_export_records(indir)
+    if ns.new_keys:
+        key_map = import_key_map(client, collections, records)
+        collections = remap_collections(collections, key_map)
+        records = [remap_record(rec, key_map) for rec in records]
 
+    import_collections(client, collections, ns.mode)
+    import_settings(client, indir)
+
+    existing_rows = existing_items_by_key(client) if ns.mode == "replace" else {}
+    existing_items = set(existing_rows)
     count = 0
-    for path in sorted((indir / "items").glob("*.json")):
-        rec = json.loads(path.read_text())
-        client.write("item", [restorable(rec["item"]["data"])])
+    for rec in records:
+        write_object(client, "item", rec["item"]["data"], ns.mode, existing_items)
         for child in rec.get("children", []):
             ckey = str(child["key"])
-            client.write("item", [restorable(child["data"])])
-            files = indir / "files" / ckey
+            source_key = str(child.get("sourceKey") or ckey)
+            replace_md5 = existing_rows.get(ckey, {}).get("data", {}).get("md5")
+            write_object(client, "item", child["data"], ns.mode, existing_items)
+            files = indir / "files" / source_key
             if not ns.no_files and files.is_dir():
                 for fp in sorted(files.iterdir()):
-                    client.upload_file(ckey, str(fp))
-            ft = rec.get("fulltext", {}).get(ckey)
+                    client.upload_file(ckey, str(fp), replace_md5=replace_md5)
+            ft = rec.get("fulltext", {}).get(source_key)
             if ft is not None:
                 client.put_fulltext(ckey, ft)
         count += 1
     print(f"imported {count} items into the library")
+
+
+def load_export_records(indir: Path) -> list[dict[str, Any]]:
+    return [json.loads(path.read_text()) for path in sorted((indir / "items").glob("*.json"))]
 
 
 def children_by_parent(items: list[dict[str, Any]]) -> dict[str, list[dict[str, Any]]]:
@@ -443,9 +467,65 @@ def export_file(client: Client, attachment: dict[str, Any], dest: Path) -> None:
         pass  # file registered but bytes missing in object storage; skip
 
 
-def import_collections(client: Client, collections: list[dict[str, Any]]) -> None:
+def scoped_collections(
+    collections: list[dict[str, Any]], root_key: str
+) -> tuple[list[dict[str, Any]], set[str]]:
+    """Collections to write for a partial archive, plus collections whose items
+    belong in the archive. Ancestors are metadata-only; descendants carry items."""
+    by_key = {str(c["key"]): c for c in collections}
+    item_scope = {root_key}
+    changed = True
+    while changed:
+        changed = False
+        for coll in collections:
+            key = str(coll["key"])
+            parent = coll.get("data", {}).get("parentCollection")
+            if key not in item_scope and parent and str(parent) in item_scope:
+                item_scope.add(key)
+                changed = True
+
+    ancestors: set[str] = set()
+    parent = by_key[root_key].get("data", {}).get("parentCollection")
+    while parent and str(parent) in by_key:
+        ancestors.add(str(parent))
+        parent = by_key[str(parent)].get("data", {}).get("parentCollection")
+
+    exported = item_scope | ancestors
+    return [c for c in collections if str(c["key"]) in exported], item_scope
+
+
+def tops_in_collections(client: Client, collection_keys: set[str]) -> list[dict[str, Any]]:
+    out: dict[str, dict[str, Any]] = {}
+    for key in sorted(collection_keys):
+        for item in client.query_all(f"/collections/{key}/items/top"):
+            out.setdefault(str(item["key"]), item)
+    return list(out.values())
+
+
+def filter_collection_memberships(
+    item: dict[str, Any], collection_filter: set[str] | None
+) -> dict[str, Any]:
+    if collection_filter is None:
+        return item
+    data = dict(item.get("data", {}))
+    if "collections" in data:
+        data["collections"] = [
+            c for c in data.get("collections") or [] if str(c) in collection_filter
+        ]
+    return {**item, "data": data}
+
+
+def find_collection_in(collections: list[dict[str, Any]], name: str) -> str | None:
+    for item in collections:
+        if str(item.get("data", {}).get("name", "")) == name:
+            return str(item["key"])
+    return None
+
+
+def import_collections(client: Client, collections: list[dict[str, Any]], mode: str) -> None:
     """Recreate collections parents-first so parentCollection links resolve."""
     by_key = {str(c["key"]): c for c in collections}
+    existing = set(client.versions("collection")) if mode == "replace" else set()
     done: set[str] = set()
 
     def emit_one(coll: dict[str, Any]) -> None:
@@ -455,11 +535,87 @@ def import_collections(client: Client, collections: list[dict[str, Any]]) -> Non
         parent = coll.get("data", {}).get("parentCollection")
         if parent and str(parent) in by_key:
             emit_one(by_key[str(parent)])
-        client.write("collection", [restorable(coll["data"])])
+        write_object(client, "collection", coll["data"], mode, existing)
         done.add(key)
 
     for coll in collections:
         emit_one(coll)
+
+
+def import_settings(client: Client, indir: Path) -> None:
+    path = indir / "settings.json"
+    if not path.exists():
+        return
+    settings = json.loads(path.read_text())
+    body = {
+        str(key): {"value": entry.get("value") if isinstance(entry, dict) else entry}
+        for key, entry in settings.items()
+    }
+    if body:
+        client.write_settings(body)
+
+
+def import_key_map(
+    client: Client, collections: list[dict[str, Any]], records: list[dict[str, Any]]
+) -> dict[str, str]:
+    source = {str(c["key"]) for c in collections}
+    for rec in records:
+        source.add(str(rec["item"]["key"]))
+        source.update(str(child["key"]) for child in rec.get("children", []))
+    used = set(source) | set(client.versions("collection")) | set(existing_items_by_key(client))
+    out: dict[str, str] = {}
+    for key in sorted(source):
+        new_key = mint_object_key(used)
+        out[key] = new_key
+        used.add(new_key)
+    return out
+
+
+def remap_collections(
+    collections: list[dict[str, Any]], key_map: dict[str, str]
+) -> list[dict[str, Any]]:
+    return [remap_row(coll, key_map) for coll in collections]
+
+
+def remap_record(rec: dict[str, Any], key_map: dict[str, str]) -> dict[str, Any]:
+    return {
+        **rec,
+        "item": remap_row(rec["item"], key_map),
+        "children": [remap_row(child, key_map) for child in rec.get("children", [])],
+    }
+
+
+def remap_row(row: dict[str, Any], key_map: dict[str, str]) -> dict[str, Any]:
+    old_key = str(row["key"])
+    data = remap_data(row.get("data", {}), key_map)
+    return {**row, "key": key_map.get(old_key, old_key), "sourceKey": old_key, "data": data}
+
+
+def remap_data(data: dict[str, Any], key_map: dict[str, str]) -> dict[str, Any]:
+    out = dict(data)
+    if "key" in out:
+        out["key"] = key_map.get(str(out["key"]), out["key"])
+    if "parentItem" in out:
+        out["parentItem"] = key_map.get(str(out["parentItem"]), out["parentItem"])
+    if "parentCollection" in out:
+        out["parentCollection"] = key_map.get(str(out["parentCollection"]), out["parentCollection"])
+    if "collections" in out:
+        out["collections"] = [key_map.get(str(key), key) for key in out.get("collections") or []]
+    return out
+
+
+def existing_items_by_key(client: Client) -> dict[str, dict[str, Any]]:
+    return {str(item["key"]): item for item in client.query_all("/items")}
+
+
+def write_object(
+    client: Client, kind: str, data: dict[str, Any], mode: str, existing: set[str]
+) -> None:
+    key = str(data.get("key", ""))
+    method = "PATCH" if mode == "replace" and key in existing else "POST"
+    client.write(kind, [restorable(data)], method=method)
+    if key:
+        existing.add(key)
 
 
 def restorable(data: dict[str, Any]) -> dict[str, Any]:
@@ -797,6 +953,13 @@ def _library(sub: Any) -> None:
     s.add_argument("indir")
     s.add_argument(
         "--no-files", action="store_true", dest="no_files", help="Skip attachment file uploads"
+    )
+    s.add_argument("--new-keys", action="store_true", help="Import as a new object set")
+    s.add_argument(
+        "--mode",
+        choices=["create", "replace"],
+        default="create",
+        help="Collision policy for preserved keys (default: create)",
     )
     s.set_defaults(handler=cmd_library_import)
 

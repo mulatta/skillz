@@ -77,20 +77,26 @@ you. Collections and bulk reads are first-class — no `api` needed.
 ## Backup / migration (whole-library archive)
 
 ```bash
-zhost-cli library export ./dump          # items + children + files + fulltext + collections + tags
-zhost-cli library export ./dump --no-files   # metadata only (fast)
-zhost-cli library import ./dump          # restore into an empty/matching library (keys preserved)
+zhost-cli library export ./dump              # items + children + files + fulltext + collections + tags + settings
+zhost-cli library export ./dump --collection "Project" --no-files  # subtree metadata only
+zhost-cli library import ./dump              # restore into an empty library (keys preserved)
+zhost-cli library import ./dump --mode replace   # patch existing matching keys
+zhost-cli library import ./dump --new-keys       # merge as a new object set
 ```
 
 `export` writes a directory (`manifest.json`, `items/<KEY>.json` with nested
-children + full-text, `files/<ATTACH>/<name>`, `collections.json`, `tags.json`).
+children + full-text, `files/<ATTACH>/<name>`, `collections.json`, `tags.json`,
+`settings.json` with tag colors). `--collection` exports the chosen collection
+subtree plus ancestors and drops out-of-scope item collection memberships.
 `import` is its inverse: collections parents-first, then items with their
-children re-parented, files re-uploaded, and full-text re-indexed.
+children re-parented, files re-uploaded, full-text re-indexed, and settings
+restored. Use `--new-keys` to merge a copy into a non-empty library.
 
 ## Rules that keep writes correct
 
-- **Let the server mint keys.** Never hand-craft 8-char keys; `item add` gets a
-  valid one. A bad key (or one with 0/1/O/L) is rejected.
+- **Let the server mint keys for normal creates.** `item add` gets a valid key.
+  `library import --new-keys` is the exception: it mints valid keys so internal
+  parent/collection references can be remapped before upload.
 - **Collections are idempotent.** `item add --collection NAME` reuses an existing
   folder of that name or creates it — safe to repeat.
 - **`highlight add --text` must appear in the `--pdf`.** Geometry is computed from
