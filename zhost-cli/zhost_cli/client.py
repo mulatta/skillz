@@ -192,6 +192,23 @@ class Client:
             content_type="application/json",
         )
 
+    def settings(self) -> dict[str, Any]:
+        """All library settings as `{key: {value, version}}` (e.g. tagColors)."""
+        data = self.request("GET", self.user_path("/settings")).json()
+        return cast(dict[str, Any], data) if isinstance(data, dict) else {}
+
+    def write_settings(self, body: dict[str, Any], expected: int | None = None) -> Response:
+        """Write a `{key: {value}}` settings object under the version guard."""
+        if expected is None:
+            expected = self.library_version()
+        return self.request(
+            "POST",
+            self.user_path("/settings"),
+            body=json.dumps(body).encode(),
+            content_type="application/json",
+            extra_headers={"If-Unmodified-Since-Version": str(expected)},
+        )
+
     # -- sync writes -------------------------------------------------------
 
     def write(

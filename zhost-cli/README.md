@@ -64,8 +64,8 @@ zhost-cli [--config PATH] [-j/--json]
 │     items  KEY [--type --tag --limit]
 │     remove KEY --yes                      # folder only; its items stay
 ├── library
-│     export OUTDIR [--collection NAME] [--no-files]  # whole-library archive
-│     import INDIR  [--no-files]            # restore (keys preserved)
+│     export OUTDIR [--collection NAME] [--no-files]  # archive; scope includes subtree
+│     import INDIR  [--no-files] [--new-keys] [--mode create|replace]
 ├── highlight add ITEM --pdf PATH --text T [--color --comment --page --tag] | list ITEM
 ├── note      add ITEM (--text HTML | --file) [--tag] | list ITEM
 ├── tag       add KEY NAME.. | remove KEY NAME.. | list [KEY]
@@ -78,14 +78,24 @@ internally — you never handle attachment keys. `item find` resolves full-text
 hits (which land on attachments) up to their parent items. Every `list`/`find`/
 `get` honours `-j` for JSON.
 
+`library export` writes items, child notes/attachments, files, fulltext,
+collections, tags, and settings (including tag colors). `--collection NAME`
+exports items in that collection subtree, keeps ancestor collections for path
+context, and drops out-of-scope collection memberships from item records.
+`library import` defaults to key-preserving create mode for empty libraries;
+`--mode replace` patches existing matching keys, and `--new-keys` remaps keys for
+merging a copy into a non-empty library.
+
 See `skills/SKILL.md` for the agent workflow and the rules that keep writes
-correct (server-minted keys, idempotent collections, version preconditions,
-merge semantics, deterministic highlight geometry).
+correct (server-minted keys for normal creates, remapped keys for archive merges,
+idempotent collections, version preconditions, merge semantics, deterministic
+highlight geometry).
 
 ## Notes
 
 - `highlight` computes PDF rects with pymupdf (exact `search_for`, falling back
   to a word-stream match that survives hyphenated line breaks); `--text` must
   appear in the PDF. No LLM tokens are used for geometry.
-- Object keys are 8 chars from a 32-symbol alphabet (no 0/1/O/L); the CLI lets
-  the server assign them and validates any user-supplied key before sending.
+- Object keys are 8 chars from a 32-symbol alphabet (no 0/1/O/L); normal creates
+  let the server assign them, while `library import --new-keys` mints keys so
+  parent/collection references can be remapped before upload.

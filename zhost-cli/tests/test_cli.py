@@ -18,6 +18,7 @@ class State:
     version = 10
     collections: dict[str, dict[str, Any]] = {}
     items: dict[str, dict[str, Any]] = {}
+    settings: dict[str, dict[str, Any]] = {}
     fulltext: dict[str, dict[str, Any]] = {}
     requests: list[dict[str, Any]] = []
     counter = 0
@@ -96,7 +97,15 @@ class Handler(BaseHTTPRequestHandler):
         length = int(self.headers.get("content-length", "0") or "0")
         raw = self.rfile.read(length) if length else b""
         body: Any = json.loads(raw) if raw and raw[:1] in (b"[", b"{") else None
-        State.requests.append({"method": self.command, "path": path, "query": query, "body": body})
+        State.requests.append(
+            {
+                "method": self.command,
+                "path": path,
+                "query": query,
+                "body": body,
+                "headers": {k.lower(): v for k, v in self.headers.items()},
+            }
+        )
 
         if path == "/users/1/collections":
             if self.command == "GET" and query.get("format") == ["versions"]:
@@ -104,8 +113,11 @@ class Handler(BaseHTTPRequestHandler):
             elif self.command == "GET":
                 self._send(200, self._rows(State.collections, query["collectionKey"][0].split(",")))
             elif self.command == "POST":
-                State.version += 1
                 key = body[0].get("key") or _key("COLL")  # honor client-supplied key (import)
+                if key in State.collections:
+                    self._send(409, {"message": f"collection already exists: {key}"})
+                    return
+                State.version += 1
                 State.collections[key] = {**body[0], "key": key, "version": State.version}
                 self._send(200, self._written(key, State.collections[key]))
             elif self.command == "PATCH":
@@ -116,6 +128,17 @@ class Handler(BaseHTTPRequestHandler):
             elif self.command == "DELETE":
                 for key in query.get("collectionKey", [""])[0].split(","):
                     State.collections.pop(key, None)
+                self._raw(204)
+            return
+
+        if path == "/users/1/settings":
+            if self.command == "GET":
+                self._send(200, State.settings)
+            elif self.command == "POST":
+                State.version += 1
+                for k, entry in (body or {}).items():
+                    value = entry.get("value", entry) if isinstance(entry, dict) else entry
+                    State.settings[k] = {"value": value, "version": State.version}
                 self._raw(204)
             return
 
@@ -154,8 +177,11 @@ class Handler(BaseHTTPRequestHandler):
 
         if path == "/users/1/items":
             if self.command == "POST":
-                State.version += 1
                 key = body[0].get("key") or _key("ITEM")  # honor client-supplied key (import)
+                if key in State.items:
+                    self._send(409, {"message": f"item already exists: {key}"})
+                    return
+                State.version += 1
                 State.items[key] = {**body[0], "key": key, "version": State.version}
                 self._send(200, self._written(key, State.items[key]))
             elif self.command == "PATCH":
@@ -212,7 +238,7 @@ class Handler(BaseHTTPRequestHandler):
 @pytest.fixture()
 def server(monkeypatch: pytest.MonkeyPatch) -> Generator[str, None, None]:
     State.version, State.collections, State.items, State.requests, State.counter = 10, {}, {}, [], 0
-    State.fulltext = {}
+    State.fulltext, State.settings = {}, {}
     httpd = ThreadingHTTPServer(("127.0.0.1", 0), Handler)
     threading.Thread(target=httpd.serve_forever, daemon=True).start()
     base = f"http://127.0.0.1:{httpd.server_address[1]}"
@@ -567,18 +593,118 @@ def test_library_export_no_files(
     assert os.path.exists(f"{out}/items/PAPER222.json")
 
 
+def test_library_export_collection_scope(
+    server: str, tmp_path: object, capsys: pytest.CaptureFixture[str]
+) -> None:
+    _seed_library()
+    State.collections["ROOT2222"] = {"key": "ROOT2222", "name": "Root", "version": 1}
+    State.collections["FOLDER22"]["parentCollection"] = "ROOT2222"
+    State.collections["SUBCOL22"] = {
+        "key": "SUBCOL22",
+        "name": "Sub",
+        "parentCollection": "FOLDER22",
+        "version": 1,
+    }
+    State.collections["OTHCOL22"] = {"key": "OTHCOL22", "name": "Other", "version": 1}
+    State.items["SUBPAP22"] = {
+        "key": "SUBPAP22",
+        "itemType": "journalArticle",
+        "title": "Sub paper",
+        "collections": ["SUBCOL22"],
+    }
+    State.items["CROSS222"] = {
+        "key": "CROSS222",
+        "itemType": "journalArticle",
+        "title": "Cross-listed",
+        "collections": ["FOLDER22", "OTHCOL22"],
+    }
+    State.items["OTHIT222"] = {
+        "key": "OTHIT222",
+        "itemType": "journalArticle",
+        "title": "Outside",
+        "collections": ["OTHCOL22"],
+    }
+
+    out = f"{tmp_path}/scoped"
+    main(["library", "export", out, "--collection", "Proj", "--no-files"])
+
+    exported_items = {p[:-5] for p in os.listdir(f"{out}/items")}
+    assert exported_items == {"PAPER222", "SUBPAP22", "CROSS222"}
+    colls = {c["key"] for c in json.loads(open(f"{out}/collections.json").read())}
+    assert colls == {"ROOT2222", "FOLDER22", "SUBCOL22"}
+    cross = json.loads(open(f"{out}/items/CROSS222.json").read())
+    assert cross["item"]["data"]["collections"] == ["FOLDER22"]
+
+
 def test_library_roundtrip(
     server: str, tmp_path: object, capsys: pytest.CaptureFixture[str]
 ) -> None:
     _seed_library()
+    State.settings["tagColors"] = {
+        "value": [{"name": "read", "color": "#5fb236"}],
+        "version": 5,
+    }
     out = f"{tmp_path}/dump"
     main(["library", "export", out])
 
-    State.collections, State.items, State.fulltext = {}, {}, {}  # wipe, then restore
+    settings = json.loads(open(f"{out}/settings.json").read())
+    assert settings["tagColors"]["value"] == [{"name": "read", "color": "#5fb236"}]
+
+    State.collections, State.items, State.fulltext, State.settings = {}, {}, {}, {}
     main(["library", "import", out])
 
     assert any(c.get("name") == "Proj" for c in State.collections.values())
     assert State.items["PAPER222"]["title"] == "P"  # key preserved
     assert State.items["NOTE2222"]["parentItem"] == "PAPER222"  # child re-parented
     assert State.fulltext["ATTAC222"]["content"] == "full body"  # index restored
+    assert State.settings["tagColors"]["value"] == [{"name": "read", "color": "#5fb236"}]
     assert any(r["path"].startswith("/uploads/") for r in State.requests)  # file re-uploaded
+
+
+def test_library_import_replace_existing(
+    server: str, tmp_path: object, capsys: pytest.CaptureFixture[str]
+) -> None:
+    _seed_library()
+    out = f"{tmp_path}/dump"
+    main(["library", "export", out])
+
+    with pytest.raises(SystemExit):
+        main(["library", "import", out, "--no-files"])
+
+    State.items["PAPER222"]["title"] = "Changed"
+    State.items["ATTAC222"]["md5"] = "oldtarget"
+    State.collections["FOLDER22"]["name"] = "Changed"
+    main(["library", "import", out, "--mode", "replace"])
+
+    assert State.items["PAPER222"]["title"] == "P"
+    assert State.collections["FOLDER22"]["name"] == "Proj"
+    assert any(r["method"] == "PATCH" and r["path"] == "/users/1/items" for r in State.requests)
+    assert any(
+        r["method"] == "PATCH" and r["path"] == "/users/1/collections" for r in State.requests
+    )
+    assert any(
+        r["method"] == "POST"
+        and r["path"] == "/users/1/items/ATTAC222/file"
+        and r["headers"].get("if-match") == "oldtarget"
+        for r in State.requests
+    )
+
+
+def test_library_import_new_keys_merges_copy(
+    server: str, tmp_path: object, capsys: pytest.CaptureFixture[str]
+) -> None:
+    _seed_library()
+    out = f"{tmp_path}/dump"
+    main(["library", "export", out, "--no-files"])
+
+    main(["library", "import", out, "--no-files", "--new-keys"])
+
+    papers = [k for k, v in State.items.items() if v.get("itemType") == "journalArticle"]
+    assert "PAPER222" in papers and len(papers) == 2
+    new_paper = next(k for k in papers if k != "PAPER222")
+    new_attach = next(
+        k for k, v in State.items.items() if v.get("itemType") == "attachment" and k != "ATTAC222"
+    )
+    assert State.items[new_attach]["parentItem"] == new_paper
+    assert State.items[new_paper]["collections"] != ["FOLDER22"]
+    assert State.fulltext[new_attach]["content"] == "full body"
