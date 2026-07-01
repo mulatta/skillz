@@ -1,9 +1,4 @@
-"""End-to-end tests for the CLI.
-
-These drive the real ``cli.main`` with the Buildbot HTTP layer stubbed via the
-shared fixture router (see ``test_buildbot_api``), and the forge layer stubbed
-directly.
-"""
+"""End-to-end tests for the CLI with the forge and Nixbot layers stubbed."""
 
 from __future__ import annotations
 
@@ -12,20 +7,11 @@ import json
 import pytest
 
 from buildbot_pr_check import cli, github_api
-from buildbot_pr_check.buildbot_api import BuildbotClient
+from buildbot_pr_check.nixbot_api import NixbotClient
 
-from .test_buildbot_api import fake_get
-
-PR_URL = "https://github.com/TUM-DSE/doctor-cluster-config/pull/1133"
+PR_URL = "https://github.com/mulatta/dots/pull/235"
 HEAD_SHA = "280478056c6614a0cdbf7dc4a4b92fbdc2527807"
-EVAL_WEB_URL = "https://buildbot.dse.in.tum.de/#/builders/18/builds/3394"
-
-
-@pytest.fixture
-def stub_http(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setattr(BuildbotClient, "_get", fake_get)
-    monkeypatch.setattr(github_api, "get_pr_head_sha", lambda *a, **k: HEAD_SHA)
-    monkeypatch.setattr(github_api, "get_buildbot_urls_from_github", lambda *a, **k: [EVAL_WEB_URL])
+NIXBOT_WEB_URL = "https://buildbot.sjanglab.org/repos/github/mulatta/dots/builds/3"
 
 
 def _run(argv: list[str]) -> int:
@@ -35,54 +21,113 @@ def _run(argv: list[str]) -> int:
     return exc.value.code
 
 
-def test_cmd_pr_failures_json(stub_http: None, capsys: pytest.CaptureFixture[str]) -> None:
-    """Forge status → eval build → sub-build traversal → log tail."""
-    code = _run([PR_URL, "--failures", "--json", "--log-tail", "80"])
-    assert code == 1
+@pytest.fixture
+def stub_nixbot(monkeypatch: pytest.MonkeyPatch) -> None:
+    def fake_nixbot_get(self: NixbotClient, path: str) -> dict[str, object]:
+        assert path == "repos/github/mulatta/dots/builds/3"
+        return {
+            "build": {
+                "id": 18,
+                "number": 3,
+                "status": "failed",
+                "branch": "main",
+                "commit_sha": HEAD_SHA,
+                "error": None,
+            },
+            "attributes": [
+                {
+                    "id": 1,
+                    "build_id": 18,
+                    "attr": "x86_64-linux.nixos-taps",
+                    "status": "failed",
+                    "cached": False,
+                    "error": "boom",
+                },
+                {
+                    "id": 2,
+                    "build_id": 18,
+                    "attr": "x86_64-linux.treefmt",
+                    "status": "succeeded",
+                    "cached": True,
+                    "error": None,
+                },
+            ],
+        }
 
-    out = json.loads(capsys.readouterr().out)
-    assert out["pr"] == "TUM-DSE/doctor-cluster-config#1133"
-    assert out["status"] == "FAILURE"
-    assert out["eval_build"] == EVAL_WEB_URL
-    assert len(out["failures"]) == 1
-    fail = out["failures"][0]
-    assert fail["attr"] == "x86_64-linux.nixos-jamie"
-    assert fail["status"] == "FAILURE"
-    assert fail["log_url"].endswith("/api/v2/logs/230713/raw_inline")
-    assert "program finished with exit code 1" in fail["log_tail"]
+    monkeypatch.setattr(github_api, "get_pr_head_sha", lambda *a, **k: HEAD_SHA)
+    monkeypatch.setattr(github_api, "get_nixbot_urls_from_github", lambda *a, **k: [NIXBOT_WEB_URL])
+    monkeypatch.setattr(NixbotClient, "_get", fake_nixbot_get)
 
 
-def test_cmd_pr_json_full_table(stub_http: None, capsys: pytest.CaptureFixture[str]) -> None:
+def test_cmd_pr_json_full_table(stub_nixbot: None, capsys: pytest.CaptureFixture[str]) -> None:
     code = _run([PR_URL, "--json"])
     assert code == 1
 
     out = json.loads(capsys.readouterr().out)
     ev = out["eval_build"]
-    assert ev["url"] == EVAL_WEB_URL
-    assert ev["status"] == "FAILURE"
-    assert len(ev["sub_builds"]) == 31
-    by_attr = {s["attr"]: s for s in ev["sub_builds"]}
-    assert by_attr["x86_64-linux.nixos-jamie"]["status"] == "FAILURE"
-    assert sum(1 for s in ev["sub_builds"] if s["status"] == "SUCCESS") == 30
+    assert ev["url"] == NIXBOT_WEB_URL
+    assert ev["status"] == "FAILED"
+    assert len(ev["attributes"]) == 2
+    by_attr = {s["attr"]: s for s in ev["attributes"]}
+    assert by_attr["x86_64-linux.nixos-taps"]["status"] == "FAILED"
+    assert by_attr["x86_64-linux.treefmt"]["status"] == "SUCCEEDED"
+
+
+def test_cmd_pr_failures_json(stub_nixbot: None, capsys: pytest.CaptureFixture[str]) -> None:
+    code = _run([PR_URL, "--failures", "--json", "--log-tail", "80"])
+    assert code == 1
+
+    out = json.loads(capsys.readouterr().out)
+    assert out["pr"] == "mulatta/dots#235"
+    assert out["status"] == "FAILED"
+    assert out["eval_build"] == NIXBOT_WEB_URL
+    assert len(out["failures"]) == 1
+    fail = out["failures"][0]
+    assert fail["attr"] == "x86_64-linux.nixos-taps"
+    assert fail["status"] == "FAILED"
+    assert fail["error"] == "boom"
 
 
 def test_cmd_pr_text_output_is_structured(
-    stub_http: None, capsys: pytest.CaptureFixture[str]
+    stub_nixbot: None, capsys: pytest.CaptureFixture[str]
 ) -> None:
     code = _run([PR_URL])
     assert code == 1
     out = capsys.readouterr().out
     assert "\x1b[" not in out  # no ANSI noise for the agent
-    assert "status: FAILURE" in out
-    assert "x86_64-linux.nixos-jamie" in out
+    assert "status: FAILED" in out
+    assert "x86_64-linux.nixos-taps" in out
+
+
+def test_discovery_accepts_buildbot_prefixed_nixbot_url(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(
+        github_api,
+        "_gh_get",
+        lambda url: (
+            {
+                "check_runs": [
+                    {
+                        "name": "buildbot/nix-build",
+                        "app": {"name": "GitHub Actions"},
+                        "details_url": NIXBOT_WEB_URL,
+                    }
+                ]
+            }
+            if url.endswith("/check-runs")
+            else {"statuses": []}
+        ),
+    )
+    assert github_api.get_nixbot_urls_from_github("mulatta", "dots", HEAD_SHA) == [NIXBOT_WEB_URL]
 
 
 def test_discovery_error_when_nothing_found(
     monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
 ) -> None:
     monkeypatch.setattr(github_api, "get_pr_head_sha", lambda *a, **k: HEAD_SHA)
-    monkeypatch.setattr(github_api, "get_buildbot_urls_from_github", lambda *a, **k: [])
+    monkeypatch.setattr(github_api, "get_nixbot_urls_from_github", lambda *a, **k: [])
     code = _run([PR_URL, "--json"])
     assert code == 1
     err = capsys.readouterr().err
-    assert "No buildbot status found" in err
+    assert "No nixbot status found" in err

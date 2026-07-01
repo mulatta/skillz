@@ -1,4 +1,4 @@
-"""URL parsing for PR URLs and buildbot web URLs."""
+"""URL parsing for PR URLs and nixbot web URLs."""
 
 import re
 import urllib.parse
@@ -17,12 +17,14 @@ class PRInfo:
 
 
 @dataclass
-class BuildbotRef:
-    """Reference into a buildbot instance parsed from a web (#/...) URL."""
+class NixbotRef:
+    """Reference into a nixbot instance parsed from a web URL."""
 
     base_url: str  # https://host
-    builder_id: int | None = None
-    build_num: int | None = None
+    forge: str
+    owner: str
+    repo: str
+    build_num: int
 
 
 def is_safe_url(url: str) -> bool:
@@ -31,6 +33,14 @@ def is_safe_url(url: str) -> bool:
         return parsed.scheme == "https" and bool(parsed.netloc)
     except (ValueError, AttributeError):
         return False
+
+
+def is_nixbot_build_url(url: str) -> bool:
+    try:
+        parse_nixbot_url(url)
+    except InvalidPRURLError:
+        return False
+    return True
 
 
 def get_pr_info(pr_url: str) -> PRInfo:
@@ -46,21 +56,18 @@ def get_pr_info(pr_url: str) -> PRInfo:
     raise InvalidPRURLError(f"Invalid PR URL: {pr_url}. Supported: GitHub and Gitea")
 
 
-def parse_buildbot_url(url: str) -> BuildbotRef:
-    """Parse a buildbot web URL into a :class:`BuildbotRef`.
-
-    Understands ``https://bb/#/builders/19/builds/2785`` (used by forge commit
-    statuses); other shapes return only ``base_url``.
-    """
+def parse_nixbot_url(url: str) -> NixbotRef:
+    """Parse ``https://ci/repos/<forge>/<owner>/<repo>/builds/<n>``."""
     p = urllib.parse.urlparse(url)
     if not p.scheme or not p.netloc:
-        raise InvalidPRURLError(f"Not a buildbot URL: {url}")
-    base = f"{p.scheme}://{p.netloc}"
-    frag = p.fragment or p.path  # tolerate URLs without the '#'
-
-    ref = BuildbotRef(base_url=base)
-    m = re.search(r"/builders/(\d+)/builds/(\d+)", frag)
-    if m:
-        ref.builder_id = int(m.group(1))
-        ref.build_num = int(m.group(2))
-    return ref
+        raise InvalidPRURLError(f"Not a nixbot URL: {url}")
+    m = re.search(r"/repos/([^/]+)/([^/]+)/([^/]+)/builds/(\d+)", p.path)
+    if not m:
+        raise InvalidPRURLError(f"Not a nixbot build URL: {url}")
+    return NixbotRef(
+        base_url=f"{p.scheme}://{p.netloc}",
+        forge=m.group(1),
+        owner=m.group(2),
+        repo=m.group(3),
+        build_num=int(m.group(4)),
+    )

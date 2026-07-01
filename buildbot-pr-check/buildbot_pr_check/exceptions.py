@@ -1,20 +1,20 @@
 """Custom exceptions for buildbot-pr-check."""
 
 
-class BuildbotCheckError(Exception):
+class CheckError(Exception):
     """Base exception for buildbot-pr-check errors."""
 
 
-class InvalidPRURLError(BuildbotCheckError):
+class InvalidPRURLError(CheckError):
     """Raised when PR URL is invalid or unsupported."""
 
 
-class APIError(BuildbotCheckError):
+class APIError(CheckError):
     """Raised when API calls fail."""
 
 
-class BuildbotAPIError(APIError):
-    """Raised when Buildbot API calls fail."""
+class NixbotAPIError(APIError):
+    """Raised when Nixbot API calls fail."""
 
 
 class GitHubAPIError(APIError):

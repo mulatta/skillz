@@ -26,7 +26,7 @@ python3Packages.buildPythonApplication {
   pythonImportsCheck = [ "buildbot_pr_check" ];
 
   meta = {
-    description = "Inspect Buildbot (buildbot-nix) CI for a PR";
+    description = "Inspect Nixbot CI for a PR";
     license = lib.licenses.mit;
     mainProgram = "buildbot-pr-check";
     maintainers = [ ];
