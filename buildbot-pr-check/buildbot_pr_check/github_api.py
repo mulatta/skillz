@@ -1,4 +1,4 @@
-"""GitHub API helpers (stdlib only)."""
+"""GitHub API helpers for Nixbot build discovery (stdlib only)."""
 
 import json
 import logging
@@ -9,7 +9,7 @@ import urllib.request
 from typing import Any
 
 from .exceptions import GitHubAPIError
-from .url_parser import is_safe_url
+from .url_parser import is_nixbot_build_url, is_safe_url
 
 logger = logging.getLogger(__name__)
 
@@ -52,17 +52,19 @@ def get_pr_head_sha(owner: str, repo: str, pr_num: str) -> str:
         raise GitHubAPIError(msg) from e
 
 
-def get_buildbot_urls_from_github(owner: str, repo: str, head_sha: str) -> list[str]:
-    """Find buildbot build URLs from GitHub check-runs / commit statuses for the head SHA."""
+def get_nixbot_urls_from_github(owner: str, repo: str, head_sha: str) -> list[str]:
+    """Find Nixbot build URLs from GitHub check-runs / commit statuses."""
     urls: set[str] = set()
 
     try:
         data = _gh_get(f"https://api.github.com/repos/{owner}/{repo}/commits/{head_sha}/check-runs")
         for check in data.get("check_runs", []):
             name = check.get("name", "").lower()
-            app = check.get("app", {}).get("name", "").lower()
+            app = (check.get("app") or {}).get("name", "").lower()
             details = check.get("details_url", "")
-            if ("buildbot" in name or "buildbot" in app) and is_safe_url(details):
+            if is_safe_url(details) and (
+                "nixbot" in name or "nixbot" in app or is_nixbot_build_url(details)
+            ):
                 urls.add(details)
     except (urllib.error.URLError, urllib.error.HTTPError, json.JSONDecodeError):
         pass
@@ -71,7 +73,8 @@ def get_buildbot_urls_from_github(owner: str, repo: str, head_sha: str) -> list[
         data = _gh_get(f"https://api.github.com/repos/{owner}/{repo}/commits/{head_sha}/status")
         for status in data.get("statuses", []):
             target = status.get("target_url", "")
-            if "buildbot" in status.get("context", "").lower() and is_safe_url(target):
+            context = status.get("context", "").lower()
+            if is_safe_url(target) and ("nixbot" in context or is_nixbot_build_url(target)):
                 urls.add(target)
     except (urllib.error.URLError, urllib.error.HTTPError, json.JSONDecodeError):
         pass

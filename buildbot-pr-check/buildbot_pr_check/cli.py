@@ -1,13 +1,9 @@
-"""CLI for inspecting Buildbot (buildbot-nix) CI for a pull request.
+"""CLI for inspecting Nixbot CI for a pull request.
 
-Resolves a PR to its eval build and sub-builds::
+Resolves a PR to its Nixbot build and attributes::
 
     --watch          poll until complete
-    --failures       only failed sub-builds, with log tail + raw log_url
-
-Deeper log inspection is intentionally out of scope: every failure carries a
-``log_url`` pointing at ``/api/v2/logs/<id>/raw_inline``; pipe that through
-``curl | tail/grep`` if the bundled tail is not enough.
+    --failures       only failed attributes, with log tail + raw log_url
 """
 
 from __future__ import annotations
@@ -18,18 +14,18 @@ import logging
 import sys
 import time
 from datetime import UTC, datetime
-from typing import Any
+from typing import Any, cast
 
 from . import gitea_api, github_api
-from .buildbot_api import Build, BuildbotClient, EvalBuild
-from .exceptions import BuildbotCheckError
+from .exceptions import CheckError, InvalidPRURLError
 from .git import get_current_branch_pr_url
-from .reporting import print_eval_build, print_failures
-from .url_parser import PRInfo, get_pr_info, parse_buildbot_url
+from .nixbot_api import NixbotAttribute, NixbotBuild, NixbotClient, NixbotEvalBuild
+from .reporting import ReportAttribute, ReportEvalBuild, print_eval_build, print_failures
+from .url_parser import PRInfo, get_pr_info, parse_nixbot_url
 
 
 # --------------------------------------------------------------------------- #
-# PR → eval build discovery
+# PR → nixbot build discovery
 # --------------------------------------------------------------------------- #
 
 
@@ -39,7 +35,7 @@ def _resolve_pr(arg: str | None) -> PRInfo:
         url = get_current_branch_pr_url()
         if not url:
             msg = "Bare PR number given but could not detect repo via `gh`"
-            raise BuildbotCheckError(msg)
+            raise CheckError(msg)
         info = get_pr_info(url)
         return PRInfo(info.platform, info.host, info.owner, info.repo, arg)
     if arg:
@@ -50,7 +46,7 @@ def _resolve_pr(arg: str | None) -> PRInfo:
             "No PR URL given and could not auto-detect one for the current branch. "
             "Pass a GitHub/Gitea PR URL."
         )
-        raise BuildbotCheckError(msg)
+        raise CheckError(msg)
     return get_pr_info(url)
 
 
@@ -60,40 +56,30 @@ def _head_sha(pr: PRInfo) -> str:
     return gitea_api.get_pr_head_sha(pr.host, pr.owner, pr.repo, pr.pr_num)
 
 
-def _discover_eval_build(pr: PRInfo, head_sha: str) -> tuple[BuildbotClient, Build]:
-    """Find the top-level nix-eval build via the forge's commit-status target URLs.
-
-    buildbot-nix posts a pending status as soon as the eval build starts, so
-    this also locates in-progress builds.
-    """
+def _nixbot_urls(pr: PRInfo, head_sha: str) -> list[str]:
     if pr.platform == "github":
-        urls = github_api.get_buildbot_urls_from_github(pr.owner, pr.repo, head_sha)
-    else:
-        urls = gitea_api.get_buildbot_urls_from_gitea(pr.host, pr.owner, pr.repo, head_sha)
+        return github_api.get_nixbot_urls_from_github(pr.owner, pr.repo, head_sha)
+    return gitea_api.get_nixbot_urls_from_gitea(pr.host, pr.owner, pr.repo, head_sha)
+
+
+def _discover_eval_build(pr: PRInfo, head_sha: str) -> tuple[NixbotClient, NixbotBuild]:
+    """Find the top-level Nixbot build via the forge's status target URLs."""
+    urls = _nixbot_urls(pr, head_sha)
 
     for url in urls:
-        ref = parse_buildbot_url(url)
-        if ref.builder_id is None or ref.build_num is None:
+        try:
+            ref = parse_nixbot_url(url)
+        except InvalidPRURLError:
             continue
-        client = BuildbotClient(ref.base_url)
-        b = client.get_build_by_number(ref.builder_id, ref.build_num)
-        # Prefer the eval build (the one that triggers sub-builds).
-        steps = client.get_steps(b.buildid)
-        if client.extract_buildrequest_ids(steps) or "nix-eval" in url:
-            return client, b
-    if urls:
-        # No eval build with sub-builds found; just return the first.
-        ref = parse_buildbot_url(urls[0])
-        client = BuildbotClient(ref.base_url)
-        if ref.builder_id is not None and ref.build_num is not None:
-            return client, client.get_build_by_number(ref.builder_id, ref.build_num)
+        client = NixbotClient(ref.base_url, ref.forge, ref.owner, ref.repo)
+        return client, client.get_build_by_number(ref.build_num)
 
     msg = (
-        f"No buildbot status found on {pr.platform} for "
+        f"No nixbot status found on {pr.platform} for "
         f"{pr.owner}/{pr.repo}#{pr.pr_num} ({head_sha[:10]}). "
         f"Either the build has not been scheduled yet or the forge API is unreachable."
     )
-    raise BuildbotCheckError(msg)
+    raise CheckError(msg)
 
 
 # --------------------------------------------------------------------------- #
@@ -106,22 +92,32 @@ def _emit_json(obj: Any) -> None:
     print()
 
 
-def _eval_is_bad(ev: EvalBuild) -> bool:
+def _load_eval_build_with_attributes(client: NixbotClient, build: NixbotBuild) -> NixbotEvalBuild:
+    ev = client.load_eval_build(build)
+    ev.attributes = client.resolve_attributes(ev.attribute_names)
+    return ev
+
+
+def _attribute_is_bad(attribute: NixbotAttribute) -> bool:
+    return bool(attribute.build and attribute.build.status and attribute.build.status.is_bad)
+
+
+def _eval_is_bad(ev: NixbotEvalBuild) -> bool:
     if ev.build.status and ev.build.status.is_bad:
         return True
-    return any(s.build and s.build.status and s.build.status.is_bad for s in ev.sub_builds)
+    return any(_attribute_is_bad(a) for a in ev.attributes)
 
 
 def _watch_until_complete(
     pr: PRInfo, head_sha: str, args: argparse.Namespace
-) -> tuple[BuildbotClient, Build]:
-    """Poll discovery until the eval build is complete; emit one line per change."""
+) -> tuple[NixbotClient, NixbotBuild]:
+    """Poll discovery until the Nixbot build is complete; emit one line per change."""
     last = ""
     while True:
         ts = datetime.now(tz=UTC).strftime("%H:%M:%S")
         try:
             client, build = _discover_eval_build(pr, head_sha)
-        except BuildbotCheckError as e:
+        except CheckError as e:
             if args.json:
                 _emit_json({"time": ts, "status": "WAITING", "message": str(e)})
             else:
@@ -132,7 +128,7 @@ def _watch_until_complete(
         ev = client.load_eval_build(build)
         line = (
             f"[{ts}] {build.status_str:<9} #{build.number} "
-            f"{build.state_string} ({len(ev.buildrequest_ids)} sub-builds)"
+            f"{build.state_string} ({len(ev.attribute_names)} attributes)"
         )
         if args.json:
             _emit_json(
@@ -143,7 +139,7 @@ def _watch_until_complete(
                     "state_string": build.state_string,
                     "build_id": build.buildid,
                     "url": ev.web_url,
-                    "sub_builds": len(ev.buildrequest_ids),
+                    "attributes": len(ev.attribute_names),
                 }
             )
         elif line != last:
@@ -164,18 +160,13 @@ def cmd_pr(args: argparse.Namespace) -> int:
     else:
         client, build = _discover_eval_build(pr, head_sha)
 
-    ev = client.load_eval_build(build)
-    ev.sub_builds = client.resolve_sub_builds(ev.buildrequest_ids)
+    ev = _load_eval_build_with_attributes(client, build)
 
     if args.failures:
-        failures = [
-            s
-            for s in ev.sub_builds
-            if (s.build and s.build.status and s.build.status.is_bad) or s.error
-        ]
-        for s in failures:
-            if not s.error:
-                client.attach_failure_log(s, tail=args.log_tail)
+        failures = [a for a in ev.attributes if _attribute_is_bad(a) or a.error]
+        for attribute in failures:
+            if not attribute.error:
+                client.attach_failure_log(attribute, tail=args.log_tail)
         if args.json:
             _emit_json(
                 {
@@ -186,7 +177,7 @@ def cmd_pr(args: argparse.Namespace) -> int:
                 }
             )
         else:
-            print_failures(ev, failures)
+            print_failures(cast(ReportEvalBuild, ev), cast("list[ReportAttribute]", failures))
         return 1 if failures or _eval_is_bad(ev) else 0
 
     if args.json:
@@ -195,7 +186,7 @@ def cmd_pr(args: argparse.Namespace) -> int:
         print(f"pr: {pr.owner}/{pr.repo}#{pr.pr_num}")
         print(f"platform: {pr.platform}")
         print()
-        print_eval_build(ev)
+        print_eval_build(cast(ReportEvalBuild, ev))
     return 1 if _eval_is_bad(ev) else 0
 
 
@@ -207,21 +198,21 @@ def cmd_pr(args: argparse.Namespace) -> int:
 def build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(
         prog="buildbot-pr-check",
-        description="Inspect Buildbot (buildbot-nix) CI for a PR.",
+        description="Inspect Nixbot CI for a PR.",
     )
     p.add_argument("pr", nargs="?", help="PR URL or number (default: current branch)")
-    p.add_argument("--watch", action="store_true", help="Poll until the eval build completes")
+    p.add_argument("--watch", action="store_true", help="Poll until the build completes")
     p.add_argument("--interval", type=int, default=60, help="Poll interval for --watch (seconds)")
     p.add_argument(
         "--failures",
         action="store_true",
-        help="Only failed sub-builds, with attr/error and stdio log tail",
+        help="Only failed attributes, with error and log tail",
     )
     p.add_argument(
         "--log-tail",
         type=int,
         default=80,
-        help="Lines of stdio log to tail with --failures (0=skip)",
+        help="Lines of log to tail with --failures (0=skip)",
     )
     p.add_argument("--json", action="store_true", help="Emit a single JSON document on stdout")
     p.add_argument("--debug", action="store_true")
@@ -236,7 +227,7 @@ def main(argv: list[str] | None = None) -> None:
     )
     try:
         sys.exit(cmd_pr(args))
-    except BuildbotCheckError as e:
+    except CheckError as e:
         print(f"Error: {e}", file=sys.stderr)
         sys.exit(1)
 

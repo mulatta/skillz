@@ -5,7 +5,7 @@ build-backend = "hatchling.build"
 [project]
 name = "buildbot-pr-check"
 version = "0.2.0"
-description = "Inspect Buildbot (buildbot-nix) CI for a PR: find/watch builds, list failed sub-builds, fetch log tails"
+description = "Inspect Nixbot CI for a PR: find/watch builds, list failed attributes, fetch log tails"
 readme = "README.md"
 requires-python = ">=3.13"
 license = { text = "MIT" }
