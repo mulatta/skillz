@@ -18,11 +18,18 @@ python3Packages.buildPythonApplication {
     cp -r ${./skills} $out/share/skills/gmaps-cli
   '';
 
-  nativeCheckInputs = [ python3Packages.ruff ];
+  nativeCheckInputs = [
+    python3Packages.mypy
+    python3Packages.pytestCheckHook
+    python3Packages.ruff
+  ];
 
   checkPhase = ''
     runHook preCheck
+    ruff format --check gmaps_cli.py test_gmaps_cli_integration.py
     ruff check gmaps_cli.py test_gmaps_cli_integration.py
+    mypy gmaps_cli.py test_gmaps_cli_integration.py
+    pytest test_gmaps_cli_integration.py
     runHook postCheck
   '';
 

@@ -3,11 +3,14 @@
 
 import importlib.util
 import io
+import json
 import os
+import urllib.parse
+import urllib.request
 from collections.abc import Callable
 from contextlib import redirect_stdout
 from pathlib import Path
-from typing import TypeVar, cast
+from typing import Any, Self, TypeVar, cast
 
 import pytest
 
@@ -26,6 +29,27 @@ pytest_fixture = cast("Callable[[F], F]", pytest.fixture)
 pytest_parametrize = cast(
     "Callable[[object, object], Callable[[F], F]]", pytest.mark.parametrize
 )
+MapsUrlParams = cast("type[Any]", gmaps_cli.MapsUrlParams)
+DirectionsProcessor = cast("type[Any]", gmaps_cli.DirectionsProcessor)
+parse_datetime = cast("Callable[[str], str]", gmaps_cli.parse_datetime)
+generate_maps_url = cast("Callable[[str, Any], str]", gmaps_cli.generate_maps_url)
+search_place = cast(
+    "Callable[[str, str], dict[str, Any] | None]", gmaps_cli.search_place
+)
+
+
+class FakeResponse:
+    def __init__(self, payload: dict[str, Any]) -> None:
+        self._payload = json.dumps(payload).encode()
+
+    def __enter__(self) -> Self:
+        return self
+
+    def __exit__(self, *_exc: object) -> None:
+        return None
+
+    def read(self) -> bytes:
+        return self._payload
 
 
 @pytest_fixture
@@ -47,6 +71,178 @@ def capture_cli_output(args: list[str]) -> str:
     except SystemExit:
         pass  # Ignore exit codes
     return output.getvalue()
+
+
+def test_generate_maps_url_prefers_place_id() -> None:
+    params = MapsUrlParams()
+    params.query = "Marienplatz Munich"
+    params.place_id = "places/abc123"
+    params.lat = 48.137
+    params.lng = 11.575
+
+    url = generate_maps_url("search", params)
+
+    parsed = urllib.parse.urlsplit(url)
+    query = urllib.parse.parse_qs(parsed.query)
+    assert parsed.path == "/maps/search/"
+    assert query["api"] == ["1"]
+    assert query["query"] == ["Marienplatz Munich"]
+    assert query["query_place_id"] == ["places/abc123"]
+
+
+def test_generate_maps_url_uses_coordinates_when_place_id_is_missing() -> None:
+    params = MapsUrlParams()
+    params.lat = 48.137
+    params.lng = 11.575
+
+    assert generate_maps_url("search", params).endswith(
+        "/search/?api=1&query=48.137,11.575"
+    )
+
+
+def test_generate_maps_url_includes_non_default_travel_mode() -> None:
+    params = MapsUrlParams()
+    params.origin = "Munich Hauptbahnhof"
+    params.destination = "Berlin Hauptbahnhof"
+    params.mode = "transit"
+
+    url = generate_maps_url("directions", params)
+
+    query = urllib.parse.parse_qs(urllib.parse.urlsplit(url).query)
+    assert query["origin"] == ["Munich Hauptbahnhof"]
+    assert query["destination"] == ["Berlin Hauptbahnhof"]
+    assert query["travelmode"] == ["transit"]
+
+
+@pytest_parametrize(
+    ("value", "expected_prefix"),
+    [
+        ("2026-07-05 09:30", "2026-07-05T09:30"),
+        ("2026-07-05T09:30:00Z", "2026-07-05T09:30:00"),
+        ("next Tuesday after lunch", "next Tuesday after lunch"),
+    ],
+)
+def test_parse_datetime_handles_supported_formats_and_passthrough(
+    value: str, expected_prefix: str
+) -> None:
+    assert parse_datetime(value).startswith(expected_prefix)
+
+
+def test_search_place_parses_places_response(monkeypatch: pytest.MonkeyPatch) -> None:
+    seen_body: dict[str, Any] = {}
+
+    def fake_urlopen(request: urllib.request.Request, timeout: int) -> FakeResponse:
+        assert timeout == 10
+        data = request.data
+        assert isinstance(data, bytes)
+        seen_body.update(json.loads(data.decode()))
+        return FakeResponse(
+            {
+                "places": [
+                    {
+                        "displayName": {"text": "Marienplatz"},
+                        "formattedAddress": "Marienplatz, Munich, Germany",
+                        "id": "places/marienplatz",
+                        "rating": 4.7,
+                        "userRatingCount": 1200,
+                        "location": {"latitude": 48.137, "longitude": 11.575},
+                    }
+                ]
+            }
+        )
+
+    monkeypatch.setattr(gmaps_cli.urllib.request, "urlopen", fake_urlopen)
+
+    place = search_place("key", "Marienplatz Munich")
+
+    assert seen_body == {"textQuery": "Marienplatz Munich", "maxResultCount": 1}
+    assert place == {
+        "name": "Marienplatz",
+        "address": "Marienplatz, Munich, Germany",
+        "place_id": "places/marienplatz",
+        "rating": 4.7,
+        "ratings_total": 1200,
+        "lat": 48.137,
+        "lng": 11.575,
+    }
+
+
+def test_directions_processor_parses_route_response(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    seen_body: dict[str, Any] = {}
+
+    def fake_urlopen(request: urllib.request.Request, timeout: int) -> FakeResponse:
+        assert timeout == 10
+        data = request.data
+        assert isinstance(data, bytes)
+        seen_body.update(json.loads(data.decode()))
+        return FakeResponse(
+            {
+                "routes": [
+                    {
+                        "distanceMeters": 1250,
+                        "duration": "3900s",
+                        "legs": [
+                            {
+                                "startLocation": {"address": "Munich"},
+                                "endLocation": {"address": "Berlin"},
+                                "steps": [
+                                    {
+                                        "navigationInstruction": {
+                                            "instructions": "Board train"
+                                        },
+                                        "localizedValues": {
+                                            "distance": {"text": "1.2 km"},
+                                            "staticDuration": {"text": "1 hour"},
+                                        },
+                                        "transitDetails": {
+                                            "transitLine": {
+                                                "nameShort": "ICE",
+                                                "vehicle": {"type": "TRAIN"},
+                                            },
+                                            "stopDetails": {
+                                                "departureStop": {"name": "Munich Hbf"},
+                                                "arrivalStop": {"name": "Berlin Hbf"},
+                                            },
+                                        },
+                                    }
+                                ],
+                            }
+                        ],
+                    }
+                ]
+            }
+        )
+
+    monkeypatch.setattr(gmaps_cli.urllib.request, "urlopen", fake_urlopen)
+    processor = DirectionsProcessor("key")
+
+    route_result = processor.get_directions(
+        "Munich", "Berlin", "transit", "2026-07-05T09:30:00+00:00", None
+    )
+
+    assert seen_body["travelMode"] == "TRANSIT"
+    assert seen_body["departureTime"] == "2026-07-05T09:30:00+00:00"
+    assert route_result == {
+        "start_address": "Munich",
+        "end_address": "Berlin",
+        "distance": "1.2 km",
+        "duration": "1 hour 5 mins",
+        "steps": [
+            {
+                "instruction": "Board train",
+                "distance": "1.2 km",
+                "duration": "1 hour",
+                "transit": {
+                    "line": "ICE",
+                    "vehicle": "TRAIN",
+                    "departure_stop": "Munich Hbf",
+                    "arrival_stop": "Berlin Hbf",
+                },
+            }
+        ],
+    }
 
 
 def test_munich_to_berlin_route(config_exists: bool) -> None:
