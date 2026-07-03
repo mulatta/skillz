@@ -25,9 +25,7 @@ WEEKDAY_SLOT_LENGTH = 6
 def format_time_slot(datetime_obj: dt.datetime) -> str:
     """Convert a datetime to crabfit's HHmm-DDMMYYYY format (UTC)."""
     utc_dt = datetime_obj.astimezone(ZoneInfo("UTC"))
-    return (
-        f"{utc_dt.hour:02d}{utc_dt.minute:02d}-{utc_dt.day:02d}{utc_dt.month:02d}{utc_dt.year:04d}"
-    )
+    return f"{utc_dt.hour:02d}{utc_dt.minute:02d}-{utc_dt.day:02d}{utc_dt.month:02d}{utc_dt.year:04d}"
 
 
 def generate_time_slots(
@@ -101,7 +99,9 @@ def api_request(
 
     try:
         with urllib.request.urlopen(req) as response:  # noqa: S310
-            result: dict[str, Any] | list[dict[str, Any]] = json.loads(response.read().decode())
+            result: dict[str, Any] | list[dict[str, Any]] = json.loads(
+                response.read().decode()
+            )
             return result
     except urllib.error.HTTPError as e:
         error_body = e.read().decode() if e.fp else ""
@@ -178,7 +178,9 @@ def login_or_create_person(event_id: str, name: str) -> dict[str, Any]:
         Person data.
 
     """
-    return cast("dict[str, Any]", api_request("GET", f"/event/{event_id}/people/{name}"))
+    return cast(
+        "dict[str, Any]", api_request("GET", f"/event/{event_id}/people/{name}")
+    )
 
 
 def update_availability(
@@ -199,7 +201,9 @@ def update_availability(
     """
     return cast(
         "dict[str, Any]",
-        api_request("PATCH", f"/event/{event_id}/people/{name}", {"availability": availability}),
+        api_request(
+            "PATCH", f"/event/{event_id}/people/{name}", {"availability": availability}
+        ),
     )
 
 
@@ -329,7 +333,9 @@ def expand_time_slots(slots: list[str]) -> list[str]:
     return expanded
 
 
-def parse_time_slot(slot: str, timezone: str, today: dt.datetime | None = None) -> dt.datetime:
+def parse_time_slot(
+    slot: str, timezone: str, today: dt.datetime | None = None
+) -> dt.datetime:
     """Parse a crabfit time slot string to datetime.
 
     Args:
@@ -375,7 +381,9 @@ def _parse_weekday_time_slot(
         microsecond=0,
     )
     day_delta = day_of_week - reference_midnight.isoweekday()
-    utc_dt = reference_midnight + dt.timedelta(days=day_delta, hours=hour, minutes=minute)
+    utc_dt = reference_midnight + dt.timedelta(
+        days=day_delta, hours=hour, minutes=minute
+    )
 
     # Match Crab.fit's UI behavior for timezone shifts that would otherwise
     # display the slot in the following local week.
@@ -515,7 +523,9 @@ def cmd_show(args: argparse.Namespace) -> None:
         if count == 0:
             continue
 
-        slots = sorted(slots_by_count[count], key=lambda slot: parse_time_slot(slot, timezone))
+        slots = sorted(
+            slots_by_count[count], key=lambda slot: parse_time_slot(slot, timezone)
+        )
         if count == num_people:
             label = f"All {num_people} available"
         else:
@@ -547,9 +557,7 @@ def _print_slot_group(
     start_dt = parse_time_slot(slots[0], timezone)
     end_dt = parse_time_slot(slots[-1], timezone) + dt.timedelta(minutes=15)
 
-    time_str = (
-        f"{start_dt.strftime('%a %b %d')} {start_dt.strftime('%H:%M')}-{end_dt.strftime('%H:%M')}"
-    )
+    time_str = f"{start_dt.strftime('%a %b %d')} {start_dt.strftime('%H:%M')}-{end_dt.strftime('%H:%M')}"
 
     available_names = availability_map[slots[0]]
     count = len(available_names)
@@ -652,7 +660,9 @@ Examples:
     create_parser.set_defaults(func=cmd_create)
 
     # Respond command
-    respond_parser = subparsers.add_parser("respond", help="Add your availability to an event")
+    respond_parser = subparsers.add_parser(
+        "respond", help="Add your availability to an event"
+    )
     respond_parser.add_argument("event_id", help="Event ID or URL")
     respond_parser.add_argument(
         "--name",

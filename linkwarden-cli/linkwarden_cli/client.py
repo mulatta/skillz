@@ -42,13 +42,19 @@ class Client:
     def get(self, path: str, query: dict[str, Any] | None = None) -> Any:
         return self.request("GET", path, query=query)
 
-    def post(self, path: str, body: Json = None, query: dict[str, Any] | None = None) -> Any:
+    def post(
+        self, path: str, body: Json = None, query: dict[str, Any] | None = None
+    ) -> Any:
         return self.request("POST", path, body, query)
 
-    def put(self, path: str, body: Json = None, query: dict[str, Any] | None = None) -> Any:
+    def put(
+        self, path: str, body: Json = None, query: dict[str, Any] | None = None
+    ) -> Any:
         return self.request("PUT", path, body, query)
 
-    def patch(self, path: str, body: Json = None, query: dict[str, Any] | None = None) -> Any:
+    def patch(
+        self, path: str, body: Json = None, query: dict[str, Any] | None = None
+    ) -> Any:
         return self.request("PATCH", path, body, query)
 
     def delete(

@@ -34,7 +34,9 @@ def make_client(config_path: str | None = None) -> Client:
 
 
 def cmd_setup(ns: argparse.Namespace) -> None:
-    path = write_config(ns.base_url, ns.token_command, Path(ns.config) if ns.config else None)
+    path = write_config(
+        ns.base_url, ns.token_command, Path(ns.config) if ns.config else None
+    )
     token = run_token_command(ns.token_command)
     print(f"Wrote {path}")
     if token:
@@ -110,9 +112,16 @@ def cmd_link_update(client: Client, ns: argparse.Namespace) -> None:
     if ns.collection:
         collection = collection_ref(client, ns.collection)
         if "id" not in collection:
-            raise InputError("link update collection must resolve to an existing collection")
-        existing = ensure_dict(response_data(client.get(f"/api/v1/collections/{collection['id']}")))
-        body["collection"] = {"id": existing.get("id"), "ownerId": existing.get("ownerId")}
+            raise InputError(
+                "link update collection must resolve to an existing collection"
+            )
+        existing = ensure_dict(
+            response_data(client.get(f"/api/v1/collections/{collection['id']}"))
+        )
+        body["collection"] = {
+            "id": existing.get("id"),
+            "ownerId": existing.get("ownerId"),
+        }
     if ns.tag is not None:
         body["tags"] = [{"name": tag} for tag in ns.tag]
     result = client.put(f"/api/v1/links/{ns.id}", body)
@@ -184,7 +193,9 @@ def cmd_tag_get(client: Client, ns: argparse.Namespace) -> None:
 
 
 def cmd_tag_create(client: Client, ns: argparse.Namespace) -> None:
-    result = client.post("/api/v1/tags", {"tags": [{"label": name} for name in ns.name]})
+    result = client.post(
+        "/api/v1/tags", {"tags": [{"label": name} for name in ns.name]}
+    )
     emit(result, use_json=ns.use_json, text_fn=print_tags)
 
 
@@ -249,7 +260,9 @@ def cmd_token_list(client: Client, ns: argparse.Namespace) -> None:
 
 
 def cmd_token_create(client: Client, ns: argparse.Namespace) -> None:
-    result = client.post("/api/v1/tokens", {"name": ns.name, "expires": TOKEN_EXPIRY[ns.expires]})
+    result = client.post(
+        "/api/v1/tokens", {"name": ns.name, "expires": TOKEN_EXPIRY[ns.expires]}
+    )
     emit(result, use_json=ns.use_json, text_fn=print_token_created)
 
 
@@ -266,7 +279,9 @@ def collection_ref(client: Client, value: str) -> dict[str, Any]:
         pass
     collections = as_list(response_data(client.get("/api/v1/collections")))
     matches = [
-        item for item in collections if str(item.get("name", "")).casefold() == value.casefold()
+        item
+        for item in collections
+        if str(item.get("name", "")).casefold() == value.casefold()
     ]
     if len(matches) == 1:
         return {"id": matches[0].get("id"), "name": matches[0].get("name")}
@@ -319,7 +334,11 @@ def as_list(value: Any) -> list[dict[str, Any]]:
 def print_links(data: Any) -> None:
     links = as_list(response_data(data))
     rows = [
-        [short(x.get("id")), truncate(x.get("name") or x.get("url")), short(x.get("url"))]
+        [
+            short(x.get("id")),
+            truncate(x.get("name") or x.get("url")),
+            short(x.get("url")),
+        ]
         for x in links
     ]
     emit_table(["ID", "NAME", "URL"], rows)
@@ -335,14 +354,19 @@ def print_link(data: Any) -> None:
     print(f"url: {short(item.get('url'))}")
     collection = item.get("collection")
     if isinstance(collection, dict):
-        print(f"collection: {short(collection.get('name'))} ({short(collection.get('id'))})")
+        print(
+            f"collection: {short(collection.get('name'))} ({short(collection.get('id'))})"
+        )
 
 
 def print_collections(data: Any) -> None:
     items = as_list(response_data(data))
     emit_table(
         ["ID", "NAME", "PARENT"],
-        [[short(x.get("id")), short(x.get("name")), short(x.get("parentId"))] for x in items],
+        [
+            [short(x.get("id")), short(x.get("name")), short(x.get("parentId"))]
+            for x in items
+        ],
     )
 
 
@@ -387,7 +411,10 @@ def print_rss(data: Any) -> None:
     items = as_list(response_data(data))
     emit_table(
         ["ID", "NAME", "URL"],
-        [[short(x.get("id")), short(x.get("name")), short(x.get("url"))] for x in items],
+        [
+            [short(x.get("id")), short(x.get("name")), short(x.get("url"))]
+            for x in items
+        ],
     )
 
 
@@ -395,7 +422,10 @@ def print_tokens(data: Any) -> None:
     items = as_list(response_data(data))
     emit_table(
         ["ID", "NAME", "EXPIRES"],
-        [[short(x.get("id")), short(x.get("name")), short(x.get("expires"))] for x in items],
+        [
+            [short(x.get("id")), short(x.get("name")), short(x.get("expires"))]
+            for x in items
+        ],
     )
 
 
@@ -461,7 +491,9 @@ def link_fields(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("--tag", action="append")
 
 
-def add_collection_commands(sub: argparse._SubParsersAction[argparse.ArgumentParser]) -> None:
+def add_collection_commands(
+    sub: argparse._SubParsersAction[argparse.ArgumentParser],
+) -> None:
     collection = sub.add_parser("collection", help="Manage collections")
     collection_sub = collection.add_subparsers(dest="subcmd")
     for name, handler in (("list", cmd_collection_list),):
@@ -515,7 +547,9 @@ def add_tag_commands(sub: argparse._SubParsersAction[argparse.ArgumentParser]) -
     s.set_defaults(handler=cmd_tag_delete)
 
 
-def add_highlight_commands(sub: argparse._SubParsersAction[argparse.ArgumentParser]) -> None:
+def add_highlight_commands(
+    sub: argparse._SubParsersAction[argparse.ArgumentParser],
+) -> None:
     highlight = sub.add_parser("highlight", help="Manage highlights")
     highlight_sub = highlight.add_subparsers(dest="subcmd")
     s = highlight_sub.add_parser("list")
@@ -550,7 +584,9 @@ def add_rss_commands(sub: argparse._SubParsersAction[argparse.ArgumentParser]) -
     s.set_defaults(handler=cmd_rss_delete)
 
 
-def add_token_commands(sub: argparse._SubParsersAction[argparse.ArgumentParser]) -> None:
+def add_token_commands(
+    sub: argparse._SubParsersAction[argparse.ArgumentParser],
+) -> None:
     token = sub.add_parser("token", help="Manage API tokens")
     token_sub = token.add_subparsers(dest="subcmd")
     token_sub.add_parser("list").set_defaults(handler=cmd_token_list)
@@ -565,8 +601,12 @@ def add_token_commands(sub: argparse._SubParsersAction[argparse.ArgumentParser])
 
 
 def build_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(prog="linkwarden-cli", description="Manage Linkwarden")
-    parser.add_argument("-j", "--json", action="store_true", dest="use_json", help="Output JSON")
+    parser = argparse.ArgumentParser(
+        prog="linkwarden-cli", description="Manage Linkwarden"
+    )
+    parser.add_argument(
+        "-j", "--json", action="store_true", dest="use_json", help="Output JSON"
+    )
     parser.add_argument("--config", help="Config JSON path")
     sub = parser.add_subparsers(dest="command")
     s = sub.add_parser("setup", help="Write config and check token command")

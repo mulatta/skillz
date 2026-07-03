@@ -117,14 +117,20 @@ def cmd_fetch_enclosure(args: argparse.Namespace) -> int:
     entry = client.entry(args.entry_id)
     enclosures = _enclosures(entry)
     if args.idx < 0 or args.idx >= len(enclosures):
-        print(f"miniflux-cli: enclosure index out of range: {args.idx}", file=sys.stderr)
+        print(
+            f"miniflux-cli: enclosure index out of range: {args.idx}", file=sys.stderr
+        )
         return 2
     enclosure = enclosures[args.idx]
     url = enclosure.get("url")
     if not isinstance(url, str) or not url:
         print(f"miniflux-cli: enclosure has no URL: {args.idx}", file=sys.stderr)
         return 2
-    output_dir = Path(args.output_dir) if args.output_dir else default_download_dir(args.entry_id)
+    output_dir = (
+        Path(args.output_dir)
+        if args.output_dir
+        else default_download_dir(args.entry_id)
+    )
     output_dir.mkdir(parents=True, exist_ok=True)
     path = download_url(url, output_dir)
     if wants_json(args):
@@ -134,7 +140,9 @@ def cmd_fetch_enclosure(args: argparse.Namespace) -> int:
     return 0
 
 
-def fetch_entries(client: MinifluxClient, args: argparse.Namespace) -> list[dict[str, Any]]:
+def fetch_entries(
+    client: MinifluxClient, args: argparse.Namespace
+) -> list[dict[str, Any]]:
     category_id = resolve_category_id(client, args.category)
     query: dict[str, object] = {
         "limit": args.limit,
@@ -168,7 +176,12 @@ def print_table(rows: list[dict[str, object]], columns: list[str]) -> None:
     print("  ".join(column.upper().ljust(widths[column]) for column in columns))
     print("  ".join("-" * widths[column] for column in columns))
     for row in rows:
-        print("  ".join(_display(row.get(column, "")).ljust(widths[column]) for column in columns))
+        print(
+            "  ".join(
+                _display(row.get(column, "")).ljust(widths[column])
+                for column in columns
+            )
+        )
 
 
 def wants_json(args: argparse.Namespace) -> bool:
@@ -230,7 +243,9 @@ def download_url(url: str, output_dir: Path) -> Path:
     req = urllib.request.Request(url, headers={"User-Agent": "miniflux-cli/0.1.0"})
     try:
         with urllib.request.urlopen(req, timeout=60) as resp:  # noqa: S310
-            filename = filename_from_response(url, resp.headers.get("Content-Disposition"))
+            filename = filename_from_response(
+                url, resp.headers.get("Content-Disposition")
+            )
             path = output_dir / filename
             with path.open("wb") as f:
                 f.write(resp.read())
@@ -312,7 +327,9 @@ def build_parser() -> argparse.ArgumentParser:
 
     show_entry = show_sub.add_parser("entry", help="Show an entry as Markdown")
     add_json_option(show_entry)
-    show_entry.add_argument("--markdown", action="store_true", help="Print Markdown (default)")
+    show_entry.add_argument(
+        "--markdown", action="store_true", help="Print Markdown (default)"
+    )
     show_entry.add_argument("entry_id", type=int)
     show_entry.set_defaults(func=cmd_show_entry)
 

@@ -175,7 +175,9 @@ class FakeN8NHandler(BaseHTTPRequestHandler):
             "/api/v1/credentials": {"data": [CREDENTIAL_1]},
             "/api/v1/credentials/42": CREDENTIAL_1,
             "/api/v1/credentials/schema/slackApi": CREDENTIAL_SCHEMA,
-            "/api/v1/workflows": {"data": [WORKFLOW_1, WORKFLOW_WEBHOOK, WORKFLOW_AUTH_WEBHOOK]},
+            "/api/v1/workflows": {
+                "data": [WORKFLOW_1, WORKFLOW_WEBHOOK, WORKFLOW_AUTH_WEBHOOK]
+            },
             "/api/v1/workflows/wf-1": WORKFLOW_1,
             "/api/v1/workflows/wf-2": WORKFLOW_WEBHOOK,
             "/api/v1/workflows/wf-3": WORKFLOW_AUTH_WEBHOOK,
@@ -212,7 +214,10 @@ class FakeN8NHandler(BaseHTTPRequestHandler):
 
         routes: dict[str, Any] = {
             "/api/v1/credentials": {**CREDENTIAL_1, "id": "43", "name": "New Cred"},
-            "/api/v1/credentials/42/test": {"status": "ok", "message": "Connection successful"},
+            "/api/v1/credentials/42/test": {
+                "status": "ok",
+                "message": "Connection successful",
+            },
             "/api/v1/workflows": {**WORKFLOW_1, "id": "wf-2", "name": "New Workflow"},
             "/api/v1/workflows/wf-1/activate": {**WORKFLOW_1, "active": True},
             "/api/v1/workflows/wf-1/deactivate": {**WORKFLOW_1, "active": False},
@@ -238,8 +243,12 @@ class FakeN8NHandler(BaseHTTPRequestHandler):
             sent = json.loads(raw)
             # Verify only writable fields are sent (mirroring additionalProperties: false)
             for key in sent:
-                assert key in WORKFLOW_WRITABLE, f"workflow update sent non-writable field '{key}'"
-            self._send(200, {**WORKFLOW_1, "name": sent.get("name", WORKFLOW_1["name"])})
+                assert key in WORKFLOW_WRITABLE, (
+                    f"workflow update sent non-writable field '{key}'"
+                )
+            self._send(
+                200, {**WORKFLOW_1, "name": sent.get("name", WORKFLOW_1["name"])}
+            )
         elif p == "/api/v1/tags/tag-1":
             sent = json.loads(raw)
             self._send(200, {**TAG_1, "name": sent.get("name", TAG_1["name"])})
@@ -257,7 +266,9 @@ class FakeN8NHandler(BaseHTTPRequestHandler):
                 assert key in CREDENTIAL_WRITABLE, (
                     f"credential update sent non-writable field '{key}'"
                 )
-            self._send(200, {**CREDENTIAL_1, "name": sent.get("name", CREDENTIAL_1["name"])})
+            self._send(
+                200, {**CREDENTIAL_1, "name": sent.get("name", CREDENTIAL_1["name"])}
+            )
             return
 
         routes: dict[str, Any] = {

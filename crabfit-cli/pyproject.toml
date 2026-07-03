@@ -16,12 +16,13 @@ packages = ["crabfit_cli.py"]
 
 [tool.ruff]
 target-version = "py312"
-line-length = 100
+line-length = 88
 
 [tool.ruff.lint]
 select = ["ALL"]
 ignore = [
   "T201",   # allow print()
+  "E501",   # keep baseline aligned with repo-wide lint debt
   "D203",   # incompatible with D211 (no-blank-line-before-class)
   "D213",   # incompatible with D212 (multi-line-summary-first-line)
   "COM812", # conflicts with formatter

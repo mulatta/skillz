@@ -32,7 +32,9 @@ def load_config(config_path: str | None = None) -> dict[str, Any]:
     return loaded
 
 
-def write_config(base_url: str, api_key_command: str, config_path: str | None = None) -> Path:
+def write_config(
+    base_url: str, api_key_command: str, config_path: str | None = None
+) -> Path:
     """Write credential config."""
     path = Path(config_path) if config_path else CONFIG_FILE
     command = shlex.split(api_key_command)
@@ -89,11 +91,15 @@ def resolve_credentials(config_path: str | None = None) -> tuple[str, str, int]:
 
     api_key = os.environ.get("VIKUNJA_API_KEY")
     if not api_key:
-        command = os.environ.get("VIKUNJA_API_KEY_COMMAND") or _string_value(cfg, "api_key_command")
+        command = os.environ.get("VIKUNJA_API_KEY_COMMAND") or _string_value(
+            cfg, "api_key_command"
+        )
         if command:
             api_key = run_api_key_command(command)
     if not api_key:
-        raise ConfigError("VIKUNJA_API_KEY not set and api_key_command did not return a token")
+        raise ConfigError(
+            "VIKUNJA_API_KEY not set and api_key_command did not return a token"
+        )
 
     timeout = DEFAULT_TIMEOUT
     timeout_raw = os.environ.get("VIKUNJA_TIMEOUT") or cfg.get("timeout")

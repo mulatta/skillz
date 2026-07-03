@@ -39,11 +39,15 @@ class RecordingClient:
         self.calls.append(("GET", path, None, query))
         return self.responses.get(("GET", path), [])
 
-    def post(self, path: str, body: Any = None, query: dict[str, Any] | None = None) -> Any:
+    def post(
+        self, path: str, body: Any = None, query: dict[str, Any] | None = None
+    ) -> Any:
         self.calls.append(("POST", path, body, query))
         return self.responses.get(("POST", path), {"ok": True})
 
-    def put(self, path: str, body: Any = None, query: dict[str, Any] | None = None) -> Any:
+    def put(
+        self, path: str, body: Any = None, query: dict[str, Any] | None = None
+    ) -> Any:
         self.calls.append(("PUT", path, body, query))
         return self.responses.get(("PUT", path), {"ok": True})
 
@@ -53,13 +57,17 @@ class RecordingClient:
 
     def upload_task_attachments(self, task_id: int, files: list[Path]) -> Any:
         self.calls.append(("UPLOAD", f"/tasks/{task_id}/attachments", files, None))
-        response = self.responses.get(("UPLOAD", f"/tasks/{task_id}/attachments"), {"ok": True})
+        response = self.responses.get(
+            ("UPLOAD", f"/tasks/{task_id}/attachments"), {"ok": True}
+        )
         if isinstance(response, Exception):
             raise response
         return response
 
     def download_task_attachment(self, task_id: int, attachment_id: int) -> Any:
-        self.calls.append(("DOWNLOAD", f"/tasks/{task_id}/attachments/{attachment_id}", None, None))
+        self.calls.append(
+            ("DOWNLOAD", f"/tasks/{task_id}/attachments/{attachment_id}", None, None)
+        )
         return self.responses.get(
             ("DOWNLOAD", f"/tasks/{task_id}/attachments/{attachment_id}"), b""
         )
@@ -157,7 +165,9 @@ def write_task_template(
     }
     if invalid_extra:
         data.update(invalid_extra)
-    path.write_text("---\n" + yaml.safe_dump(data, sort_keys=False) + "---\n\n# Template\n")
+    path.write_text(
+        "---\n" + yaml.safe_dump(data, sort_keys=False) + "---\n\n# Template\n"
+    )
     return path
 
 
@@ -330,14 +340,20 @@ def _summary_checklist_html(summary: str, item: str) -> str:
     )
 
 
-def test_task_create_from_template_uses_vikunja_html_description(tmp_path: Path) -> None:
+def test_task_create_from_template_uses_vikunja_html_description(
+    tmp_path: Path,
+) -> None:
     client = RecordingClient()
     write_task_template(tmp_path, "submission")
-    context = write_context(tmp_path, {"summary": "Ship template create", "checklist": ["Ship"]})
+    context = write_context(
+        tmp_path, {"summary": "Ship template create", "checklist": ["Ship"]}
+    )
 
     cmd_task_create(
         client,
-        task_create_ns(template="submission", template_dir=str(tmp_path), context=str(context)),
+        task_create_ns(
+            template="submission", template_dir=str(tmp_path), context=str(context)
+        ),
     )
 
     assert client.calls == [
@@ -354,10 +370,14 @@ def test_task_create_from_template_uses_vikunja_html_description(tmp_path: Path)
     ]
 
 
-def test_task_create_from_template_respects_explicit_description(tmp_path: Path) -> None:
+def test_task_create_from_template_respects_explicit_description(
+    tmp_path: Path,
+) -> None:
     client = RecordingClient()
     write_task_template(tmp_path, "submission")
-    context = write_context(tmp_path, {"summary": "Rendered body", "checklist": ["Render"]})
+    context = write_context(
+        tmp_path, {"summary": "Rendered body", "checklist": ["Render"]}
+    )
 
     cmd_task_create(
         client,
@@ -373,27 +393,39 @@ def test_task_create_from_template_respects_explicit_description(tmp_path: Path)
         (
             "PUT",
             "/projects/7/tasks",
-            {"title": "Made from template", "description": "Explicit body", "priority": 4},
+            {
+                "title": "Made from template",
+                "description": "Explicit body",
+                "priority": 4,
+            },
             None,
         )
     ]
 
 
-def test_task_create_from_template_missing_required_fails_by_default(tmp_path: Path) -> None:
+def test_task_create_from_template_missing_required_fails_by_default(
+    tmp_path: Path,
+) -> None:
     client = RecordingClient()
     write_task_template(tmp_path, "submission")
     context = write_context(tmp_path, {})
 
-    with pytest.raises(InputError, match="template missing required fields: summary, checklist"):
+    with pytest.raises(
+        InputError, match="template missing required fields: summary, checklist"
+    ):
         cmd_task_create(
             client,
-            task_create_ns(template="submission", template_dir=str(tmp_path), context=str(context)),
+            task_create_ns(
+                template="submission", template_dir=str(tmp_path), context=str(context)
+            ),
         )
 
     assert client.calls == []
 
 
-def test_task_create_from_template_allow_missing_permits_creation(tmp_path: Path) -> None:
+def test_task_create_from_template_allow_missing_permits_creation(
+    tmp_path: Path,
+) -> None:
     client = RecordingClient()
     write_task_template(tmp_path, "submission")
     context = write_context(tmp_path, {})
@@ -422,14 +454,18 @@ def test_task_create_from_template_allow_missing_permits_creation(tmp_path: Path
     ]
 
 
-def test_task_create_from_template_default_priority_only_when_absent(tmp_path: Path) -> None:
+def test_task_create_from_template_default_priority_only_when_absent(
+    tmp_path: Path,
+) -> None:
     write_task_template(tmp_path, "submission", priority=4)
     context = write_context(tmp_path, {"summary": "Prioritize", "checklist": ["Do"]})
 
     default_client = RecordingClient()
     cmd_task_create(
         default_client,
-        task_create_ns(template="submission", template_dir=str(tmp_path), context=str(context)),
+        task_create_ns(
+            template="submission", template_dir=str(tmp_path), context=str(context)
+        ),
     )
 
     explicit_client = RecordingClient()
@@ -467,7 +503,10 @@ def test_task_create_from_template_default_priority_only_when_absent(tmp_path: P
 
 def test_task_create_from_template_applies_default_labels(tmp_path: Path) -> None:
     client = RecordingClient()
-    client.responses[("PUT", "/projects/7/tasks")] = {"id": 42, "title": "Made from template"}
+    client.responses[("PUT", "/projects/7/tasks")] = {
+        "id": 42,
+        "title": "Made from template",
+    }
     client.responses[("PAGINATE", "/labels")] = [
         {"id": 10, "title": "type:submission"},
         {"id": 11, "title": "state:next"},
@@ -481,7 +520,9 @@ def test_task_create_from_template_applies_default_labels(tmp_path: Path) -> Non
 
     cmd_task_create(
         client,
-        task_create_ns(template="submission", template_dir=str(tmp_path), context=str(context)),
+        task_create_ns(
+            template="submission", template_dir=str(tmp_path), context=str(context)
+        ),
     )
 
     assert client.calls == [
@@ -501,7 +542,9 @@ def test_task_create_from_template_applies_default_labels(tmp_path: Path) -> Non
     ]
 
 
-def test_task_create_from_template_resolves_default_labels_before_creation(tmp_path: Path) -> None:
+def test_task_create_from_template_resolves_default_labels_before_creation(
+    tmp_path: Path,
+) -> None:
     client = RecordingClient()
     client.responses[("PAGINATE", "/labels")] = []
     write_task_template(tmp_path, "submission", labels=["type:submission"])
@@ -510,13 +553,17 @@ def test_task_create_from_template_resolves_default_labels_before_creation(tmp_p
     with pytest.raises(InputError, match="no label exactly matches"):
         cmd_task_create(
             client,
-            task_create_ns(template="submission", template_dir=str(tmp_path), context=str(context)),
+            task_create_ns(
+                template="submission", template_dir=str(tmp_path), context=str(context)
+            ),
         )
 
     assert client.calls == [("PAGINATE", "/labels", None, {"s": "type:submission"})]
 
 
-def test_task_create_with_attach_rejects_missing_file_before_create(tmp_path: Path) -> None:
+def test_task_create_with_attach_rejects_missing_file_before_create(
+    tmp_path: Path,
+) -> None:
     client = RecordingClient()
 
     with pytest.raises(InputError, match="file not found"):
@@ -525,7 +572,9 @@ def test_task_create_with_attach_rejects_missing_file_before_create(tmp_path: Pa
     assert client.calls == []
 
 
-def test_task_create_with_attach_rejects_directory_before_create(tmp_path: Path) -> None:
+def test_task_create_with_attach_rejects_directory_before_create(
+    tmp_path: Path,
+) -> None:
     client = RecordingClient()
 
     with pytest.raises(InputError, match="not a file"):
@@ -534,9 +583,14 @@ def test_task_create_with_attach_rejects_directory_before_create(tmp_path: Path)
     assert client.calls == []
 
 
-def test_task_create_with_attach_uploads_each_file_after_creation(tmp_path: Path) -> None:
+def test_task_create_with_attach_uploads_each_file_after_creation(
+    tmp_path: Path,
+) -> None:
     client = RecordingClient()
-    client.responses[("PUT", "/projects/7/tasks")] = {"id": 44, "title": "Made from template"}
+    client.responses[("PUT", "/projects/7/tasks")] = {
+        "id": 44,
+        "title": "Made from template",
+    }
     first = tmp_path / "first.txt"
     second = tmp_path / "second.txt"
     first.write_text("first")
@@ -565,14 +619,19 @@ def test_task_create_with_attach_requires_created_task_id(tmp_path: Path) -> Non
     with pytest.raises(InputError, match="numeric id needed to upload attachments"):
         cmd_task_create(client, task_create_ns(attach=[str(attachment)]))
 
-    assert client.calls == [("PUT", "/projects/7/tasks", {"title": "Made from template"}, None)]
+    assert client.calls == [
+        ("PUT", "/projects/7/tasks", {"title": "Made from template"}, None)
+    ]
 
 
 def test_task_create_with_attach_reports_upload_failure_with_task_id_and_file(
     tmp_path: Path,
 ) -> None:
     client = RecordingClient()
-    client.responses[("PUT", "/projects/7/tasks")] = {"id": 45, "title": "Made from template"}
+    client.responses[("PUT", "/projects/7/tasks")] = {
+        "id": 45,
+        "title": "Made from template",
+    }
     client.responses[("UPLOAD", "/tasks/45/attachments")] = CLIError("network stopped")
     attachment = tmp_path / "evidence.txt"
     attachment.write_text("proof")
@@ -590,10 +649,15 @@ def test_task_create_from_template_with_attach_resolves_labels_before_create(
     tmp_path: Path,
 ) -> None:
     client = RecordingClient()
-    client.responses[("PUT", "/projects/7/tasks")] = {"id": 46, "title": "Made from template"}
+    client.responses[("PUT", "/projects/7/tasks")] = {
+        "id": 46,
+        "title": "Made from template",
+    }
     client.responses[("PAGINATE", "/labels")] = [{"id": 10, "title": "type:submission"}]
     write_task_template(tmp_path, "submission", labels=["type:submission"])
-    context = write_context(tmp_path, {"summary": "Attach proof", "checklist": ["Attach"]})
+    context = write_context(
+        tmp_path, {"summary": "Attach proof", "checklist": ["Attach"]}
+    )
     attachment = tmp_path / "proof.txt"
     attachment.write_text("proof")
 
@@ -628,7 +692,10 @@ def test_task_create_json_result_includes_attachment_uploads(
     tmp_path: Path, capsys: pytest.CaptureFixture[str]
 ) -> None:
     client = RecordingClient()
-    client.responses[("PUT", "/projects/7/tasks")] = {"id": 47, "title": "Made from template"}
+    client.responses[("PUT", "/projects/7/tasks")] = {
+        "id": 47,
+        "title": "Made from template",
+    }
     client.responses[("UPLOAD", "/tasks/47/attachments")] = [{"id": 80}]
     attachment = tmp_path / "proof.txt"
     attachment.write_text("proof")
@@ -681,7 +748,9 @@ def test_attachment_upload_rejects_missing_file(tmp_path: Path) -> None:
     client = RecordingClient()
 
     with pytest.raises(InputError, match="file not found"):
-        cmd_attachment_upload(client, ns(task="5", files=[str(tmp_path / "missing.txt")]))
+        cmd_attachment_upload(
+            client, ns(task="5", files=[str(tmp_path / "missing.txt")])
+        )
 
     assert client.calls == []
 
@@ -702,7 +771,9 @@ def test_attachment_download_rejects_non_bytes_response(tmp_path: Path) -> None:
     client.responses[("DOWNLOAD", "/tasks/5/attachments/7")] = {"id": 7}
 
     with pytest.raises(InputError, match="not bytes"):
-        cmd_attachment_download(client, ns(task="5", attachment=7, output=str(tmp_path / "out")))
+        cmd_attachment_download(
+            client, ns(task="5", attachment=7, output=str(tmp_path / "out"))
+        )
 
     assert not (tmp_path / "out").exists()
 
@@ -711,7 +782,9 @@ def test_attachment_download_rejects_directory_output(tmp_path: Path) -> None:
     client = RecordingClient()
 
     with pytest.raises(InputError, match="directory"):
-        cmd_attachment_download(client, ns(task="5", attachment=7, output=str(tmp_path)))
+        cmd_attachment_download(
+            client, ns(task="5", attachment=7, output=str(tmp_path))
+        )
 
     assert client.calls == []
 
@@ -726,7 +799,9 @@ def test_label_replace_on_task_uses_bulk_endpoint() -> None:
     ]
 
 
-def test_setup_labels_reports_missing_without_create(capsys: pytest.CaptureFixture[str]) -> None:
+def test_setup_labels_reports_missing_without_create(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
     client = RecordingClient()
     client.responses[("PAGINATE", "/labels")] = [
         {"id": 10, "title": "state:next"},
@@ -822,7 +897,9 @@ def test_setup_labels_does_not_recreate_existing_labels(
     assert data["ok"] is True
 
 
-def test_relation_list_returns_task_related_tasks(capsys: pytest.CaptureFixture[str]) -> None:
+def test_relation_list_returns_task_related_tasks(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
     client = RecordingClient()
     client.responses[("GET", "/tasks/5")] = {
         "id": 5,
@@ -919,9 +996,14 @@ def test_task_transition_with_comment_adds_task_comment() -> None:
     client = RecordingClient()
     client.responses[("GET", "/tasks/5")] = {"id": 5, "labels": []}
     client.responses[("PAGINATE", "/labels")] = [{"id": 20, "title": "state:waiting"}]
-    client.responses[("PUT", "/tasks/5/comments")] = {"id": 30, "comment": "Blocked by review"}
+    client.responses[("PUT", "/tasks/5/comments")] = {
+        "id": 30,
+        "comment": "Blocked by review",
+    }
 
-    cmd_task_transition(client, ns(task="5", state="waiting", comment="Blocked by review"))
+    cmd_task_transition(
+        client, ns(task="5", state="waiting", comment="Blocked by review")
+    )
 
     assert client.calls[-1] == (
         "PUT",
@@ -995,7 +1077,10 @@ def test_view_update_bucket_filters_sets_filter_mode() -> None:
             "/projects/7/views/8",
             {
                 "bucket_configuration": [
-                    {"title": "Overdue", "filter": {"filter": "done = false && due_date < now"}}
+                    {
+                        "title": "Overdue",
+                        "filter": {"filter": "done = false && due_date < now"},
+                    }
                 ],
                 "bucket_configuration_mode": "filter",
             },

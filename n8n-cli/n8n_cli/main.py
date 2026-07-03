@@ -16,7 +16,12 @@ from n8n_cli.commands import (
     test_wf,
     workflow,
 )
-from n8n_cli.config import CONFIG_FILE, resolve_credentials, run_secret_command, write_config
+from n8n_cli.config import (
+    CONFIG_FILE,
+    resolve_credentials,
+    run_secret_command,
+    write_config,
+)
 from n8n_cli.errors import CLIError, ConfigError
 
 Handler = Callable[[Client, argparse.Namespace], None]
@@ -31,7 +36,9 @@ def _make_client(config_path: str | None = None) -> Client:
             missing.append("N8N_API_URL")
         if not api_key:
             missing.append("N8N_API_KEY")
-        raise ConfigError(f"{', '.join(missing)} not set. Set env vars or configure {CONFIG_FILE}")
+        raise ConfigError(
+            f"{', '.join(missing)} not set. Set env vars or configure {CONFIG_FILE}"
+        )
     return Client(api_url, api_key, timeout)
 
 
@@ -47,13 +54,17 @@ def _cmd_setup(ns: argparse.Namespace) -> None:
 
 def _build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(prog="n8n-cli", description="Python CLI for n8n API")
-    p.add_argument("-j", "--json", action="store_true", dest="use_json", help="Output JSON")
+    p.add_argument(
+        "-j", "--json", action="store_true", dest="use_json", help="Output JSON"
+    )
     p.add_argument("--config", help="Config JSON path")
     sub = p.add_subparsers(dest="command")
 
     s = sub.add_parser("setup", help="Write config and check API key command")
     s.add_argument("--api-url", required=True, help="n8n base URL")
-    s.add_argument("--api-key-command", required=True, help="Command that prints API key")
+    s.add_argument(
+        "--api-key-command", required=True, help="Command that prints API key"
+    )
 
     # -- credential ----------------------------------------------------------
     cred = sub.add_parser("credential", help="Manage credentials")
@@ -86,7 +97,9 @@ def _build_parser() -> argparse.ArgumentParser:
 
     s = wf_sub.add_parser("list", help="List all workflows")
     active_grp = s.add_mutually_exclusive_group()
-    active_grp.add_argument("--active", dest="active", action="store_true", default=None)
+    active_grp.add_argument(
+        "--active", dest="active", action="store_true", default=None
+    )
     active_grp.add_argument("--inactive", dest="active", action="store_false")
     s.add_argument("--tags", help="Filter by tags (comma-separated)")
     s.add_argument("--name", help="Filter by name (substring match)")
@@ -117,7 +130,9 @@ def _build_parser() -> argparse.ArgumentParser:
 
     s = exc_sub.add_parser("get", help="Get execution details")
     s.add_argument("id", help="Execution ID")
-    s.add_argument("--show-data", action="store_true", help="Include full execution data in output")
+    s.add_argument(
+        "--show-data", action="store_true", help="Include full execution data in output"
+    )
 
     s = exc_sub.add_parser("list", help="List executions")
     s.add_argument("--workflow", help="Filter by workflow ID")
@@ -130,7 +145,9 @@ def _build_parser() -> argparse.ArgumentParser:
     s = exc_sub.add_parser("retry", help="Retry a failed execution")
     s.add_argument("id", help="Execution ID")
     s.add_argument(
-        "--load-workflow", action="store_true", help="Retry with latest workflow version"
+        "--load-workflow",
+        action="store_true",
+        help="Retry with latest workflow version",
     )
 
     s = exc_sub.add_parser("stop", help="Stop a running execution")
@@ -213,7 +230,9 @@ def _build_parser() -> argparse.ArgumentParser:
     s = sub.add_parser("raw", help="Raw API call (escape hatch)")
     s.add_argument("method", metavar="METHOD", help="HTTP method")
     s.add_argument("path", metavar="PATH", help="API path")
-    s.add_argument("file", nargs="?", metavar="FILE", help="JSON body file or - for stdin")
+    s.add_argument(
+        "file", nargs="?", metavar="FILE", help="JSON body file or - for stdin"
+    )
 
     # -- test -----------------------------------------------------------------
     s = sub.add_parser("test", help="Test a workflow via its webhook")
@@ -224,7 +243,9 @@ def _build_parser() -> argparse.ArgumentParser:
         action="append",
         help="HTTP header to send to the webhook, in 'Name: value' form (repeatable)",
     )
-    s.add_argument("--timeout", type=int, default=30, help="HTTP timeout in seconds (default: 30)")
+    s.add_argument(
+        "--timeout", type=int, default=30, help="HTTP timeout in seconds (default: 30)"
+    )
     s.add_argument(
         "--wait-execution",
         action="store_true",
@@ -236,16 +257,25 @@ def _build_parser() -> argparse.ArgumentParser:
         default=300,
         help="Max seconds to wait for execution (default: 300)",
     )
-    s.add_argument("--activate", action="store_true", help="Auto-activate the workflow if inactive")
-    s.add_argument("--dry-run", action="store_true", help="Show webhook URL without executing")
+    s.add_argument(
+        "--activate", action="store_true", help="Auto-activate the workflow if inactive"
+    )
+    s.add_argument(
+        "--dry-run", action="store_true", help="Show webhook URL without executing"
+    )
 
     # -- import ---------------------------------------------------------------
     s = sub.add_parser("import", help="Import workflows from n8n to local files")
     s.add_argument(
-        "-d", "--dir", default="./definitions", help="Target directory (default: ./definitions)"
+        "-d",
+        "--dir",
+        default="./definitions",
+        help="Target directory (default: ./definitions)",
     )
     s.add_argument("--ids", help="Comma-separated workflow IDs to import (empty = all)")
-    s.add_argument("--dry-run", action="store_true", help="Preview without writing files")
+    s.add_argument(
+        "--dry-run", action="store_true", help="Preview without writing files"
+    )
 
     # -- apply ----------------------------------------------------------------
     s = sub.add_parser("apply", help="Apply local workflow files to n8n server")
@@ -256,7 +286,9 @@ def _build_parser() -> argparse.ArgumentParser:
         help="Definitions directory (default: ./definitions)",
     )
     s.add_argument("--ids", help="Comma-separated workflow IDs to process")
-    s.add_argument("--dry-run", action="store_true", help="Preview changes without applying")
+    s.add_argument(
+        "--dry-run", action="store_true", help="Preview changes without applying"
+    )
     s.add_argument("--force", action="store_true", help="Override conflict detection")
 
     return p

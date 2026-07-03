@@ -15,7 +15,9 @@ class ApplyError(CLIError):
     """Error during workflow apply."""
 
 
-def _scan_workflows(directory: str, ids: list[str] | None) -> list[tuple[str, dict[str, Any]]]:
+def _scan_workflows(
+    directory: str, ids: list[str] | None
+) -> list[tuple[str, dict[str, Any]]]:
     """Scan directory for workflow JSON files. Returns list of (path, data).
 
     Walks recursively, skipping _subfiles directories.
@@ -145,7 +147,9 @@ def _normalize_node_for_compare(node: Any) -> Any:
         normalized.get("parameters"), dict
     ):
         normalized["parameters"] = {
-            key: value for key, value in normalized["parameters"].items() if key != "resource"
+            key: value
+            for key, value in normalized["parameters"].items()
+            if key != "resource"
         }
     return normalized
 

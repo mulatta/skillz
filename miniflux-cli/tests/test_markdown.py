@@ -19,7 +19,9 @@ def test_entry_to_markdown_includes_frontmatter_and_attachments() -> None:
         "changed_at": "2026-05-02T00:00:00Z",
         "content": "<p>Deadline is <em>tomorrow</em>.</p>",
         "feed": {"title": "Notifications", "category": {"title": "notification"}},
-        "enclosures": [{"url": "https://example.test/file.pdf", "mime_type": "application/pdf"}],
+        "enclosures": [
+            {"url": "https://example.test/file.pdf", "mime_type": "application/pdf"}
+        ],
     }
 
     rendered = entry_to_markdown(entry)

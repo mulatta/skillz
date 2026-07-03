@@ -96,7 +96,11 @@ def resolve_category_id(client: MinifluxClient, value: str | None) -> int | None
     for category in client.categories():
         title = category.get("title")
         category_id = category.get("id")
-        if isinstance(title, str) and title.casefold() == wanted and isinstance(category_id, int):
+        if (
+            isinstance(title, str)
+            and title.casefold() == wanted
+            and isinstance(category_id, int)
+        ):
             return category_id
     msg = f"category not found: {value}"
     raise MinifluxError(msg)

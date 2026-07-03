@@ -4,7 +4,15 @@ from argparse import Namespace
 from typing import Any
 
 from n8n_cli.client import Client
-from n8n_cli.output import emit, emit_json, emit_kv, emit_table, enc, read_json_input, ts
+from n8n_cli.output import (
+    emit,
+    emit_json,
+    emit_kv,
+    emit_table,
+    enc,
+    read_json_input,
+    ts,
+)
 from n8n_cli.strip import CREDENTIAL_WRITABLE, keep_writable
 
 

@@ -31,7 +31,14 @@ from zhost_cli.client import Client
 from zhost_cli.config import load_config, run_key_command, write_config
 from zhost_cli.errors import APIError, CLIError, InputError
 from zhost_cli.keys import mint_object_key, valid_object_key
-from zhost_cli.output import emit, emit_json, emit_table, read_json_input, short, truncate
+from zhost_cli.output import (
+    emit,
+    emit_json,
+    emit_table,
+    read_json_input,
+    short,
+    truncate,
+)
 
 Handler = Callable[[Client, argparse.Namespace], None]
 
@@ -126,7 +133,9 @@ def cmd_item_edit(client: Client, ns: argparse.Namespace) -> None:
 
 def cmd_item_move(client: Client, ns: argparse.Namespace) -> None:
     require_key(ns.key)
-    names = [n.strip() for value in ns.collection for n in value.split(",") if n.strip()]
+    names = [
+        n.strip() for value in ns.collection for n in value.split(",") if n.strip()
+    ]
     keys = [ensure_collection(client, name) for name in names]
     client.write("item", [{"key": ns.key, "collections": keys}], method="PATCH")
     print(f"moved {ns.key} -> {','.join(keys)}")
@@ -153,8 +162,12 @@ def cmd_coll_list(client: Client, ns: argparse.Namespace) -> None:
         children.setdefault(parent, []).append(c)
 
     def walk(parent: str | None, depth: int) -> None:
-        for c in sorted(children.get(parent, []), key=lambda x: x["data"].get("name", "").lower()):
-            print("  " * depth + f"{short(c.get('key'))}  {short(c['data'].get('name'))}")
+        for c in sorted(
+            children.get(parent, []), key=lambda x: x["data"].get("name", "").lower()
+        ):
+            print(
+                "  " * depth + f"{short(c.get('key'))}  {short(c['data'].get('name'))}"
+            )
             walk(c["key"], depth + 1)
 
     walk(None, 0)
@@ -183,7 +196,9 @@ def cmd_coll_move(client: Client, ns: argparse.Namespace) -> None:
         parent = ns.parent
     else:
         raise InputError("pass --parent KEY or --top")
-    client.write("collection", [{"key": ns.key, "parentCollection": parent}], method="PATCH")
+    client.write(
+        "collection", [{"key": ns.key, "parentCollection": parent}], method="PATCH"
+    )
     print(f"moved {ns.key}")
 
 
@@ -243,7 +258,12 @@ def cmd_note_add(client: Client, ns: argparse.Namespace) -> None:
     html = read_text(ns.file) if ns.file else ns.text
     if not html:
         raise InputError("provide --text or --file for the note body")
-    note = {"itemType": "note", "parentItem": ns.item, "note": html, "tags": agent_tags(ns.tag)}
+    note = {
+        "itemType": "note",
+        "parentItem": ns.item,
+        "note": html,
+        "tags": agent_tags(ns.tag),
+    }
     print(created_key(client.write("item", [note])))
 
 
@@ -274,7 +294,10 @@ def cmd_tag_list(client: Client, ns: argparse.Namespace) -> None:
         if ns.use_json:
             emit_json(tags)
         else:
-            emit_table(["TAG", "TYPE"], [[short(t.get("tag")), short(t.get("type"))] for t in tags])
+            emit_table(
+                ["TAG", "TYPE"],
+                [[short(t.get("tag")), short(t.get("type"))] for t in tags],
+            )
     else:
         resp = client.request("GET", client.user_path("/tags"))
         emit(resp.json(), use_json=ns.use_json, text_fn=print_tags)
@@ -309,7 +332,10 @@ def cmd_pdf_replace(client: Client, ns: argparse.Namespace) -> None:
 
 def cmd_setup(ns: argparse.Namespace) -> None:
     path = write_config(
-        ns.base_url, ns.api_key_command, ns.user_id, Path(ns.config) if ns.config else None
+        ns.base_url,
+        ns.api_key_command,
+        ns.user_id,
+        Path(ns.config) if ns.config else None,
     )
     key = run_key_command(ns.api_key_command)
     print(f"Wrote {path}")
@@ -386,7 +412,9 @@ def cmd_library_export(client: Client, ns: argparse.Namespace) -> None:
             if ft is not None:
                 fulltext[ckey] = ft
         record = {"item": top, "children": kids, "fulltext": fulltext}
-        (outdir / "items" / f"{top['key']}.json").write_text(json.dumps(record, indent=2))
+        (outdir / "items" / f"{top['key']}.json").write_text(
+            json.dumps(record, indent=2)
+        )
 
     (outdir / "collections.json").write_text(json.dumps(collections, indent=2))
     tags = client.request("GET", client.user_path("/tags")).json()
@@ -440,7 +468,10 @@ def cmd_library_import(client: Client, ns: argparse.Namespace) -> None:
 
 
 def load_export_records(indir: Path) -> list[dict[str, Any]]:
-    return [json.loads(path.read_text()) for path in sorted((indir / "items").glob("*.json"))]
+    return [
+        json.loads(path.read_text())
+        for path in sorted((indir / "items").glob("*.json"))
+    ]
 
 
 def children_by_parent(items: list[dict[str, Any]]) -> dict[str, list[dict[str, Any]]]:
@@ -494,7 +525,9 @@ def scoped_collections(
     return [c for c in collections if str(c["key"]) in exported], item_scope
 
 
-def tops_in_collections(client: Client, collection_keys: set[str]) -> list[dict[str, Any]]:
+def tops_in_collections(
+    client: Client, collection_keys: set[str]
+) -> list[dict[str, Any]]:
     out: dict[str, dict[str, Any]] = {}
     for key in sorted(collection_keys):
         for item in client.query_all(f"/collections/{key}/items/top"):
@@ -522,7 +555,9 @@ def find_collection_in(collections: list[dict[str, Any]], name: str) -> str | No
     return None
 
 
-def import_collections(client: Client, collections: list[dict[str, Any]], mode: str) -> None:
+def import_collections(
+    client: Client, collections: list[dict[str, Any]], mode: str
+) -> None:
     """Recreate collections parents-first so parentCollection links resolve."""
     by_key = {str(c["key"]): c for c in collections}
     existing = set(client.versions("collection")) if mode == "replace" else set()
@@ -562,7 +597,11 @@ def import_key_map(
     for rec in records:
         source.add(str(rec["item"]["key"]))
         source.update(str(child["key"]) for child in rec.get("children", []))
-    used = set(source) | set(client.versions("collection")) | set(existing_items_by_key(client))
+    used = (
+        set(source)
+        | set(client.versions("collection"))
+        | set(existing_items_by_key(client))
+    )
     out: dict[str, str] = {}
     for key in sorted(source):
         new_key = mint_object_key(used)
@@ -588,7 +627,12 @@ def remap_record(rec: dict[str, Any], key_map: dict[str, str]) -> dict[str, Any]
 def remap_row(row: dict[str, Any], key_map: dict[str, str]) -> dict[str, Any]:
     old_key = str(row["key"])
     data = remap_data(row.get("data", {}), key_map)
-    return {**row, "key": key_map.get(old_key, old_key), "sourceKey": old_key, "data": data}
+    return {
+        **row,
+        "key": key_map.get(old_key, old_key),
+        "sourceKey": old_key,
+        "data": data,
+    }
 
 
 def remap_data(data: dict[str, Any], key_map: dict[str, str]) -> dict[str, Any]:
@@ -598,9 +642,13 @@ def remap_data(data: dict[str, Any], key_map: dict[str, str]) -> dict[str, Any]:
     if "parentItem" in out:
         out["parentItem"] = key_map.get(str(out["parentItem"]), out["parentItem"])
     if "parentCollection" in out:
-        out["parentCollection"] = key_map.get(str(out["parentCollection"]), out["parentCollection"])
+        out["parentCollection"] = key_map.get(
+            str(out["parentCollection"]), out["parentCollection"]
+        )
     if "collections" in out:
-        out["collections"] = [key_map.get(str(key), key) for key in out.get("collections") or []]
+        out["collections"] = [
+            key_map.get(str(key), key) for key in out.get("collections") or []
+        ]
     return out
 
 
@@ -640,7 +688,11 @@ def find_collection(client: Client, name: str) -> str | None:
 def ensure_collection(client: Client, name: str) -> str:
     """Find a collection by name or create it (idempotent)."""
     key = find_collection(client, name)
-    return key if key is not None else created_key(client.write("collection", [{"name": name}]))
+    return (
+        key
+        if key is not None
+        else created_key(client.write("collection", [{"name": name}]))
+    )
 
 
 def all_collections(client: Client) -> list[dict[str, Any]]:
@@ -829,7 +881,9 @@ def print_detail(item: dict[str, Any], children: list[dict[str, Any]]) -> None:
         print("children:")
         for child in children:
             cd = child.get("data", {})
-            label = cd.get("annotationText") or cd.get("filename") or cd.get("note") or ""
+            label = (
+                cd.get("annotationText") or cd.get("filename") or cd.get("note") or ""
+            )
             print(
                 f"  {short(child.get('key'))}  {short(cd.get('itemType')):11}  {truncate(label, 60)}"
             )
@@ -852,7 +906,9 @@ def _item(sub: Any) -> None:
     item = sub.add_parser("item", help="Items (papers and others)")
     vs = item.add_subparsers(dest="verb")
 
-    s = vs.add_parser("add", help="Create an item (optionally with PDF, collection, tags)")
+    s = vs.add_parser(
+        "add", help="Create an item (optionally with PDF, collection, tags)"
+    )
     s.add_argument("--type", default="journalArticle")
     s.add_argument("--title")
     s.add_argument("--author", action="append", help="'First Last' (repeatable)")
@@ -867,14 +923,18 @@ def _item(sub: Any) -> None:
     s.set_defaults(handler=cmd_item_add)
 
     s = vs.add_parser("list", help="List items (default: top-level); a full paged dump")
-    s.add_argument("--all", action="store_true", help="Include children (attachments, notes)")
+    s.add_argument(
+        "--all", action="store_true", help="Include children (attachments, notes)"
+    )
     s.add_argument("--trash", action="store_true", help="List trashed items instead")
     s.add_argument("--collection", help="Restrict to a collection (by name)")
     s.add_argument("--type")
     add_tag_opt(s)
     s.set_defaults(handler=cmd_item_list)
 
-    s = vs.add_parser("find", help="Full-text search (title + attachment text) -> items")
+    s = vs.add_parser(
+        "find", help="Full-text search (title + attachment text) -> items"
+    )
     s.add_argument("query")
     s.add_argument("--type")
     add_tag_opt(s)
@@ -887,13 +947,17 @@ def _item(sub: Any) -> None:
 
     s = vs.add_parser("edit", help="Change fields (empty value clears)")
     s.add_argument("key")
-    s.add_argument("--set", action="append", default=[], help="field=VALUE (repeatable)")
+    s.add_argument(
+        "--set", action="append", default=[], help="field=VALUE (repeatable)"
+    )
     s.add_argument("--file", help="JSON object of fields")
     s.set_defaults(handler=cmd_item_edit)
 
     s = vs.add_parser("move", help="Re-file into collections (replaces membership)")
     s.add_argument("key")
-    s.add_argument("--collection", action="append", required=True, help="Name (repeatable / comma)")
+    s.add_argument(
+        "--collection", action="append", required=True, help="Name (repeatable / comma)"
+    )
     s.set_defaults(handler=cmd_item_move)
 
     s = vs.add_parser("remove", help="Delete any item")
@@ -906,7 +970,9 @@ def _collection(sub: Any) -> None:
     coll = sub.add_parser("collection", help="Collections (folders)")
     vs = coll.add_subparsers(dest="verb")
 
-    vs.add_parser("list", help="List collections as a tree").set_defaults(handler=cmd_coll_list)
+    vs.add_parser("list", help="List collections as a tree").set_defaults(
+        handler=cmd_coll_list
+    )
 
     s = vs.add_parser("create")
     s.add_argument("name")
@@ -945,14 +1011,20 @@ def _library(sub: Any) -> None:
     s.add_argument("outdir")
     s.add_argument("--collection", help="Restrict to a collection (by name)")
     s.add_argument(
-        "--no-files", action="store_true", dest="no_files", help="Skip attachment file bytes"
+        "--no-files",
+        action="store_true",
+        dest="no_files",
+        help="Skip attachment file bytes",
     )
     s.set_defaults(handler=cmd_library_export)
 
     s = vs.add_parser("import", help="Restore a library from an export directory")
     s.add_argument("indir")
     s.add_argument(
-        "--no-files", action="store_true", dest="no_files", help="Skip attachment file uploads"
+        "--no-files",
+        action="store_true",
+        dest="no_files",
+        help="Skip attachment file uploads",
     )
     s.add_argument("--new-keys", action="store_true", help="Import as a new object set")
     s.add_argument(
@@ -971,7 +1043,9 @@ def _highlight(sub: Any) -> None:
     s.add_argument("item", help="Item or attachment key")
     s.add_argument("--pdf", required=True)
     s.add_argument("--text", required=True)
-    s.add_argument("--color", default=DEFAULT_COLOR, help=f"Hex (default {DEFAULT_COLOR})")
+    s.add_argument(
+        "--color", default=DEFAULT_COLOR, help=f"Hex (default {DEFAULT_COLOR})"
+    )
     s.add_argument("--comment")
     s.add_argument("--page")
     add_tag_opt(s)
@@ -1033,7 +1107,9 @@ def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="zhost-cli", description="Manage a self-hosted Zotero (zhost)"
     )
-    parser.add_argument("-j", "--json", action="store_true", dest="use_json", help="Output JSON")
+    parser.add_argument(
+        "-j", "--json", action="store_true", dest="use_json", help="Output JSON"
+    )
     parser.add_argument("--config", help="Config JSON path")
     sub = parser.add_subparsers(dest="command")
 

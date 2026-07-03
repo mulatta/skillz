@@ -35,7 +35,9 @@ class Handler(BaseHTTPRequestHandler):
         Handler.seen = {
             "path": self.path,
             "authorization": self.headers.get("Authorization"),
-            "body": json.loads(raw_body.decode()) if raw_body and _is_json(content_type) else None,
+            "body": json.loads(raw_body.decode())
+            if raw_body and _is_json(content_type)
+            else None,
         }
         if raw_body and not _is_json(content_type):
             Handler.seen["content_type"] = content_type
@@ -96,7 +98,10 @@ def test_client_encodes_repeated_query_values(server: str) -> None:
 
     client.get("/tasks", {"sort_by": ["due_date", "priority"], "s": "foo bar"})
 
-    assert Handler.seen["path"] == "/api/v1/tasks?sort_by=due_date&sort_by=priority&s=foo+bar"
+    assert (
+        Handler.seen["path"]
+        == "/api/v1/tasks?sort_by=due_date&sort_by=priority&s=foo+bar"
+    )
 
 
 def test_client_raises_api_error(server: str) -> None:
@@ -108,7 +113,9 @@ def test_client_raises_api_error(server: str) -> None:
         client.get("/forbidden")
 
 
-def test_client_uploads_multiple_attachments_with_files_field(server: str, tmp_path: Path) -> None:
+def test_client_uploads_multiple_attachments_with_files_field(
+    server: str, tmp_path: Path
+) -> None:
     first = tmp_path / "one.txt"
     second = tmp_path / "two.bin"
     first.write_text("one")
@@ -116,7 +123,9 @@ def test_client_uploads_multiple_attachments_with_files_field(server: str, tmp_p
     Handler.response_body = {"message": "uploaded"}
     client = Client(server, "secret")
 
-    assert client.upload_task_attachments(123, [first, second]) == {"message": "uploaded"}
+    assert client.upload_task_attachments(123, [first, second]) == {
+        "message": "uploaded"
+    }
 
     raw = Handler.seen["raw_body"]
     assert Handler.seen["path"] == "/api/v1/tasks/123/attachments"

@@ -54,10 +54,14 @@ class Client:
     def get(self, path: str, query: dict[str, Any] | None = None) -> Any:
         return self.request("GET", path, query=query)
 
-    def post(self, path: str, body: Json = None, query: dict[str, Any] | None = None) -> Any:
+    def post(
+        self, path: str, body: Json = None, query: dict[str, Any] | None = None
+    ) -> Any:
         return self.request("POST", path, body, query)
 
-    def put(self, path: str, body: Json = None, query: dict[str, Any] | None = None) -> Any:
+    def put(
+        self, path: str, body: Json = None, query: dict[str, Any] | None = None
+    ) -> Any:
         return self.request("PUT", path, body, query)
 
     def delete(self, path: str, query: dict[str, Any] | None = None) -> Any:
@@ -79,7 +83,9 @@ class Client:
         )
         return self._read(req)
 
-    def put_multipart_files(self, path: str, field_name: str, files: Sequence[Path | str]) -> Any:
+    def put_multipart_files(
+        self, path: str, field_name: str, files: Sequence[Path | str]
+    ) -> Any:
         """Upload files as multipart/form-data and decode the JSON response."""
         body, boundary = _encode_multipart_files(field_name, files)
         req = urllib.request.Request(
@@ -167,7 +173,9 @@ def _decode_json(raw: bytes) -> Any:
         return text
 
 
-def _encode_multipart_files(field_name: str, files: Sequence[Path | str]) -> tuple[bytes, str]:
+def _encode_multipart_files(
+    field_name: str, files: Sequence[Path | str]
+) -> tuple[bytes, str]:
     boundary = f"vikunja-cli-{uuid.uuid4().hex}"
     chunks: list[bytes] = []
     for value in files:
@@ -191,7 +199,12 @@ def _encode_multipart_files(field_name: str, files: Sequence[Path | str]) -> tup
 
 
 def _quote_multipart(value: str) -> str:
-    return value.replace("\\", "\\\\").replace('"', r"\"").replace("\r", "_").replace("\n", "_")
+    return (
+        value.replace("\\", "\\\\")
+        .replace('"', r"\"")
+        .replace("\r", "_")
+        .replace("\n", "_")
+    )
 
 
 def _extract_error(body_text: str) -> str:

@@ -19,7 +19,9 @@ def get_github_token() -> str | None:
     if token:
         return token
     try:
-        result = subprocess.run(["gh", "auth", "token"], capture_output=True, text=True, check=True)
+        result = subprocess.run(
+            ["gh", "auth", "token"], capture_output=True, text=True, check=True
+        )
         token = result.stdout.strip()
         if token:
             return token
@@ -57,7 +59,9 @@ def get_nixbot_urls_from_github(owner: str, repo: str, head_sha: str) -> list[st
     urls: set[str] = set()
 
     try:
-        data = _gh_get(f"https://api.github.com/repos/{owner}/{repo}/commits/{head_sha}/check-runs")
+        data = _gh_get(
+            f"https://api.github.com/repos/{owner}/{repo}/commits/{head_sha}/check-runs"
+        )
         for check in data.get("check_runs", []):
             name = check.get("name", "").lower()
             app = (check.get("app") or {}).get("name", "").lower()
@@ -70,11 +74,15 @@ def get_nixbot_urls_from_github(owner: str, repo: str, head_sha: str) -> list[st
         pass
 
     try:
-        data = _gh_get(f"https://api.github.com/repos/{owner}/{repo}/commits/{head_sha}/status")
+        data = _gh_get(
+            f"https://api.github.com/repos/{owner}/{repo}/commits/{head_sha}/status"
+        )
         for status in data.get("statuses", []):
             target = status.get("target_url", "")
             context = status.get("context", "").lower()
-            if is_safe_url(target) and ("nixbot" in context or is_nixbot_build_url(target)):
+            if is_safe_url(target) and (
+                "nixbot" in context or is_nixbot_build_url(target)
+            ):
                 urls.add(target)
     except (urllib.error.URLError, urllib.error.HTTPError, json.JSONDecodeError):
         pass
