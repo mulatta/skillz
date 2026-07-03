@@ -13,7 +13,7 @@ import contextlib
 import json
 import sys
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, TextIO
 
 from paperfetch_cli import __version__
 from paperfetch_cli.config import (
@@ -33,8 +33,11 @@ from paperfetch_cli.resolve import (
     citation_pdf_url,
     download_file,
     normalize_doi,
+    normalize_pmcid,
+    normalize_pmid,
     pdf_candidates,
     publisher_pdf_url,
+    resolve_europepmc,
     resolve_metadata,
     sciencedirect_pdf_url,
 )
@@ -81,13 +84,21 @@ def cmd_get(args: argparse.Namespace) -> int:
     target = args.target.strip()
     is_url = target.lower().startswith(("http://", "https://"))
     doi = normalize_doi(target)
-    if doi is None and not is_url:
-        msg = "input is neither a DOI nor an http(s) URL"
+    pmcid = normalize_pmcid(target)
+    pmid = normalize_pmid(target)
+    if doi is None and pmcid is None and pmid is None and not is_url:
+        msg = "input is neither a DOI, PMID, PMCID, nor an http(s) URL"
         raise CLIError(msg, EXIT_USAGE)
-    meta = PaperMeta(doi=doi or "")
+    meta = PaperMeta(doi=doi or "", pmid=pmid or "", pmcid=pmcid or "")
     if doi is not None:
         with contextlib.suppress(CLIError):
             meta = resolve_metadata(doi)
+    if doi is not None or pmcid is not None or pmid is not None:
+        with contextlib.suppress(CLIError):
+            meta = _merge_meta(
+                meta,
+                resolve_europepmc(doi=doi, pmid=pmid, pmcid=pmcid),
+            )
     # Prefer the doi.org resolver over OpenAlex's landing_page_url: it redirects
     # to the canonical publisher article page (cell.com, science.org, ...) where
     # citation_pdf_url / the per-publisher pattern apply, whereas OpenAlex may
@@ -100,8 +111,27 @@ def cmd_get(args: argparse.Namespace) -> int:
     return _emit_get(args, meta, landing)
 
 
+def _merge_meta(base: PaperMeta, extra: PaperMeta) -> PaperMeta:
+    use_extra_pdf = extra.oa_pdf_url is not None
+    return PaperMeta(
+        doi=base.doi or extra.doi,
+        title=base.title or extra.title,
+        authors=base.authors or extra.authors,
+        journal=base.journal or extra.journal,
+        year=base.year or extra.year,
+        oa_pdf_url=extra.oa_pdf_url or base.oa_pdf_url,
+        landing_url=base.landing_url or extra.landing_url,
+        pmid=base.pmid or extra.pmid,
+        pmcid=base.pmcid or extra.pmcid,
+        oa_pdf_source=extra.oa_pdf_source if use_extra_pdf else base.oa_pdf_source,
+        oa_landing_url=extra.oa_landing_url or base.oa_landing_url,
+    )
+
+
 def _slug(meta: PaperMeta) -> str:
-    return meta.doi.replace("/", "_") if meta.doi else "paper"
+    if meta.doi:
+        return meta.doi.replace("/", "_")
+    return meta.pmcid or (f"PMID{meta.pmid}" if meta.pmid else "paper")
 
 
 def _manifest(meta: PaperMeta) -> dict[str, object]:
@@ -113,8 +143,12 @@ def _manifest(meta: PaperMeta) -> dict[str, object]:
         "year": meta.year,
         "landing_url": meta.landing_url,
     }
+    if meta.pmid:
+        manifest["pmid"] = meta.pmid
+    if meta.pmcid:
+        manifest["pmcid"] = meta.pmcid
     if meta.oa_pdf_url:
-        manifest["pdf"] = {"url": meta.oa_pdf_url, "via": "oa"}
+        manifest["pdf"] = {"url": meta.oa_pdf_url, "via": meta.oa_pdf_source}
     return manifest
 
 
@@ -129,12 +163,19 @@ def _emit_get(args: argparse.Namespace, meta: PaperMeta, landing: str | None) ->
         dest.parent.mkdir(parents=True, exist_ok=True)
         try:
             download_file(meta.oa_pdf_url, dest)
-        except CLIError:
-            # OA direct download is a best-effort fast path; on failure fall
-            # through to the browser fetch instead of surfacing it as a warning.
-            pass
+        except CLIError as exc:
+            # OA direct download is a best-effort fast path. If a Europe PMC /
+            # PMC URL failed as HTML, keep that legal landing in the browser path
+            # instead of falling back to doi.org and losing the cleaner source.
+            if meta.oa_pdf_source in {"europepmc", "pmc_oa"}:
+                warnings.append(str(exc))
+                landing = meta.oa_landing_url or meta.landing_url or landing
         else:
-            manifest["pdf"] = {"url": meta.oa_pdf_url, "via": "oa", "path": str(dest)}
+            manifest["pdf"] = {
+                "url": meta.oa_pdf_url,
+                "via": meta.oa_pdf_source,
+                "path": str(dest),
+            }
             pdf_done = True
     md_text: str | None = None
     if args.md or args.html or (args.pdf and not pdf_done):
@@ -229,10 +270,18 @@ def _browser_pdf(  # noqa: PLR0913
     return EXIT_OK
 
 
+def _print_optional_line(manifest: dict[str, object], key: str, stream: TextIO) -> None:
+    value = manifest.get(key)
+    if value:
+        print(f"  {key}: {value}", file=stream)
+
+
 def _print_human(manifest: dict[str, object], *, to_stderr: bool = False) -> None:
     stream = sys.stderr if to_stderr else sys.stdout
     print(manifest.get("title") or "(no title)", file=stream)
     print(f"  doi: {manifest.get('doi')}", file=stream)
+    _print_optional_line(manifest, "pmid", stream)
+    _print_optional_line(manifest, "pmcid", stream)
     if manifest.get("journal"):
         print(
             f"  journal: {manifest.get('journal')} ({manifest.get('year')})",
@@ -334,8 +383,10 @@ def cmd_setup(args: argparse.Namespace) -> int:
 
 
 def _build_get(sub: argparse._SubParsersAction[argparse.ArgumentParser]) -> None:
-    parser = sub.add_parser("get", help="resolve a paper's artifacts from a URL or DOI")
-    parser.add_argument("target", metavar="URL|DOI")
+    parser = sub.add_parser(
+        "get", help="resolve a paper's artifacts from a URL, DOI, PMID, or PMCID"
+    )
+    parser.add_argument("target", metavar="URL|DOI|PMID|PMCID")
     parser.add_argument(
         "--md",
         action="store_true",

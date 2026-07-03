@@ -1,27 +1,33 @@
 # paperfetch-cli
 
-On-demand fetcher for an academic paper's full text + PDF, from a DOI or
-publisher URL, using the host's institutional IP access. Built for human/agent
-invocation, not scheduled scraping.
+On-demand fetcher for an academic paper's full text + PDF, from a DOI, PMID,
+PMCID, or publisher URL, using the host's institutional IP access. Built for
+human/agent invocation, not scheduled scraping.
 
-Working: metadata + open-access resolution, and byte-level PDF download for
-arXiv, Nature, Cell, Science, and ScienceDirect/Elsevier - self-contained, no
-cookie/cache injection.
+Working: metadata + open-access resolution through OpenAlex plus Europe PMC /
+PMC OA, and byte-level PDF download for arXiv, PMC, Nature, Cell, Science, and
+ScienceDirect/Elsevier - self-contained, no cookie/cache injection.
 
 ## Commands
 
 ```
-paperfetch-cli get <doi|url> [--pdf] [--md] [--html] [--out DIR] [--json]
+paperfetch-cli get <doi|pmid|pmcid|url> [--pdf] [--md] [--html] [--out DIR] [--json]
 paperfetch-cli render <url> [--format md|html|text] [--links] [--json]
 paperfetch-cli grab <url> --out FILE [--expect MIME] [--from PAGE_URL]
 paperfetch-cli setup [--profile-dir DIR] [--chromium PATH]
 ```
 
-`get` with no artifact flag prints a manifest (probe). `--pdf` tries the
-open-access copy, then the institutional PDF through the browser. See
-`skills/SKILL.md` for the agent-facing reference.
+`get` with no artifact flag prints a manifest (probe). `--pdf` tries legal
+open-access copies first (Europe PMC / PMC OA when available, then existing OA
+metadata), then the institutional PDF through the browser. See `skills/SKILL.md`
+for the agent-facing reference.
 
 ## How it works
+
+DOI, PMID, and PMCID inputs are checked against Europe PMC / PMC OA before the
+browser path. When those services expose a direct legal PDF, the CLI downloads it
+without rendering a publisher page; if that direct URL serves HTML, the browser
+fallback opens the cleaner Europe PMC/PMC landing instead of discarding that path.
 
 A headful Chromium under Xvfb (Linux) clears Cloudflare where a headless browser
 gets a 403. The PDF is read with an in-page `fetch()` run from a same-origin
@@ -42,6 +48,7 @@ on macOS, since nixpkgs Chromium is Linux-only); `--executable` / `setup --chrom
 
 | publisher | Cloudflare | institutional IP | PDF url discovery |
 | --- | --- | --- | --- |
+| PMC / Europe PMC | none | no | Europe PMC fullTextUrl / PMC OA |
 | Nature (Springer) | none | yes | `citation_pdf_url` |
 | Cell (Elsevier) | yes, headful passes | yes | `citation_pdf_url` |
 | Science (AAAS) | yes, headful passes | yes | adapter (no `citation_pdf_url`) |
@@ -59,6 +66,6 @@ not auto-clear, so a one-time warmed `--profile` (solve the challenge by hand in
 
 ## Boundaries
 
-This CLI only fetches one paper. Resolving a DOI to metadata (`biorefs-cli`) and
-filing the result into Zotero (`zhost-cli`) is a meta-skill's job; this tool
+This CLI only fetches one paper. Rich literature search (`biorefs-cli`) and
+filing the result into Zotero (`zhost-cli`) are a meta-skill's job; this tool
 never calls another CLI.

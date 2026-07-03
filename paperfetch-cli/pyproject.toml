@@ -19,6 +19,6 @@ packages = ["paperfetch_cli"]
 strict = true
 
 [[tool.mypy.overrides]]
-module = ["patchright.*", "pyvirtualdisplay.*", "markdownify.*"]
+module = ["patchright.*", "pyvirtualdisplay.*", "markdownify.*", "pytest"]
 ignore_missing_imports = true
 implicit_reexport = true

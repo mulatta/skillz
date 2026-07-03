@@ -1,13 +1,14 @@
 """Paper metadata + open-access resolution via keyless JSON APIs.
 
-OpenAlex returns both bibliographic metadata and the best open-access PDF
-location from a single DOI lookup, and it is not bot-walled, so this path is
-safe to run freely (no publisher scraping). The browser is only needed later for
+OpenAlex returns DOI metadata and broad open-access hints. Europe PMC / PMC OA
+adds native legal full-text coverage for biomedical papers and identifier inputs
+(PMID / PMCID) without publisher scraping. The browser is only needed later for
 paywalled full text / PDF.
 """
 
 from __future__ import annotations
 
+import contextlib
 import json
 import re
 import shutil
@@ -15,6 +16,7 @@ import urllib.error
 import urllib.parse
 import urllib.request
 from dataclasses import dataclass
+from html.parser import HTMLParser
 from typing import TYPE_CHECKING
 
 from paperfetch_cli.errors import EXIT_FETCH, EXIT_UNRESOLVED, CLIError
@@ -23,7 +25,15 @@ if TYPE_CHECKING:
     from pathlib import Path
 
 _DOI_RE = re.compile(r"10\.\d{4,9}/\S+")
+_PMCID_RE = re.compile(r"\bPMC\d+\b", re.IGNORECASE)
+_PMID_MARKED_RE = re.compile(
+    r"(?:\bPMID\s*:?\s*|pubmed\.ncbi\.nlm\.nih\.gov/|europepmc\.org/article/MED/)"
+    r"(\d{1,9})\b",
+    re.IGNORECASE,
+)
 _OPENALEX = "https://api.openalex.org/works/doi:"
+_EUROPEPMC_SEARCH = "https://www.ebi.ac.uk/europepmc/webservices/rest/search"
+_PMC_OA = "https://www.ncbi.nlm.nih.gov/pmc/utils/oa/oa.fcgi?id="
 _TIMEOUT = 20
 _UA = "paperfetch-cli (https://github.com/mulatta/skillz)"
 
@@ -37,6 +47,10 @@ class PaperMeta:
     year: int | None = None
     oa_pdf_url: str | None = None
     landing_url: str | None = None
+    pmid: str = ""
+    pmcid: str = ""
+    oa_pdf_source: str = "oa"
+    oa_landing_url: str | None = None
 
 
 def normalize_doi(value: str) -> str | None:
@@ -44,6 +58,23 @@ def normalize_doi(value: str) -> str | None:
     if match is None:
         return None
     return match.group(0).rstrip(").,;>").lower()
+
+
+def normalize_pmcid(value: str) -> str | None:
+    match = _PMCID_RE.search(value.strip())
+    if match is None:
+        return None
+    return match.group(0).upper()
+
+
+def normalize_pmid(value: str) -> str | None:
+    stripped = value.strip()
+    if stripped.isdecimal() and 1 <= len(stripped) <= 9:
+        return stripped
+    match = _PMID_MARKED_RE.search(stripped)
+    if match is None:
+        return None
+    return match.group(1)
 
 
 def _get_json(url: str) -> dict[str, object]:
@@ -61,6 +92,20 @@ def _get_json(url: str) -> dict[str, object]:
         msg = "unexpected metadata response"
         raise CLIError(msg, EXIT_UNRESOLVED)
     return payload
+
+
+def _get_text(url: str, accept: str) -> str:
+    request = urllib.request.Request(  # noqa: S310 - https URL built from constants
+        url,
+        headers={"User-Agent": _UA, "Accept": accept},
+    )
+    try:
+        with urllib.request.urlopen(request, timeout=_TIMEOUT) as response:  # noqa: S310
+            data: bytes = response.read()
+            return data.decode("utf-8")
+    except (urllib.error.URLError, TimeoutError, UnicodeDecodeError) as exc:
+        msg = f"metadata lookup failed: {exc}"
+        raise CLIError(msg, EXIT_UNRESOLVED) from exc
 
 
 def _dict(value: object) -> dict[str, object]:
@@ -93,6 +138,185 @@ def parse_openalex(data: dict[str, object], doi: str) -> PaperMeta:
         oa_pdf_url=_str(best_oa.get("pdf_url")) or None,
         landing_url=_str(primary.get("landing_page_url")) or None,
     )
+
+
+def _europepmc_quote(value: str) -> str:
+    return value.replace("\\", "\\\\").replace('"', '\\"')
+
+
+def europepmc_search_url(
+    *, doi: str | None = None, pmid: str | None = None, pmcid: str | None = None
+) -> str:
+    if doi:
+        query = f'DOI:"{_europepmc_quote(doi)}"'
+    elif pmcid:
+        query = f"PMCID:{pmcid}"
+    elif pmid:
+        query = f"EXT_ID:{pmid} AND SRC:MED"
+    else:
+        msg = "expected DOI, PMID, or PMCID for Europe PMC lookup"
+        raise CLIError(msg, EXIT_UNRESOLVED)
+    params = urllib.parse.urlencode(
+        {"query": query, "format": "json", "resultType": "core", "pageSize": "1"}
+    )
+    return f"{_EUROPEPMC_SEARCH}?{params}"
+
+
+def _europepmc_authors(result: dict[str, object]) -> tuple[str, ...]:
+    authors = _dict(result.get("authorList")).get("author")
+    if isinstance(authors, list):
+        names = [_str(_dict(author).get("fullName")) for author in authors]
+        return tuple(name for name in names if name)
+    author_string = _str(result.get("authorString"))
+    if not author_string:
+        return ()
+    return tuple(name.strip() for name in author_string.split(",") if name.strip())
+
+
+def _year(value: object) -> int | None:
+    if isinstance(value, int):
+        return value
+    if isinstance(value, str) and value[:4].isdecimal():
+        return int(value[:4])
+    return None
+
+
+def _europepmc_landing(result: dict[str, object]) -> str | None:
+    pmcid = _str(result.get("pmcid"))
+    if pmcid:
+        return f"https://europepmc.org/articles/{pmcid}"
+    pmid = _str(result.get("pmid"))
+    if pmid:
+        return f"https://europepmc.org/article/MED/{pmid}"
+    doi = _str(result.get("doi"))
+    if doi:
+        return f"https://doi.org/{doi}"
+    return None
+
+
+def _is_open_access(result: dict[str, object], item: dict[str, object]) -> bool:
+    code = _str(item.get("availabilityCode")).upper()
+    availability = _str(item.get("availability")).lower()
+    result_oa = _str(result.get("isOpenAccess")).upper() == "Y"
+    return result_oa or code == "OA" or "open access" in availability
+
+
+def _europepmc_pdf_url(result: dict[str, object]) -> str | None:
+    urls = _dict(result.get("fullTextUrlList")).get("fullTextUrl")
+    candidates: list[tuple[int, str]] = []
+    if isinstance(urls, list):
+        for raw_item in urls:
+            item = _dict(raw_item)
+            url = _str(item.get("url"))
+            style = _str(item.get("documentStyle")).lower()
+            if not url or style != "pdf" or not _is_open_access(result, item):
+                continue
+            site = _str(item.get("site")).lower()
+            score = 0 if site in {"europe_pmc", "pubmed central", "pmc"} else 1
+            if url.startswith("https://"):
+                score -= 1
+            candidates.append((score, url))
+    if candidates:
+        return min(candidates, key=lambda candidate: candidate[0])[1]
+    pmcid = _str(result.get("pmcid"))
+    if pmcid and _str(result.get("isOpenAccess")).upper() == "Y":
+        return f"https://europepmc.org/articles/{pmcid}?pdf=render"
+    return None
+
+
+def parse_europepmc(
+    data: dict[str, object],
+    *,
+    doi: str | None = None,
+    pmid: str | None = None,
+    pmcid: str | None = None,
+) -> PaperMeta | None:
+    results = _dict(data.get("resultList")).get("result")
+    if not isinstance(results, list) or not results:
+        return None
+    result = _dict(results[0])
+    resolved_doi = (_str(result.get("doi")) or doi or "").lower()
+    resolved_pmid = _str(result.get("pmid")) or pmid or ""
+    resolved_pmcid = (_str(result.get("pmcid")) or pmcid or "").upper()
+    pdf_url = _europepmc_pdf_url(result)
+    landing = _europepmc_landing(result)
+    return PaperMeta(
+        doi=resolved_doi,
+        title=_str(result.get("title")),
+        authors=_europepmc_authors(result),
+        journal=_str(result.get("journalTitle")),
+        year=_year(result.get("pubYear") or result.get("firstPublicationDate")),
+        oa_pdf_url=pdf_url,
+        landing_url=landing,
+        pmid=resolved_pmid,
+        pmcid=resolved_pmcid,
+        oa_pdf_source="europepmc" if pdf_url else "oa",
+        oa_landing_url=landing if pdf_url else None,
+    )
+
+
+class _PmcOaParser(HTMLParser):
+    def __init__(self) -> None:
+        super().__init__(convert_charrefs=True)
+        self.pdf_url = ""
+        self._record_retracted = False
+
+    def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
+        attr = {key.lower(): value or "" for key, value in attrs}
+        if tag.lower() == "record":
+            self._record_retracted = attr.get("retracted", "").lower() == "yes"
+        if (
+            tag.lower() == "link"
+            and not self._record_retracted
+            and attr.get("format", "").lower() == "pdf"
+            and not self.pdf_url
+        ):
+            self.pdf_url = attr.get("href", "")
+
+    def handle_endtag(self, tag: str) -> None:
+        if tag.lower() == "record":
+            self._record_retracted = False
+
+
+def _https_ftp_ncbi(url: str) -> str:
+    if url.startswith("ftp://ftp.ncbi.nlm.nih.gov/"):
+        return "https://ftp.ncbi.nlm.nih.gov/" + url.removeprefix(
+            "ftp://ftp.ncbi.nlm.nih.gov/"
+        )
+    return url
+
+
+def parse_pmc_oa_pdf(xml_text: str) -> str | None:
+    parser = _PmcOaParser()
+    parser.feed(xml_text)
+    href = _https_ftp_ncbi(parser.pdf_url)
+    if href.startswith(("https://", "http://")):
+        return href
+    return None
+
+
+def resolve_pmc_oa_pdf(pmcid: str) -> str | None:
+    xml_text = _get_text(
+        _PMC_OA + urllib.parse.quote(pmcid, safe=""), "application/xml"
+    )
+    return parse_pmc_oa_pdf(xml_text)
+
+
+def resolve_europepmc(
+    *, doi: str | None = None, pmid: str | None = None, pmcid: str | None = None
+) -> PaperMeta:
+    data = _get_json(europepmc_search_url(doi=doi, pmid=pmid, pmcid=pmcid))
+    meta = parse_europepmc(data, doi=doi, pmid=pmid, pmcid=pmcid)
+    if meta is None:
+        msg = "Europe PMC lookup found no matching record"
+        raise CLIError(msg, EXIT_UNRESOLVED)
+    if meta.pmcid and not meta.oa_pdf_url:
+        with contextlib.suppress(CLIError):
+            if pdf_url := resolve_pmc_oa_pdf(meta.pmcid):
+                meta.oa_pdf_url = pdf_url
+                meta.oa_pdf_source = "pmc_oa"
+                meta.oa_landing_url = meta.landing_url
+    return meta
 
 
 def resolve_metadata(doi: str) -> PaperMeta:
