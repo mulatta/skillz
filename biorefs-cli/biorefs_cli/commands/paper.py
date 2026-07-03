@@ -80,14 +80,20 @@ class PaperClient:
             "efetch",
             {"db": "pubmed", "id": ",".join(pmids), "retmode": "xml"},
         )
-        return self.http.get(url, rate_limit_source="ncbi").body.decode("utf-8")
+        return self.http.get(
+            url,
+            rate_limit_source=self.ncbi.rate_limit_source(),
+        ).body.decode("utf-8")
 
     def efetch_pmc(self, pmcid: str) -> str:
         url = self.ncbi.eutils_url(
             "efetch",
             {"db": "pmc", "id": normalize_pmcid(pmcid), "retmode": "xml"},
         )
-        return self.http.get(url, rate_limit_source="ncbi").body.decode("utf-8")
+        return self.http.get(
+            url,
+            rate_limit_source=self.ncbi.rate_limit_source(),
+        ).body.decode("utf-8")
 
     def elink_pubmed(self, pmid: str, *, mode: str) -> JsonObject:
         cmd = "neighbor_score" if mode == "similar" else "neighbor"
@@ -106,7 +112,10 @@ class PaperClient:
         identifier = normalize_identifier(kind, value)
         params = self.ncbi.common_params() | {"ids": identifier, "format": "json"}
         url = f"{IDCONV_URL}?{urllib.parse.urlencode(params)}"
-        raw = self.http.get_json(url, rate_limit_source="pmc-id-converter")
+        raw = self.http.get_json(
+            url,
+            rate_limit_source=self.ncbi.rate_limit_source("pmc-id-converter"),
+        )
         return normalize_idconv(identifier, raw)
 
     def resolve_pmid(

@@ -61,6 +61,9 @@ class FakeClient:
         self.efetch_params = params
         return f"https://eutils.ncbi.nlm.nih.gov/entrez/eutils/{endpoint}.fcgi?{urlencode(params)}"
 
+    def rate_limit_source(self, source: str = "ncbi") -> str:
+        return source
+
 
 def protein_summary_payload() -> dict[str, object]:
     return {

@@ -63,14 +63,24 @@ class RedirectHttpClient(HttpClient):
         return HttpResponse(status=200, headers={}, body=b'{"ok": true}')
 
 
-def test_aliases_share_ncbi_key_policy() -> None:
+def test_ncbi_without_api_key_uses_three_per_second_policy() -> None:
     ncbi = get_rate_limit_policy("ncbi")
 
     assert ncbi is not None
     assert get_rate_limit_policy("pubmed") == ncbi
     assert get_rate_limit_policy("pmc") == ncbi
     assert get_rate_limit_policy("pmc-id-converter") == ncbi
-    assert ncbi.rules[0].max_requests == 10
+    assert ncbi.rules[0].max_requests == 3
+
+
+def test_ncbi_with_api_key_uses_ten_per_second_policy() -> None:
+    ncbi_key = get_rate_limit_policy("ncbi-key")
+
+    assert ncbi_key is not None
+    assert get_rate_limit_policy("pubmed-key") == ncbi_key
+    assert get_rate_limit_policy("pmc-key") == ncbi_key
+    assert get_rate_limit_policy("pmc-id-converter-key") == ncbi_key
+    assert ncbi_key.rules[0].max_requests == 10
 
 
 def test_pubchem_policy_has_second_and_minute_limits() -> None:

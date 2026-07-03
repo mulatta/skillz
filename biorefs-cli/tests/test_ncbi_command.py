@@ -81,6 +81,14 @@ def make_client(http: RecordingHttpClient) -> NCBIClient:
     return NCBIClient(config=Config(email="user@example.org"), http=http)
 
 
+def make_key_client(http: RecordingHttpClient) -> NCBIClient:
+    command = f"{shlex.quote(sys.executable)} -c " + shlex.quote("print('NCBIKEY')")
+    return NCBIClient(
+        config=Config(email="user@example.org", ncbi_api_key_command=command),
+        http=http,
+    )
+
+
 def parse_args(argv: list[str]) -> argparse.Namespace:
     return build_parser().parse_args(argv)
 
@@ -136,6 +144,21 @@ def test_search_constructs_esearch_query_and_uses_ncbi_rate_limit() -> None:
     assert http.limiter.sources == ["ncbi"]
     assert result["ids"] == ["1", "2"]
     assert result["history"] == {"webenv": "NCBI_WE", "query_key": "1"}
+
+
+def test_search_with_api_key_uses_key_rate_limit_policy() -> None:
+    http = RecordingHttpClient(
+        [json_response({"esearchresult": {"count": "0", "idlist": []}})],
+    )
+    args = parse_args(
+        ["ncbi", "search", "--db", "pubmed", "--query", "BRCA1", "--limit", "1"],
+    )
+
+    ncbi.execute(args, make_key_client(http))
+
+    params = query_params(http.urls[0])
+    assert params["api_key"] == ["NCBIKEY"]
+    assert http.limiter.sources == ["ncbi-key"]
 
 
 def test_summary_preserves_source_fields_and_adds_provenance() -> None:
