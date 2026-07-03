@@ -25,13 +25,16 @@ python3Packages.buildPythonApplication {
   '';
 
   nativeCheckInputs = [
+    python3Packages.mypy
     python3Packages.pytest
     python3Packages.ruff
   ];
 
   checkPhase = ''
     runHook preCheck
+    ruff format --check shortcuts_cli.py tests
     ruff check shortcuts_cli.py tests
+    mypy shortcuts_cli.py tests
     pytest tests
     runHook postCheck
   '';
