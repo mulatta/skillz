@@ -311,7 +311,7 @@ def fetch_nucleotide_text(
         params["rettype"] = rettype
     response = client.http.get(
         client.eutils_url("efetch", params),
-        rate_limit_source="ncbi",
+        rate_limit_source=client.rate_limit_source(),
     )
     try:
         content = response.body.decode("utf-8")

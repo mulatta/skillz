@@ -263,7 +263,7 @@ def fetch_params(
 def fetch_text(client: NCBIClient, params: dict[str, str | int]) -> str:
     response = client.http.get(
         client.eutils_url("efetch", params),
-        rate_limit_source="ncbi",
+        rate_limit_source=client.rate_limit_source(),
     )
     try:
         return response.body.decode("utf-8")

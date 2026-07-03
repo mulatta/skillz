@@ -29,17 +29,27 @@ class RateLimitPolicy:
     rules: tuple[RateLimitRule, ...]
 
 
-NCBI_KEY_POLICY = RateLimitPolicy(
+NCBI_NO_KEY_POLICY = RateLimitPolicy(
     name="ncbi",
+    rules=(RateLimitRule("per-second", max_requests=3, period_seconds=1.0),),
+)
+NCBI_KEY_POLICY = RateLimitPolicy(
+    name="ncbi-key",
     rules=(RateLimitRule("per-second", max_requests=10, period_seconds=1.0),),
 )
 
 API_RATE_LIMIT_POLICIES: dict[str, RateLimitPolicy] = {
-    # NCBI API-key limit is shared across E-utilities and nearby PMC utilities.
-    "ncbi": NCBI_KEY_POLICY,
-    "pubmed": NCBI_KEY_POLICY,
-    "pmc": NCBI_KEY_POLICY,
-    "pmc-id-converter": NCBI_KEY_POLICY,
+    # NCBI allows 3 req/s without an API key and 10 req/s with one. Host
+    # inference must use the conservative keyless policy because URLs alone do
+    # not prove a usable API key was configured.
+    "ncbi": NCBI_NO_KEY_POLICY,
+    "pubmed": NCBI_NO_KEY_POLICY,
+    "pmc": NCBI_NO_KEY_POLICY,
+    "pmc-id-converter": NCBI_NO_KEY_POLICY,
+    "ncbi-key": NCBI_KEY_POLICY,
+    "pubmed-key": NCBI_KEY_POLICY,
+    "pmc-key": NCBI_KEY_POLICY,
+    "pmc-id-converter-key": NCBI_KEY_POLICY,
     "openalex": RateLimitPolicy(
         name="openalex",
         rules=(RateLimitRule("per-second", max_requests=10, period_seconds=1.0),),

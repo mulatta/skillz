@@ -176,7 +176,7 @@ def test_ncbi_client_adds_identity_parameters_and_ncbi_rate_limit_source() -> No
     assert query["email"] == ["agent@example.org"]
     assert query["tool"] == ["biorefs-cli"]
     assert query["api_key"] == ["secret"]
-    assert limiter.sources == ["ncbi"]
+    assert limiter.sources == ["ncbi-key"]
 
 
 class FakeGeneClient:

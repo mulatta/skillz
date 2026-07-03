@@ -45,6 +45,8 @@ class ProteinEntrezClient(Protocol):
 
     def eutils_url(self, endpoint: str, params: dict[str, str | int]) -> str: ...
 
+    def rate_limit_source(self, source: str = "ncbi") -> str: ...
+
 
 @dataclass(frozen=True, slots=True)
 class ProteinRecord:
@@ -135,7 +137,10 @@ class ProteinService:
         if rettype is not None:
             params["rettype"] = rettype
         url = self.client.eutils_url("efetch", params)
-        response = self.client.http.get(url, rate_limit_source="ncbi")
+        response = self.client.http.get(
+            url,
+            rate_limit_source=self.client.rate_limit_source(),
+        )
         try:
             content = response.body.decode("utf-8")
         except UnicodeDecodeError as exc:
