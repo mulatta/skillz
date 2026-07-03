@@ -20,7 +20,12 @@ from . import gitea_api, github_api
 from .exceptions import CheckError, InvalidPRURLError
 from .git import get_current_branch_pr_url
 from .nixbot_api import NixbotAttribute, NixbotBuild, NixbotClient, NixbotEvalBuild
-from .reporting import ReportAttribute, ReportEvalBuild, print_eval_build, print_failures
+from .reporting import (
+    ReportAttribute,
+    ReportEvalBuild,
+    print_eval_build,
+    print_failures,
+)
 from .url_parser import PRInfo, get_pr_info, parse_nixbot_url
 
 
@@ -92,14 +97,18 @@ def _emit_json(obj: Any) -> None:
     print()
 
 
-def _load_eval_build_with_attributes(client: NixbotClient, build: NixbotBuild) -> NixbotEvalBuild:
+def _load_eval_build_with_attributes(
+    client: NixbotClient, build: NixbotBuild
+) -> NixbotEvalBuild:
     ev = client.load_eval_build(build)
     ev.attributes = client.resolve_attributes(ev.attribute_names)
     return ev
 
 
 def _attribute_is_bad(attribute: NixbotAttribute) -> bool:
-    return bool(attribute.build and attribute.build.status and attribute.build.status.is_bad)
+    return bool(
+        attribute.build and attribute.build.status and attribute.build.status.is_bad
+    )
 
 
 def _eval_is_bad(ev: NixbotEvalBuild) -> bool:
@@ -177,11 +186,15 @@ def cmd_pr(args: argparse.Namespace) -> int:
                 }
             )
         else:
-            print_failures(cast(ReportEvalBuild, ev), cast("list[ReportAttribute]", failures))
+            print_failures(
+                cast(ReportEvalBuild, ev), cast("list[ReportAttribute]", failures)
+            )
         return 1 if failures or _eval_is_bad(ev) else 0
 
     if args.json:
-        _emit_json({"pr": f"{pr.owner}/{pr.repo}#{pr.pr_num}", "eval_build": ev.to_json()})
+        _emit_json(
+            {"pr": f"{pr.owner}/{pr.repo}#{pr.pr_num}", "eval_build": ev.to_json()}
+        )
     else:
         print(f"pr: {pr.owner}/{pr.repo}#{pr.pr_num}")
         print(f"platform: {pr.platform}")
@@ -201,8 +214,12 @@ def build_parser() -> argparse.ArgumentParser:
         description="Inspect Nixbot CI for a PR.",
     )
     p.add_argument("pr", nargs="?", help="PR URL or number (default: current branch)")
-    p.add_argument("--watch", action="store_true", help="Poll until the build completes")
-    p.add_argument("--interval", type=int, default=60, help="Poll interval for --watch (seconds)")
+    p.add_argument(
+        "--watch", action="store_true", help="Poll until the build completes"
+    )
+    p.add_argument(
+        "--interval", type=int, default=60, help="Poll interval for --watch (seconds)"
+    )
     p.add_argument(
         "--failures",
         action="store_true",
@@ -214,7 +231,9 @@ def build_parser() -> argparse.ArgumentParser:
         default=80,
         help="Lines of log to tail with --failures (0=skip)",
     )
-    p.add_argument("--json", action="store_true", help="Emit a single JSON document on stdout")
+    p.add_argument(
+        "--json", action="store_true", help="Emit a single JSON document on stdout"
+    )
     p.add_argument("--debug", action="store_true")
     return p
 

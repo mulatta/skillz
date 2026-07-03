@@ -95,11 +95,15 @@ def load_config(path: Path | None = None) -> Config:
 
     token = os.environ.get("LINKWARDEN_TOKEN") or _string(data, "token")
     if not token:
-        command = os.environ.get("LINKWARDEN_TOKEN_COMMAND") or _string(data, "token_command")
+        command = os.environ.get("LINKWARDEN_TOKEN_COMMAND") or _string(
+            data, "token_command"
+        )
         if command:
             token = run_token_command(command)
     if not token:
-        raise ConfigError("Linkwarden token missing; set LINKWARDEN_TOKEN or token_command")
+        raise ConfigError(
+            "Linkwarden token missing; set LINKWARDEN_TOKEN or token_command"
+        )
 
     timeout = DEFAULT_TIMEOUT
     timeout_raw = os.environ.get("LINKWARDEN_TIMEOUT") or data.get("timeout")

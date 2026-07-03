@@ -87,7 +87,11 @@ def list_templates(template_dir: Path | None = None) -> list[str]:
         if not base.exists():
             continue
         for item in base.iterdir():
-            if item.is_file() and item.suffix == TEMPLATE_FILE_SUFFIX and item.stem != "README":
+            if (
+                item.is_file()
+                and item.suffix == TEMPLATE_FILE_SUFFIX
+                and item.stem != "README"
+            ):
                 try:
                     result.add(_safe_template_name(item.stem))
                 except InputError:
@@ -112,14 +116,29 @@ def validate_template(
         safe_name, spec_path = _resolve_template_path(name, template_dir=template_dir)
         template_name = safe_name
     except InputError as exc:
-        return {"template": template_name, "ok": False, "errors": [str(exc)], "warnings": []}
+        return {
+            "template": template_name,
+            "ok": False,
+            "errors": [str(exc)],
+            "warnings": [],
+        }
 
     if not spec_path.exists():
         errors.append(f"missing {safe_name}.md")
-        return {"template": template_name, "ok": False, "errors": errors, "warnings": warnings}
+        return {
+            "template": template_name,
+            "ok": False,
+            "errors": errors,
+            "warnings": warnings,
+        }
     if not spec_path.is_file():
         errors.append(f"{spec_path.name} is not a file")
-        return {"template": template_name, "ok": False, "errors": errors, "warnings": warnings}
+        return {
+            "template": template_name,
+            "ok": False,
+            "errors": errors,
+            "warnings": warnings,
+        }
 
     try:
         spec = _read_template_spec(spec_path)
@@ -127,14 +146,24 @@ def validate_template(
         errors.append(str(exc))
     else:
         if spec.name != safe_name:
-            errors.append(f"template name '{spec.name}' does not match file name '{safe_name}'")
+            errors.append(
+                f"template name '{spec.name}' does not match file name '{safe_name}'"
+            )
 
-    return {"template": template_name, "ok": not errors, "errors": errors, "warnings": warnings}
+    return {
+        "template": template_name,
+        "ok": not errors,
+        "errors": errors,
+        "warnings": warnings,
+    }
 
 
-def validate_templates(template_dir: Path | None = None) -> list[TemplateValidationRecord]:
+def validate_templates(
+    template_dir: Path | None = None,
+) -> list[TemplateValidationRecord]:
     return [
-        validate_template(name, template_dir=template_dir) for name in list_templates(template_dir)
+        validate_template(name, template_dir=template_dir)
+        for name in list_templates(template_dir)
     ]
 
 
@@ -226,8 +255,12 @@ def load_template(name: str, *, template_dir: Path | None = None) -> LoadedTempl
         raise InputError(f"template not found: {safe_name}")
     spec = _read_template_spec(spec_path)
     if spec.name != safe_name:
-        raise InputError(f"template name '{spec.name}' does not match file name '{safe_name}'")
-    return LoadedTemplate(name=safe_name, root=spec_path.parent, spec_path=spec_path, spec=spec)
+        raise InputError(
+            f"template name '{spec.name}' does not match file name '{safe_name}'"
+        )
+    return LoadedTemplate(
+        name=safe_name, root=spec_path.parent, spec_path=spec_path, spec=spec
+    )
 
 
 def missing_required(spec: TemplateSpec, context: dict[str, Any]) -> list[str]:
@@ -252,10 +285,14 @@ def missing_required(spec: TemplateSpec, context: dict[str, Any]) -> list[str]:
     return _dedupe(missing)
 
 
-def _load_validated_template(name: str, *, template_dir: Path | None = None) -> LoadedTemplate:
+def _load_validated_template(
+    name: str, *, template_dir: Path | None = None
+) -> LoadedTemplate:
     validation = validate_template(name, template_dir=template_dir)
     if validation["errors"]:
-        raise InputError("template validation failed: " + "; ".join(validation["errors"]))
+        raise InputError(
+            "template validation failed: " + "; ".join(validation["errors"])
+        )
     return load_template(name, template_dir=template_dir)
 
 
@@ -399,7 +436,9 @@ def _validate_schema_shape(schema: dict[Any, Any]) -> list[str]:
     return errors
 
 
-def _validate_schema_node(node: Any, root: dict[Any, Any], path: list[str]) -> list[str]:
+def _validate_schema_node(
+    node: Any, root: dict[Any, Any], path: list[str]
+) -> list[str]:
     if not isinstance(node, dict):
         return []
     errors: list[str] = []
@@ -417,8 +456,14 @@ def _validate_schema_node(node: Any, root: dict[Any, Any], path: list[str]) -> l
             errors.append(f"{'.'.join(path)}.minItems must be a non-negative integer")
         if max_items is not None and (not isinstance(max_items, int) or max_items < 0):
             errors.append(f"{'.'.join(path)}.maxItems must be a non-negative integer")
-        if isinstance(min_items, int) and isinstance(max_items, int) and min_items > max_items:
-            errors.append(f"{'.'.join(path)}.minItems must be less than or equal to maxItems")
+        if (
+            isinstance(min_items, int)
+            and isinstance(max_items, int)
+            and min_items > max_items
+        ):
+            errors.append(
+                f"{'.'.join(path)}.minItems must be less than or equal to maxItems"
+            )
         errors.extend(_validate_schema_node(node.get("items"), root, [*path, "items"]))
     if node_type == "object":
         required = node.get("required", [])
@@ -429,11 +474,15 @@ def _validate_schema_node(node: Any, root: dict[Any, Any], path: list[str]) -> l
             errors.append(f"{'.'.join(path)}.properties must be a mapping")
         elif isinstance(properties, dict):
             for key, value in properties.items():
-                errors.extend(_validate_schema_node(value, root, [*path, "properties", str(key)]))
+                errors.extend(
+                    _validate_schema_node(value, root, [*path, "properties", str(key)])
+                )
     defs = node.get("$defs")
     if isinstance(defs, dict):
         for key, value in defs.items():
-            errors.extend(_validate_schema_node(value, root, [*path, "$defs", str(key)]))
+            errors.extend(
+                _validate_schema_node(value, root, [*path, "$defs", str(key)])
+            )
     enum = node.get("enum")
     if enum is not None and not isinstance(enum, list):
         errors.append(f"{'.'.join(path)}.enum must be a list")
@@ -443,7 +492,9 @@ def _validate_schema_node(node: Any, root: dict[Any, Any], path: list[str]) -> l
 def _validate_complete_context(spec: TemplateSpec, context: dict[str, Any]) -> None:
     errors = _validate_value(context, spec.schema, spec.schema, [])
     if errors:
-        raise InputError(f"template context failed validation: {'; '.join(errors)}") from None
+        raise InputError(
+            f"template context failed validation: {'; '.join(errors)}"
+        ) from None
 
 
 def _validate_value(
@@ -478,7 +529,9 @@ def _validate_value(
                     errors.append(f"{_schema_path([*path, str(field)])}is not allowed")
         for field, item in value.items():
             if field in properties and isinstance(properties[field], dict):
-                errors.extend(_validate_value(item, properties[field], root, [*path, str(field)]))
+                errors.extend(
+                    _validate_value(item, properties[field], root, [*path, str(field)])
+                )
         return errors
 
     if node_type == "array":
@@ -501,7 +554,9 @@ def _validate_value(
             return [f"{_schema_path(path)}must be a string"]
         min_length = schema.get("minLength")
         if isinstance(min_length, int) and len(value) < min_length:
-            errors.append(f"{_schema_path(path)}must be at least {min_length} characters")
+            errors.append(
+                f"{_schema_path(path)}must be at least {min_length} characters"
+            )
         enum = schema.get("enum")
         if isinstance(enum, list) and value not in enum:
             errors.append(
@@ -543,7 +598,11 @@ def _schema_optional(schema: dict[str, Any], required: list[str]) -> list[str]:
 def _missing_label(field: str, property_schema: Any) -> str:
     if isinstance(property_schema, dict):
         min_items = property_schema.get("minItems")
-        if isinstance(min_items, int) and min_items > 0 and property_schema.get("type") == "array":
+        if (
+            isinstance(min_items, int)
+            and min_items > 0
+            and property_schema.get("type") == "array"
+        ):
             return f"{field} (minItems {min_items})"
     return field
 
@@ -631,7 +690,9 @@ def markdown_to_vikunja_html(value: str) -> str:
         if heading:
             close_list()
             level = len(heading.group(1))
-            output.append(f"<h{level}>{_inline_markdown_to_html(heading.group(2))}</h{level}>")
+            output.append(
+                f"<h{level}>{_inline_markdown_to_html(heading.group(2))}</h{level}>"
+            )
             continue
 
         task_item = re.fullmatch(r"\s*-\s+\[([ xX])\]\s+(.+)", line)
@@ -639,13 +700,17 @@ def markdown_to_vikunja_html(value: str) -> str:
             open_list("task")
             checked = "true" if task_item.group(1).lower() == "x" else "false"
             text = _inline_markdown_to_html(task_item.group(2))
-            output.append(f'<li data-type="taskItem" data-checked="{checked}"><p>{text}</p></li>')
+            output.append(
+                f'<li data-type="taskItem" data-checked="{checked}"><p>{text}</p></li>'
+            )
             continue
 
         bullet = re.fullmatch(r"\s*-\s+(.+)", line)
         if bullet:
             open_list("bullet")
-            output.append(f"<li><p>{_inline_markdown_to_html(bullet.group(1))}</p></li>")
+            output.append(
+                f"<li><p>{_inline_markdown_to_html(bullet.group(1))}</p></li>"
+            )
             continue
 
         close_list()

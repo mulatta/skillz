@@ -9,13 +9,17 @@ from tests.conftest import WORKFLOW_1, run_fail, run_ok
 
 
 class TestWorkflow:
-    def test_list_text(self, server: tuple[str, int], capsys: pytest.CaptureFixture[str]) -> None:
+    def test_list_text(
+        self, server: tuple[str, int], capsys: pytest.CaptureFixture[str]
+    ) -> None:
         out = run_ok(server, ["workflow", "list"], capsys)
         assert "wf-1" in out
         assert "Daily Report" in out
         assert "production" in out
 
-    def test_list_json(self, server: tuple[str, int], capsys: pytest.CaptureFixture[str]) -> None:
+    def test_list_json(
+        self, server: tuple[str, int], capsys: pytest.CaptureFixture[str]
+    ) -> None:
         out = run_ok(server, ["-j", "workflow", "list"], capsys)
         data = json.loads(out)
         assert data["data"][0]["id"] == "wf-1"
@@ -49,7 +53,9 @@ class TestWorkflow:
         tmp_path: Path,
     ) -> None:
         f = tmp_path / "wf.json"
-        f.write_text(json.dumps({"name": "New Workflow", "nodes": [], "connections": {}}))
+        f.write_text(
+            json.dumps({"name": "New Workflow", "nodes": [], "connections": {}})
+        )
         out = run_ok(server, ["workflow", "create", str(f)], capsys)
         assert "Created" in out
         assert "New Workflow" in out
@@ -61,7 +67,9 @@ class TestWorkflow:
         tmp_path: Path,
     ) -> None:
         f = tmp_path / "wf.json"
-        f.write_text(json.dumps({"name": "New Workflow", "nodes": [], "connections": {}}))
+        f.write_text(
+            json.dumps({"name": "New Workflow", "nodes": [], "connections": {}})
+        )
         out = run_ok(server, ["-j", "workflow", "create", str(f)], capsys)
         data = json.loads(out)
         assert data["id"] == "wf-2"
@@ -126,21 +134,29 @@ class TestWorkflow:
         err = run_fail(server, ["workflow", "update", "wf-1", str(f)], capsys)
         assert "object" in err.lower()
 
-    def test_delete(self, server: tuple[str, int], capsys: pytest.CaptureFixture[str]) -> None:
+    def test_delete(
+        self, server: tuple[str, int], capsys: pytest.CaptureFixture[str]
+    ) -> None:
         out = run_ok(server, ["workflow", "delete", "wf-1"], capsys)
         assert "Deleted" in out
         assert "wf-1" in out
 
-    def test_delete_json(self, server: tuple[str, int], capsys: pytest.CaptureFixture[str]) -> None:
+    def test_delete_json(
+        self, server: tuple[str, int], capsys: pytest.CaptureFixture[str]
+    ) -> None:
         out = run_ok(server, ["-j", "workflow", "delete", "wf-1"], capsys)
         data = json.loads(out)
         assert data["id"] == "wf-1"
 
-    def test_activate(self, server: tuple[str, int], capsys: pytest.CaptureFixture[str]) -> None:
+    def test_activate(
+        self, server: tuple[str, int], capsys: pytest.CaptureFixture[str]
+    ) -> None:
         out = run_ok(server, ["workflow", "activate", "wf-1"], capsys)
         assert "Activated" in out
         assert "Daily Report" in out
 
-    def test_deactivate(self, server: tuple[str, int], capsys: pytest.CaptureFixture[str]) -> None:
+    def test_deactivate(
+        self, server: tuple[str, int], capsys: pytest.CaptureFixture[str]
+    ) -> None:
         out = run_ok(server, ["workflow", "deactivate", "wf-1"], capsys)
         assert "Deactivated" in out

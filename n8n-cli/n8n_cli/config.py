@@ -110,7 +110,9 @@ def _resolve_timeout(cfg: dict[str, Any]) -> int:
     return timeout
 
 
-def write_config(api_url: str, api_key_command: str, config_path: str | None = None) -> Path:
+def write_config(
+    api_url: str, api_key_command: str, config_path: str | None = None
+) -> Path:
     """Write setup config without storing the secret."""
     path = Path(config_path) if config_path else CONFIG_FILE
     if not api_url.strip():

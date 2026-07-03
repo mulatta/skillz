@@ -112,7 +112,9 @@ def entry_to_markdown(entry: dict[str, Any]) -> str:
     content = _string(entry.get("content"))
     feed = _dict(entry.get("feed"))
     category = _dict(feed.get("category"))
-    enclosures = entry.get("enclosures") if isinstance(entry.get("enclosures"), list) else []
+    enclosures = (
+        entry.get("enclosures") if isinstance(entry.get("enclosures"), list) else []
+    )
     header = [
         "---",
         f"id: {entry.get('id', '')}",

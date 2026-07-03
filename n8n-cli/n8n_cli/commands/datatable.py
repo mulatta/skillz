@@ -7,7 +7,15 @@ from typing import Any
 
 from n8n_cli.client import Client
 from n8n_cli.errors import InputError
-from n8n_cli.output import emit, emit_json, emit_kv, emit_table, enc, read_json_input, ts
+from n8n_cli.output import (
+    emit,
+    emit_json,
+    emit_kv,
+    emit_table,
+    enc,
+    read_json_input,
+    ts,
+)
 
 
 # ---------------------------------------------------------------------------
@@ -66,7 +74,11 @@ def cmd_datatable_get(client: Client, ns: Namespace) -> None:
 
     def text(data: dict[str, Any]) -> None:
         cols = data.get("columns", [])
-        col_strs = [f"{c.get('name', '')}:{c.get('type', '')}" for c in cols if isinstance(c, dict)]
+        col_strs = [
+            f"{c.get('name', '')}:{c.get('type', '')}"
+            for c in cols
+            if isinstance(c, dict)
+        ]
         emit_kv(
             {
                 "ID": str(data.get("id", "")),
@@ -145,7 +157,11 @@ def cmd_datatable_rows(client: Client, ns: Namespace) -> None:
         cols = list(items[0].keys())
         emit_table(
             [c.upper() for c in cols],
-            [[str(row.get(c, "")) for c in cols] for row in items if isinstance(row, dict)],
+            [
+                [str(row.get(c, "")) for c in cols]
+                for row in items
+                if isinstance(row, dict)
+            ],
         )
 
     emit(result, use_json=ns.use_json, text_fn=text)

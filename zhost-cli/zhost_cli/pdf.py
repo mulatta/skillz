@@ -41,7 +41,9 @@ def _norm(text: str) -> str:
     return "".join(ch for ch in text.lower() if ch.isalnum())
 
 
-def _flip(boxes: list[tuple[float, float, float, float]], height: float) -> list[list[float]]:
+def _flip(
+    boxes: list[tuple[float, float, float, float]], height: float
+) -> list[list[float]]:
     return [
         [round(x0, 2), round(height - y1, 2), round(x1, 2), round(height - y0, 2)]
         for (x0, y0, x1, y1) in boxes
@@ -96,7 +98,8 @@ def locate(pdf_path: str, text: str) -> Located:
             hits = page.search_for(text)
             if hits:
                 return Located(
-                    index, _flip([(r.x0, r.y0, r.x1, r.y1) for r in hits], page.rect.height)
+                    index,
+                    _flip([(r.x0, r.y0, r.x1, r.y1) for r in hits], page.rect.height),
                 )
             rects = _word_rects(page, text)
             if rects:

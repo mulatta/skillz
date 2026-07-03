@@ -41,7 +41,9 @@ def _find_webhook_node(workflow: dict[str, Any]) -> dict[str, Any]:
     if result is None:
         wf_name = workflow.get("name", "")
         wf_id = workflow.get("id", "")
-        raise WebhookTestError(f'No webhook node found in workflow "{wf_name}" ({wf_id})')
+        raise WebhookTestError(
+            f'No webhook node found in workflow "{wf_name}" ({wf_id})'
+        )
     return result
 
 
@@ -116,7 +118,9 @@ def _wait_for_execution(
 
     while time.monotonic() < deadline:
         time.sleep(poll_s)
-        result = client.get(f"/executions?workflowId={enc(workflow_id)}&limit=1&includeData=true")
+        result = client.get(
+            f"/executions?workflowId={enc(workflow_id)}&limit=1&includeData=true"
+        )
         items = result.get("data", []) if isinstance(result, dict) else []
         if not items or not isinstance(items[0], dict):
             continue
@@ -134,7 +138,9 @@ def _wait_for_execution(
             if isinstance(resp, dict) and resp.get("status", "") in terminal:
                 return resp
 
-    raise WebhookTestError(f"Timeout waiting for new execution of workflow {workflow_id}")
+    raise WebhookTestError(
+        f"Timeout waiting for new execution of workflow {workflow_id}"
+    )
 
 
 def cmd_test(client: Client, ns: Namespace) -> None:
@@ -194,7 +200,9 @@ def cmd_test(client: Client, ns: Namespace) -> None:
             raise WebhookTestError(f"Invalid JSON data: {e}") from None
 
     # Call webhook
-    previous_execution_id = _latest_execution_id(client, wf_id) if ns.wait_execution else None
+    previous_execution_id = (
+        _latest_execution_id(client, wf_id) if ns.wait_execution else None
+    )
     status_code, response_body = _call_webhook(
         webhook_url,
         http_method,
@@ -244,7 +252,11 @@ def cmd_test(client: Client, ns: Namespace) -> None:
                 pretty = json.dumps(json.loads(response_body), indent=2)
                 print(f"  Response:\n  {pretty}")
             except (json.JSONDecodeError, ValueError):
-                display = response_body[:500] + "..." if len(response_body) > 500 else response_body
+                display = (
+                    response_body[:500] + "..."
+                    if len(response_body) > 500
+                    else response_body
+                )
                 print(f"  Response: {display}")
 
         if execution:

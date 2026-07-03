@@ -11,17 +11,23 @@ from tests.conftest import run_fail, run_ok
 
 
 class TestDatatable:
-    def test_list_text(self, server: tuple[str, int], capsys: pytest.CaptureFixture[str]) -> None:
+    def test_list_text(
+        self, server: tuple[str, int], capsys: pytest.CaptureFixture[str]
+    ) -> None:
         out = run_ok(server, ["datatable", "list"], capsys)
         assert "dt-1" in out
         assert "Contacts" in out
 
-    def test_list_json(self, server: tuple[str, int], capsys: pytest.CaptureFixture[str]) -> None:
+    def test_list_json(
+        self, server: tuple[str, int], capsys: pytest.CaptureFixture[str]
+    ) -> None:
         out = run_ok(server, ["-j", "datatable", "list"], capsys)
         data = json.loads(out)
         assert data["data"][0]["name"] == "Contacts"
 
-    def test_get_text(self, server: tuple[str, int], capsys: pytest.CaptureFixture[str]) -> None:
+    def test_get_text(
+        self, server: tuple[str, int], capsys: pytest.CaptureFixture[str]
+    ) -> None:
         out = run_ok(server, ["datatable", "get", "dt-1"], capsys)
         assert "Contacts" in out
         assert "name:string" in out
@@ -35,27 +41,37 @@ class TestDatatable:
     ) -> None:
         f = tmp_path / "dt.json"
         f.write_text(
-            json.dumps({"name": "New Table", "columns": [{"name": "x", "type": "string"}]})
+            json.dumps(
+                {"name": "New Table", "columns": [{"name": "x", "type": "string"}]}
+            )
         )
         out = run_ok(server, ["datatable", "create", str(f)], capsys)
         assert "Created" in out
         assert "New Table" in out
 
-    def test_update(self, server: tuple[str, int], capsys: pytest.CaptureFixture[str]) -> None:
+    def test_update(
+        self, server: tuple[str, int], capsys: pytest.CaptureFixture[str]
+    ) -> None:
         out = run_ok(server, ["datatable", "update", "dt-1", "Renamed"], capsys)
         assert "Renamed" in out
 
-    def test_delete(self, server: tuple[str, int], capsys: pytest.CaptureFixture[str]) -> None:
+    def test_delete(
+        self, server: tuple[str, int], capsys: pytest.CaptureFixture[str]
+    ) -> None:
         out = run_ok(server, ["datatable", "delete", "dt-1"], capsys)
         assert "Deleted" in out
         assert "dt-1" in out
 
-    def test_rows_text(self, server: tuple[str, int], capsys: pytest.CaptureFixture[str]) -> None:
+    def test_rows_text(
+        self, server: tuple[str, int], capsys: pytest.CaptureFixture[str]
+    ) -> None:
         out = run_ok(server, ["datatable", "rows", "dt-1"], capsys)
         assert "Alice" in out
         assert "Bob" in out
 
-    def test_rows_json(self, server: tuple[str, int], capsys: pytest.CaptureFixture[str]) -> None:
+    def test_rows_json(
+        self, server: tuple[str, int], capsys: pytest.CaptureFixture[str]
+    ) -> None:
         out = run_ok(server, ["-j", "datatable", "rows", "dt-1"], capsys)
         data = json.loads(out)
         assert len(data["data"]) == 2
@@ -98,10 +114,13 @@ class TestDatatable:
 
     def test_filter_json_is_compacted_for_query_params(self) -> None:
         assert (
-            _compact_filter_json('{"type": "and", "filters": []}') == '{"type":"and","filters":[]}'
+            _compact_filter_json('{"type": "and", "filters": []}')
+            == '{"type":"and","filters":[]}'
         )
 
-    def test_delete_rows(self, server: tuple[str, int], capsys: pytest.CaptureFixture[str]) -> None:
+    def test_delete_rows(
+        self, server: tuple[str, int], capsys: pytest.CaptureFixture[str]
+    ) -> None:
         out = run_ok(
             server,
             ["datatable", "delete-rows", "dt-1", "--filter", '{"id": "row-1"}'],

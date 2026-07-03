@@ -37,7 +37,11 @@ def test_resolve_credentials_prefers_environment(
     monkeypatch.setenv("VIKUNJA_BASE_URL", "https://env.example.com")
     monkeypatch.setenv("VIKUNJA_API_KEY", "env-token")
 
-    assert resolve_credentials(str(config)) == ("https://env.example.com", "env-token", 30)
+    assert resolve_credentials(str(config)) == (
+        "https://env.example.com",
+        "env-token",
+        30,
+    )
 
 
 def test_resolve_credentials_runs_api_key_command_without_shell(tmp_path: Path) -> None:

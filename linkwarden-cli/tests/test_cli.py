@@ -51,7 +51,9 @@ class Handler(BaseHTTPRequestHandler):
         if parsed.path == "/api/v1/search":
             response = {
                 "data": {
-                    "links": [{"id": 5, "name": "Example", "url": "https://example.com"}],
+                    "links": [
+                        {"id": 5, "name": "Example", "url": "https://example.com"}
+                    ],
                     "nextCursor": 55,
                 },
                 "success": True,
@@ -72,7 +74,9 @@ class Handler(BaseHTTPRequestHandler):
         elif parsed.path == "/api/v1/collections":
             response = {"response": [{"id": 1, "name": "Inbox", "ownerId": 9}]}
         elif parsed.path == "/api/v1/collections/1":
-            response = {"response": {"id": 1, "name": "Inbox", "ownerId": 9, "members": []}}
+            response = {
+                "response": {"id": 1, "name": "Inbox", "ownerId": 9, "members": []}
+            }
         self.send_response(200)
         self.send_header("Content-Type", "application/json")
         self.end_headers()
@@ -91,7 +95,9 @@ def server() -> Generator[tuple[str, int]]:
     httpd.shutdown()
 
 
-def run_cli(server: tuple[str, int], argv: list[str], capsys: pytest.CaptureFixture[str]) -> str:
+def run_cli(
+    server: tuple[str, int], argv: list[str], capsys: pytest.CaptureFixture[str]
+) -> str:
     host, port = server
     env = {"LINKWARDEN_BASE_URL": f"http://{host}:{port}", "LINKWARDEN_TOKEN": "secret"}
     with patch.dict("os.environ", env, clear=False):
@@ -138,7 +144,9 @@ def test_search_uses_full_text_query(
     assert req["query"]["searchQueryString"] == ["tag:nix after:2026-01-01"]
 
 
-def test_create_link_payload(server: tuple[str, int], capsys: pytest.CaptureFixture[str]) -> None:
+def test_create_link_payload(
+    server: tuple[str, int], capsys: pytest.CaptureFixture[str]
+) -> None:
     run_cli(
         server,
         [
@@ -189,7 +197,9 @@ def test_create_link_requires_existing_collection(
     assert [req["path"] for req in State.requests] == ["/api/v1/collections"]
 
 
-def test_delete_requires_yes(server: tuple[str, int], capsys: pytest.CaptureFixture[str]) -> None:
+def test_delete_requires_yes(
+    server: tuple[str, int], capsys: pytest.CaptureFixture[str]
+) -> None:
     with pytest.raises(SystemExit) as exc:
         run_cli(server, ["link", "delete", "7"], capsys)
 
@@ -197,8 +207,12 @@ def test_delete_requires_yes(server: tuple[str, int], capsys: pytest.CaptureFixt
     assert State.requests == []
 
 
-def test_api_escape_hatch(server: tuple[str, int], capsys: pytest.CaptureFixture[str]) -> None:
-    out = run_cli(server, ["api", "GET", "/api/v1/collections", "--query", "x=1"], capsys)
+def test_api_escape_hatch(
+    server: tuple[str, int], capsys: pytest.CaptureFixture[str]
+) -> None:
+    out = run_cli(
+        server, ["api", "GET", "/api/v1/collections", "--query", "x=1"], capsys
+    )
 
     assert "Inbox" in out
     req = State.requests[-1]

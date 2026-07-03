@@ -107,7 +107,10 @@ def write_template(
     data: dict[str, Any] = {
         "name": name,
         "description": description or f"{name} context",
-        "defaults": {"priority": priority, "labels": labels or [f"type:{name}", "state:someday"]},
+        "defaults": {
+            "priority": priority,
+            "labels": labels or [f"type:{name}", "state:someday"],
+        },
         "schema": schema_for(
             name,
             description=description,
@@ -121,7 +124,9 @@ def write_template(
     }
     if invalid_extra:
         data.update(invalid_extra)
-    path.write_text("---\n" + yaml.safe_dump(data, sort_keys=False) + "---\n\n# Template\n")
+    path.write_text(
+        "---\n" + yaml.safe_dump(data, sort_keys=False) + "---\n\n# Template\n"
+    )
     return path
 
 
@@ -134,7 +139,9 @@ def read_frontmatter(path: Path) -> dict[str, Any]:
 
 
 def write_frontmatter(path: Path, data: dict[str, Any]) -> None:
-    path.write_text("---\n" + yaml.safe_dump(data, sort_keys=False) + "---\n\n# Template\n")
+    path.write_text(
+        "---\n" + yaml.safe_dump(data, sort_keys=False) + "---\n\n# Template\n"
+    )
 
 
 def test_render_template_uses_fixed_description_layout(tmp_path: Path) -> None:
@@ -159,7 +166,10 @@ def test_render_template_uses_fixed_description_layout(tmp_path: Path) -> None:
     )
 
     assert rendered["missing_required"] == []
-    assert rendered["defaults"] == {"labels": ["type:backlog", "state:someday"], "priority": 4}
+    assert rendered["defaults"] == {
+        "labels": ["type:backlog", "state:someday"],
+        "priority": 4,
+    }
     assert rendered["description"] == (
         "## Summary\n"
         "Prototype thing\n\n"
@@ -177,7 +187,9 @@ def test_render_template_uses_fixed_description_layout(tmp_path: Path) -> None:
 def test_render_template_reports_missing_required_fields(tmp_path: Path) -> None:
     write_template(tmp_path, "backlog")
 
-    rendered = templates.render_template("backlog", {"checklist": []}, template_dir=tmp_path)
+    rendered = templates.render_template(
+        "backlog", {"checklist": []}, template_dir=tmp_path
+    )
 
     assert rendered["missing_required"] == ["summary", "checklist (minItems 1)"]
 
@@ -191,7 +203,10 @@ def test_render_template_reports_template_minimums(tmp_path: Path) -> None:
         template_dir=tmp_path,
     )
 
-    assert rendered["missing_required"] == ["checklist (minItems 3)", "proof (minItems 1)"]
+    assert rendered["missing_required"] == [
+        "checklist (minItems 3)",
+        "proof (minItems 1)",
+    ]
 
 
 def test_render_template_rejects_invalid_source_kind_when_required_fields_present(
@@ -308,7 +323,9 @@ def test_validate_template_rejects_name_mismatch(tmp_path: Path) -> None:
     record = templates.validate_template("backlog", template_dir=tmp_path)
 
     assert record["ok"] is False
-    assert "template name 'other' does not match file name 'backlog'" in record["errors"]
+    assert (
+        "template name 'other' does not match file name 'backlog'" in record["errors"]
+    )
 
 
 def test_validate_template_rejects_missing_template_file_for_explicit_template(
@@ -402,7 +419,10 @@ def test_template_required_outputs_schema_fields(tmp_path: Path) -> None:
     assert required["required_any"] == []
     assert required["optional"] == ["notes", "sources"]
     assert required["attachment_expectations"] == ["Receipt or confirmation"]
-    assert required["defaults"] == {"priority": 5, "labels": ["type:submission", "state:next"]}
+    assert required["defaults"] == {
+        "priority": 5,
+        "labels": ["type:submission", "state:next"],
+    }
 
 
 def test_template_schema_reads_context_schema_and_types_from_markdown_yaml(
@@ -476,4 +496,7 @@ def test_template_required_command_outputs_defaults(
 
     captured = capsys.readouterr()
     data = json.loads(captured.out)
-    assert data["defaults"] == {"priority": 4, "labels": ["type:submission", "state:someday"]}
+    assert data["defaults"] == {
+        "priority": 4,
+        "labels": ["type:submission", "state:someday"],
+    }

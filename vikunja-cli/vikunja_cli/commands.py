@@ -42,9 +42,13 @@ RELATION_KINDS = [
 class ClientLike(Protocol):
     def get(self, path: str, query: dict[str, Any] | None = None) -> Any: ...
 
-    def post(self, path: str, body: Any = None, query: dict[str, Any] | None = None) -> Any: ...
+    def post(
+        self, path: str, body: Any = None, query: dict[str, Any] | None = None
+    ) -> Any: ...
 
-    def put(self, path: str, body: Any = None, query: dict[str, Any] | None = None) -> Any: ...
+    def put(
+        self, path: str, body: Any = None, query: dict[str, Any] | None = None
+    ) -> Any: ...
 
     def delete(self, path: str, query: dict[str, Any] | None = None) -> Any: ...
 
@@ -119,7 +123,11 @@ def cmd_template_schema(_client: ClientLike | None, ns: argparse.Namespace) -> N
 
 def cmd_project_list(client: ClientLike, ns: argparse.Namespace) -> None:
     query = {"s": ns.search, "is_archived": "true" if ns.archived else None}
-    data = client.paginate("/projects", query) if ns.all else client.get("/projects", query)
+    data = (
+        client.paginate("/projects", query)
+        if ns.all
+        else client.get("/projects", query)
+    )
     emit(data, use_json=ns.use_json, text_fn=_print_projects)
 
 
@@ -135,7 +143,9 @@ def cmd_project_create(client: ClientLike, ns: argparse.Namespace) -> None:
             "title": ns.title,
             "description": ns.description,
             "hex_color": ns.color,
-            "parent_project_id": resolvers.project_id(client, ns.parent) if ns.parent else None,
+            "parent_project_id": resolvers.project_id(client, ns.parent)
+            if ns.parent
+            else None,
         }
     )
     data = client.put("/projects", body)
@@ -192,11 +202,19 @@ def cmd_task_create(client: ClientLike, ns: argparse.Namespace) -> None:
         if not isinstance(context, dict):
             raise InputError("template context must be a JSON object")
         template_dir = (
-            Path(ns.template_dir).expanduser() if getattr(ns, "template_dir", None) else None
+            Path(ns.template_dir).expanduser()
+            if getattr(ns, "template_dir", None)
+            else None
         )
-        rendered = templates.render_template(ns.template, context, template_dir=template_dir)
+        rendered = templates.render_template(
+            ns.template, context, template_dir=template_dir
+        )
         missing = rendered.get("missing_required")
-        if isinstance(missing, list) and missing and not getattr(ns, "allow_missing", False):
+        if (
+            isinstance(missing, list)
+            and missing
+            and not getattr(ns, "allow_missing", False)
+        ):
             fields = ", ".join(str(item) for item in missing)
             raise InputError(f"template missing required fields: {fields}")
         raw_defaults = rendered.get("defaults", {})
@@ -237,7 +255,9 @@ def cmd_task_create(client: ClientLike, ns: argparse.Namespace) -> None:
         labels_result = _apply_label_refs(client, data, default_label_refs)
     attachment_result = None
     if attachment_files:
-        attachment_result = _upload_created_task_attachments(client, data, attachment_files)
+        attachment_result = _upload_created_task_attachments(
+            client, data, attachment_files
+        )
     result = _task_create_result(data, labels_result, attachment_result)
     emit(result, use_json=ns.use_json, text_fn=_print_task_create_result)
 
@@ -370,14 +390,19 @@ def cmd_label_show(client: ClientLike, ns: argparse.Namespace) -> None:
 
 def cmd_label_create(client: ClientLike, ns: argparse.Namespace) -> None:
     data = client.put(
-        "/labels", _clean({"title": ns.title, "description": ns.description, "hex_color": ns.color})
+        "/labels",
+        _clean(
+            {"title": ns.title, "description": ns.description, "hex_color": ns.color}
+        ),
     )
     emit(data, use_json=ns.use_json, text_fn=lambda item: _print_labels([item]))
 
 
 def cmd_label_update(client: ClientLike, ns: argparse.Namespace) -> None:
     lid = resolvers.label_id(client, ns.label)
-    body = _clean({"title": ns.title, "description": ns.description, "hex_color": ns.color})
+    body = _clean(
+        {"title": ns.title, "description": ns.description, "hex_color": ns.color}
+    )
     if not body:
         raise InputError("no label fields to update")
     data = client.put(f"/labels/{lid}", body)
@@ -413,7 +438,9 @@ def cmd_label_replace_on_task(client: ClientLike, ns: argparse.Namespace) -> Non
 
 def cmd_setup_labels(client: ClientLike, ns: argparse.Namespace) -> None:
     existing_by_title = _existing_workflow_labels(client)
-    existing = [item for title in WORKFLOW_LABEL_TITLES for item in existing_by_title[title]]
+    existing = [
+        item for title in WORKFLOW_LABEL_TITLES for item in existing_by_title[title]
+    ]
     missing = [title for title in WORKFLOW_LABEL_TITLES if not existing_by_title[title]]
     created: list[Any] = []
     if missing and ns.create:
@@ -477,7 +504,10 @@ def cmd_attachment_download(client: ClientLike, ns: argparse.Namespace) -> None:
 def cmd_attachment_delete(client: ClientLike, ns: argparse.Namespace) -> None:
     tid = resolvers.task_id(client, ns.task)
     data = client.delete(f"/tasks/{tid}/attachments/{ns.attachment}")
-    emit(data or {"task_id": tid, "deleted_attachment": ns.attachment}, use_json=ns.use_json)
+    emit(
+        data or {"task_id": tid, "deleted_attachment": ns.attachment},
+        use_json=ns.use_json,
+    )
 
 
 def cmd_comment_list(client: ClientLike, ns: argparse.Namespace) -> None:
@@ -537,7 +567,9 @@ def cmd_view_show(client: ClientLike, ns: argparse.Namespace) -> None:
 
 def cmd_view_create(client: ClientLike, ns: argparse.Namespace) -> None:
     pid = resolvers.project_id(client, ns.project)
-    body = _clean({"title": ns.title, "view_kind": ns.kind, "filter": _filter_obj(ns.filter)})
+    body = _clean(
+        {"title": ns.title, "view_kind": ns.kind, "filter": _filter_obj(ns.filter)}
+    )
     data = client.put(f"/projects/{pid}/views", body)
     emit(data, use_json=ns.use_json, text_fn=lambda item: _print_views([item]))
 
@@ -557,7 +589,9 @@ def cmd_view_update(client: ClientLike, ns: argparse.Namespace) -> None:
     if ns.clear_filter:
         body["filter"] = {"filter": ""}
     if ns.bucket_filter:
-        body["bucket_configuration"] = [_bucket_filter(item) for item in ns.bucket_filter]
+        body["bucket_configuration"] = [
+            _bucket_filter(item) for item in ns.bucket_filter
+        ]
         body.setdefault("bucket_configuration_mode", "filter")
     if not body:
         raise InputError("no view fields to update")
@@ -581,7 +615,8 @@ def cmd_bucket_list(client: ClientLike, ns: argparse.Namespace) -> None:
 def cmd_bucket_create(client: ClientLike, ns: argparse.Namespace) -> None:
     pid, vid = _project_view_ids(client, ns)
     data = client.put(
-        f"/projects/{pid}/views/{vid}/buckets", _clean({"title": ns.title, "limit": ns.limit})
+        f"/projects/{pid}/views/{vid}/buckets",
+        _clean({"title": ns.title, "limit": ns.limit}),
     )
     emit(data, use_json=ns.use_json, text_fn=lambda item: _print_buckets([item]))
 
@@ -642,7 +677,9 @@ def _template_default_label_refs(
     ]
 
 
-def _apply_label_refs(client: ClientLike, created_task: Any, labels: list[dict[str, int]]) -> Any:
+def _apply_label_refs(
+    client: ClientLike, created_task: Any, labels: list[dict[str, int]]
+) -> Any:
     task_id = _created_task_id(created_task, "apply template labels")
     return client.post(f"/tasks/{task_id}/labels/bulk", {"labels": labels})
 
@@ -724,7 +761,9 @@ def _task_reminders(ns: argparse.Namespace) -> list[dict[str, str]] | None:
 
 
 def _existing_workflow_labels(client: ClientLike) -> dict[str, list[dict[str, Any]]]:
-    result: dict[str, list[dict[str, Any]]] = {title: [] for title in WORKFLOW_LABEL_TITLES}
+    result: dict[str, list[dict[str, Any]]] = {
+        title: [] for title in WORKFLOW_LABEL_TITLES
+    }
     for item in client.paginate("/labels"):
         if not isinstance(item, dict):
             continue
@@ -790,7 +829,9 @@ def _preserved_label_refs(task: Any) -> list[dict[str, int]]:
     return preserved
 
 
-def _filtered_notifications(client: ClientLike, kind: str, *, unread: bool) -> list[dict[str, Any]]:
+def _filtered_notifications(
+    client: ClientLike, kind: str, *, unread: bool
+) -> list[dict[str, Any]]:
     names = DUE_NOTIFICATION_NAMES[kind]
     items = client.paginate("/notifications")
     result: list[dict[str, Any]] = []
@@ -869,7 +910,11 @@ def _print_tasks(items: Any) -> None:
 
 def _print_labels(items: Any) -> None:
     rows = [
-        [str(item.get("id", "-")), short(item.get("title")), short(item.get("hex_color"))]
+        [
+            str(item.get("id", "-")),
+            short(item.get("title")),
+            short(item.get("hex_color")),
+        ]
         for item in _as_dicts(items)
     ]
     emit_table(["id", "title", "color"], rows)

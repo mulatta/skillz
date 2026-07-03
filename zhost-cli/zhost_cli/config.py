@@ -112,13 +112,17 @@ def load_config(path: Path | None = None) -> Config:
 
     api_key = os.environ.get("ZHOST_API_KEY") or _string(data, "api_key")
     if not api_key:
-        command = os.environ.get("ZHOST_API_KEY_COMMAND") or _string(data, "api_key_command")
+        command = os.environ.get("ZHOST_API_KEY_COMMAND") or _string(
+            data, "api_key_command"
+        )
         if command:
             api_key = run_key_command(command)
     if not api_key:
         raise ConfigError("zhost API key missing; set ZHOST_API_KEY or api_key_command")
 
-    user_id = os.environ.get("ZHOST_USER_ID") or _string(data, "user_id") or DEFAULT_USER_ID
+    user_id = (
+        os.environ.get("ZHOST_USER_ID") or _string(data, "user_id") or DEFAULT_USER_ID
+    )
 
     timeout = DEFAULT_TIMEOUT
     timeout_raw = os.environ.get("ZHOST_TIMEOUT") or data.get("timeout")

@@ -130,7 +130,9 @@ def cmd_import(client: Client, ns: Namespace) -> None:
                 with open(existing) as f:
                     local_data = json.load(f)
                 local_updated = (
-                    local_data.get("updatedAt") if isinstance(local_data, dict) else None
+                    local_data.get("updatedAt")
+                    if isinstance(local_data, dict)
+                    else None
                 )
                 if not _should_update(local_updated, remote_updated):
                     if not ns.dry_run:
@@ -167,6 +169,8 @@ def cmd_import(client: Client, ns: Namespace) -> None:
             print(f"  error: {target_path}: {e}")
             errors += 1
 
-    print(f"\nSummary: {created} created, {updated} updated, {skipped} skipped, {errors} errors")
+    print(
+        f"\nSummary: {created} created, {updated} updated, {skipped} skipped, {errors} errors"
+    )
     if errors > 0:
         raise SystemExit(1)

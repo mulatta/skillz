@@ -87,14 +87,20 @@ def _cmd_setup(ns: argparse.Namespace) -> None:
 
 
 def _build_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(prog="vikunja-cli", description="Agent-oriented Vikunja CLI")
-    parser.add_argument("-j", "--json", action="store_true", dest="use_json", help="Output JSON")
+    parser = argparse.ArgumentParser(
+        prog="vikunja-cli", description="Agent-oriented Vikunja CLI"
+    )
+    parser.add_argument(
+        "-j", "--json", action="store_true", dest="use_json", help="Output JSON"
+    )
     parser.add_argument("--config", help="Config JSON path")
     sub = parser.add_subparsers(dest="command")
 
     s = sub.add_parser("setup", help="Write config and check API key command")
     s.add_argument("--base-url", required=True, help="Vikunja base URL")
-    s.add_argument("--api-key-command", required=True, help="Command that prints API token")
+    s.add_argument(
+        "--api-key-command", required=True, help="Command that prints API token"
+    )
 
     _add_project(sub)
     _add_task(sub)
@@ -177,7 +183,9 @@ def _add_task(sub: argparse._SubParsersAction[argparse.ArgumentParser]) -> None:
         help="Allow template creation when required context fields are missing",
     )
     _task_field_args(s)
-    s.add_argument("--attach", action="append", help="File to upload after task creation")
+    s.add_argument(
+        "--attach", action="append", help="File to upload after task creation"
+    )
 
     s = task_sub.add_parser("update")
     s.add_argument("task")
@@ -210,7 +218,9 @@ def _task_field_args(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("--end")
     parser.add_argument("--priority", type=int)
     parser.add_argument("--color")
-    parser.add_argument("--reminder", action="append", help="Absolute reminder timestamp")
+    parser.add_argument(
+        "--reminder", action="append", help="Absolute reminder timestamp"
+    )
 
 
 def _add_attachment(sub: argparse._SubParsersAction[argparse.ArgumentParser]) -> None:
@@ -253,7 +263,9 @@ def _add_label(sub: argparse._SubParsersAction[argparse.ArgumentParser]) -> None
     label_sub = label.add_subparsers(dest="subcmd")
 
     s = label_sub.add_parser("ensure", help="Verify or create default workflow labels")
-    s.add_argument("--create", action="store_true", help="Create missing workflow labels")
+    s.add_argument(
+        "--create", action="store_true", help="Create missing workflow labels"
+    )
 
     s = label_sub.add_parser("list")
     s.add_argument("--search")
@@ -315,7 +327,9 @@ def _add_comment(sub: argparse._SubParsersAction[argparse.ArgumentParser]) -> No
 
 
 def _add_notification(sub: argparse._SubParsersAction[argparse.ArgumentParser]) -> None:
-    notification = sub.add_parser("notification", help="Read due/reminder notifications")
+    notification = sub.add_parser(
+        "notification", help="Read due/reminder notifications"
+    )
     notif_sub = notification.add_subparsers(dest="subcmd")
 
     s = notif_sub.add_parser("list")
@@ -343,7 +357,9 @@ def _add_view(sub: argparse._SubParsersAction[argparse.ArgumentParser]) -> None:
     s = view_sub.add_parser("create")
     s.add_argument("--project", required=True)
     s.add_argument("--title", required=True)
-    s.add_argument("--kind", required=True, choices=["list", "table", "kanban", "gantt"])
+    s.add_argument(
+        "--kind", required=True, choices=["list", "table", "kanban", "gantt"]
+    )
     s.add_argument("--filter")
 
     s = view_sub.add_parser("update")
@@ -375,12 +391,16 @@ def _add_template(sub: argparse._SubParsersAction[argparse.ArgumentParser]) -> N
 
     s = template_sub.add_parser("render")
     s.add_argument("template")
-    s.add_argument("--context", required=True, help="JSON context file, or '-' for stdin")
+    s.add_argument(
+        "--context", required=True, help="JSON context file, or '-' for stdin"
+    )
     _template_common_args(s)
 
     s = template_sub.add_parser("validate")
     s.add_argument("template", nargs="?")
-    s.add_argument("--all", action="store_true", help="Validate all template directories")
+    s.add_argument(
+        "--all", action="store_true", help="Validate all template directories"
+    )
     _template_common_args(s)
 
     s = template_sub.add_parser("required")
@@ -393,7 +413,9 @@ def _add_template(sub: argparse._SubParsersAction[argparse.ArgumentParser]) -> N
 
 
 def _template_common_args(parser: argparse.ArgumentParser) -> None:
-    parser.add_argument("--template-dir", help="Template directory (default: XDG data path)")
+    parser.add_argument(
+        "--template-dir", help="Template directory (default: XDG data path)"
+    )
 
 
 def _add_bucket(sub: argparse._SubParsersAction[argparse.ArgumentParser]) -> None:

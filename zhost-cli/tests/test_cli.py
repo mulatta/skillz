@@ -78,7 +78,9 @@ class Handler(BaseHTTPRequestHandler):
             "failed": {},
         }
 
-    def _rows(self, store: dict[str, dict[str, Any]], keys: list[str]) -> list[dict[str, Any]]:
+    def _rows(
+        self, store: dict[str, dict[str, Any]], keys: list[str]
+    ) -> list[dict[str, Any]]:
         return [
             {"key": k, "version": store[k].get("version", 1), "data": store[k]}
             for k in keys
@@ -111,14 +113,23 @@ class Handler(BaseHTTPRequestHandler):
             if self.command == "GET" and query.get("format") == ["versions"]:
                 self._send(200, {k: v["version"] for k, v in State.collections.items()})
             elif self.command == "GET":
-                self._send(200, self._rows(State.collections, query["collectionKey"][0].split(",")))
+                self._send(
+                    200,
+                    self._rows(State.collections, query["collectionKey"][0].split(",")),
+                )
             elif self.command == "POST":
-                key = body[0].get("key") or _key("COLL")  # honor client-supplied key (import)
+                key = body[0].get("key") or _key(
+                    "COLL"
+                )  # honor client-supplied key (import)
                 if key in State.collections:
                     self._send(409, {"message": f"collection already exists: {key}"})
                     return
                 State.version += 1
-                State.collections[key] = {**body[0], "key": key, "version": State.version}
+                State.collections[key] = {
+                    **body[0],
+                    "key": key,
+                    "version": State.version,
+                }
                 self._send(200, self._written(key, State.collections[key]))
             elif self.command == "PATCH":
                 State.version += 1
@@ -137,7 +148,9 @@ class Handler(BaseHTTPRequestHandler):
             elif self.command == "POST":
                 State.version += 1
                 for k, entry in (body or {}).items():
-                    value = entry.get("value", entry) if isinstance(entry, dict) else entry
+                    value = (
+                        entry.get("value", entry) if isinstance(entry, dict) else entry
+                    )
                     State.settings[k] = {"value": value, "version": State.version}
                 self._raw(204)
             return
@@ -159,13 +172,18 @@ class Handler(BaseHTTPRequestHandler):
             key = fulltext.group(1)
             if self.command == "GET":
                 ft = State.fulltext.get(key)
-                self._send(404, {"message": "no fulltext"}) if ft is None else self._send(200, ft)
+                self._send(
+                    404, {"message": "no fulltext"}
+                ) if ft is None else self._send(200, ft)
             else:  # POST/PUT stores the index
                 State.fulltext[key] = body
                 self._raw(204)
             return
 
-        if path in ("/users/1/items/top", "/users/1/items/trash") and self.command == "GET":
+        if (
+            path in ("/users/1/items/top", "/users/1/items/trash")
+            and self.command == "GET"
+        ):
             top = path.endswith("/top")
             keys = [
                 k
@@ -177,7 +195,9 @@ class Handler(BaseHTTPRequestHandler):
 
         if path == "/users/1/items":
             if self.command == "POST":
-                key = body[0].get("key") or _key("ITEM")  # honor client-supplied key (import)
+                key = body[0].get("key") or _key(
+                    "ITEM"
+                )  # honor client-supplied key (import)
                 if key in State.items:
                     self._send(409, {"message": f"item already exists: {key}"})
                     return
@@ -207,7 +227,9 @@ class Handler(BaseHTTPRequestHandler):
             key = path.split("/")[-2]
             if self.command == "GET":
                 self.send_response(302)
-                self.send_header("Location", f"http://{self.headers['Host']}/blob/{key}")
+                self.send_header(
+                    "Location", f"http://{self.headers['Host']}/blob/{key}"
+                )
                 self.send_header("Content-Length", "0")
                 self.end_headers()
             elif b"upload=" in raw:
@@ -237,7 +259,13 @@ class Handler(BaseHTTPRequestHandler):
 
 @pytest.fixture()
 def server(monkeypatch: pytest.MonkeyPatch) -> Generator[str, None, None]:
-    State.version, State.collections, State.items, State.requests, State.counter = 10, {}, {}, [], 0
+    State.version, State.collections, State.items, State.requests, State.counter = (
+        10,
+        {},
+        {},
+        [],
+        0,
+    )
     State.fulltext, State.settings = {}, {}
     httpd = ThreadingHTTPServer(("127.0.0.1", 0), Handler)
     threading.Thread(target=httpd.serve_forever, daemon=True).start()
@@ -267,16 +295,26 @@ def test_item_add(server: str, capsys: pytest.CaptureFixture[str]) -> None:
     assert post["body"][0]["creators"][0]["lastName"] == "Roe"
 
 
-def test_item_add_ensures_collection(server: str, capsys: pytest.CaptureFixture[str]) -> None:
+def test_item_add_ensures_collection(
+    server: str, capsys: pytest.CaptureFixture[str]
+) -> None:
     main(["item", "add", "--title", "A", "--collection", "Inbox"])
     main(["item", "add", "--title", "B", "--collection", "Inbox"])
     assert len(_reqs("POST", "/users/1/collections")) == 1  # idempotent
     coll = next(iter(State.collections))
-    assert all(p["body"][0]["collections"] == [coll] for p in _reqs("POST", "/users/1/items"))
+    assert all(
+        p["body"][0]["collections"] == [coll] for p in _reqs("POST", "/users/1/items")
+    )
 
 
-def test_item_find_resolves_papers(server: str, capsys: pytest.CaptureFixture[str]) -> None:
-    State.items["PAPER222"] = {"key": "PAPER222", "itemType": "journalArticle", "title": "P"}
+def test_item_find_resolves_papers(
+    server: str, capsys: pytest.CaptureFixture[str]
+) -> None:
+    State.items["PAPER222"] = {
+        "key": "PAPER222",
+        "itemType": "journalArticle",
+        "title": "P",
+    }
     State.items["ATTAC222"] = {
         "key": "ATTAC222",
         "itemType": "attachment",
@@ -296,7 +334,9 @@ def test_item_move(server: str, capsys: pytest.CaptureFixture[str]) -> None:
     assert patch["body"][0] == {"key": "PAPER222", "collections": [coll]}
 
 
-def test_item_remove_requires_yes(server: str, capsys: pytest.CaptureFixture[str]) -> None:
+def test_item_remove_requires_yes(
+    server: str, capsys: pytest.CaptureFixture[str]
+) -> None:
     with pytest.raises(SystemExit):
         main(["item", "remove", "PAPER222"])
     assert "requires --yes" in capsys.readouterr().err
@@ -369,7 +409,9 @@ def test_tag_add_remove(server: str, capsys: pytest.CaptureFixture[str]) -> None
 def test_note_add_and_list(server: str, capsys: pytest.CaptureFixture[str]) -> None:
     State.items["PAPER222"] = {"key": "PAPER222", "itemType": "journalArticle"}
     main(["note", "add", "PAPER222", "--text", "<p>hi</p>"])
-    note = [r for r in _reqs("POST", "/users/1/items") if r["body"][0]["itemType"] == "note"][0]
+    note = [
+        r for r in _reqs("POST", "/users/1/items") if r["body"][0]["itemType"] == "note"
+    ][0]
     assert note["body"][0]["parentItem"] == "PAPER222"
     main(["note", "list", "PAPER222"])
     assert "note" in capsys.readouterr().out
@@ -384,9 +426,11 @@ def test_pdf_attach_and_fetch(
     main(["pdf", "attach", "PAPER222", "--pdf", pdf])
     assert any(r["path"].startswith("/uploads/") for r in State.requests)
     # the attachment was created under the paper
-    att = [r for r in _reqs("POST", "/users/1/items") if r["body"][0]["itemType"] == "attachment"][
-        0
-    ]
+    att = [
+        r
+        for r in _reqs("POST", "/users/1/items")
+        if r["body"][0]["itemType"] == "attachment"
+    ][0]
     assert att["body"][0]["parentItem"] == "PAPER222"
     out_path = f"{tmp_path}/dl.pdf"
     main(["pdf", "fetch", "PAPER222", "--output", out_path])
@@ -411,9 +455,11 @@ def test_highlight_resolves_pdf_child(
         "contentType": "application/pdf",
     }
     main(["highlight", "add", "PAPER222", "--pdf", pdf, "--text", "highlight this"])
-    ann = [r for r in _reqs("POST", "/users/1/items") if r["body"][0]["itemType"] == "annotation"][
-        0
-    ]
+    ann = [
+        r
+        for r in _reqs("POST", "/users/1/items")
+        if r["body"][0]["itemType"] == "annotation"
+    ][0]
     assert ann["body"][0]["parentItem"] == "ATTAC222"
     assert ann["body"][0]["annotationText"] == "highlight this"
 
@@ -424,15 +470,27 @@ def test_api_escape_hatch(server: str, capsys: pytest.CaptureFixture[str]) -> No
 
 
 def test_item_get_children(server: str, capsys: pytest.CaptureFixture[str]) -> None:
-    State.items["PAPER222"] = {"key": "PAPER222", "itemType": "journalArticle", "title": "P"}
-    State.items["NOTE2222"] = {"key": "NOTE2222", "itemType": "note", "parentItem": "PAPER222"}
+    State.items["PAPER222"] = {
+        "key": "PAPER222",
+        "itemType": "journalArticle",
+        "title": "P",
+    }
+    State.items["NOTE2222"] = {
+        "key": "NOTE2222",
+        "itemType": "note",
+        "parentItem": "PAPER222",
+    }
     main(["item", "get", "PAPER222"])
     out = capsys.readouterr().out
     assert "PAPER222" in out and "NOTE2222" in out
 
 
 def test_item_edit(server: str, capsys: pytest.CaptureFixture[str]) -> None:
-    State.items["PAPER222"] = {"key": "PAPER222", "itemType": "journalArticle", "title": "old"}
+    State.items["PAPER222"] = {
+        "key": "PAPER222",
+        "itemType": "journalArticle",
+        "title": "old",
+    }
     main(["item", "edit", "PAPER222", "--set", "title=new"])
     patch = _reqs("PATCH", "/users/1/items")[0]
     assert patch["body"][0] == {"title": "new", "key": "PAPER222"}
@@ -481,7 +539,9 @@ def test_highlight_list(server: str, capsys: pytest.CaptureFixture[str]) -> None
     assert "ANNT2222" in capsys.readouterr().out
 
 
-def test_pdf_replace(server: str, tmp_path: object, capsys: pytest.CaptureFixture[str]) -> None:
+def test_pdf_replace(
+    server: str, tmp_path: object, capsys: pytest.CaptureFixture[str]
+) -> None:
     pdf = f"{tmp_path}/p.pdf"
     open(pdf, "wb").write(b"%PDF-1.7 new")
     State.items["PAPER222"] = {"key": "PAPER222", "itemType": "journalArticle"}
@@ -496,7 +556,9 @@ def test_pdf_replace(server: str, tmp_path: object, capsys: pytest.CaptureFixtur
     assert any(r["path"].startswith("/uploads/") for r in State.requests)
 
 
-def test_collection_move_parent(server: str, capsys: pytest.CaptureFixture[str]) -> None:
+def test_collection_move_parent(
+    server: str, capsys: pytest.CaptureFixture[str]
+) -> None:
     State.collections["PARENT22"] = {"key": "PARENT22", "name": "P", "version": 1}
     State.collections["CHDREN22"] = {"key": "CHDREN22", "name": "C", "version": 1}
     main(["collection", "move", "CHDREN22", "--parent", "PARENT22"])
@@ -527,11 +589,21 @@ def _seed_library() -> None:
         "filename": "p.pdf",
         "md5": "abc",
     }
-    State.items["NOTE2222"] = {"key": "NOTE2222", "itemType": "note", "parentItem": "PAPER222"}
-    State.fulltext["ATTAC222"] = {"content": "full body", "indexedChars": 9, "totalChars": 9}
+    State.items["NOTE2222"] = {
+        "key": "NOTE2222",
+        "itemType": "note",
+        "parentItem": "PAPER222",
+    }
+    State.fulltext["ATTAC222"] = {
+        "content": "full body",
+        "indexedChars": 9,
+        "totalChars": 9,
+    }
 
 
-def test_item_list_top_lossless(server: str, capsys: pytest.CaptureFixture[str]) -> None:
+def test_item_list_top_lossless(
+    server: str, capsys: pytest.CaptureFixture[str]
+) -> None:
     _seed_library()
     main(["-j", "item", "list"])
     rows = json.loads(capsys.readouterr().out)
@@ -539,22 +611,32 @@ def test_item_list_top_lossless(server: str, capsys: pytest.CaptureFixture[str])
     assert rows[0]["data"]["DOI"] == "10.1/x"  # full data preserved
 
 
-def test_item_list_all_includes_children(server: str, capsys: pytest.CaptureFixture[str]) -> None:
+def test_item_list_all_includes_children(
+    server: str, capsys: pytest.CaptureFixture[str]
+) -> None:
     _seed_library()
     main(["-j", "item", "list", "--all"])
     rows = json.loads(capsys.readouterr().out)
     assert {r["key"] for r in rows} == {"PAPER222", "ATTAC222", "NOTE2222"}
 
 
-def test_item_list_collection_scope(server: str, capsys: pytest.CaptureFixture[str]) -> None:
+def test_item_list_collection_scope(
+    server: str, capsys: pytest.CaptureFixture[str]
+) -> None:
     _seed_library()
-    State.items["OTHER222"] = {"key": "OTHER222", "itemType": "journalArticle", "title": "Q"}
+    State.items["OTHER222"] = {
+        "key": "OTHER222",
+        "itemType": "journalArticle",
+        "title": "Q",
+    }
     main(["-j", "item", "list", "--collection", "Proj"])
     rows = json.loads(capsys.readouterr().out)
     assert {r["key"] for r in rows} == {"PAPER222"}
 
 
-def test_item_list_pages_all_results(server: str, capsys: pytest.CaptureFixture[str]) -> None:
+def test_item_list_pages_all_results(
+    server: str, capsys: pytest.CaptureFixture[str]
+) -> None:
     for i in range(120):
         k = f"IT{i:06d}"
         State.items[k] = {"key": k, "itemType": "journalArticle"}
@@ -564,7 +646,9 @@ def test_item_list_pages_all_results(server: str, capsys: pytest.CaptureFixture[
     assert len(_reqs("GET", "/users/1/items/top")) >= 2  # actually paged
 
 
-def test_library_export(server: str, tmp_path: object, capsys: pytest.CaptureFixture[str]) -> None:
+def test_library_export(
+    server: str, tmp_path: object, capsys: pytest.CaptureFixture[str]
+) -> None:
     _seed_library()
     out = f"{tmp_path}/dump"
     main(["library", "export", out])
@@ -657,8 +741,12 @@ def test_library_roundtrip(
     assert State.items["PAPER222"]["title"] == "P"  # key preserved
     assert State.items["NOTE2222"]["parentItem"] == "PAPER222"  # child re-parented
     assert State.fulltext["ATTAC222"]["content"] == "full body"  # index restored
-    assert State.settings["tagColors"]["value"] == [{"name": "read", "color": "#5fb236"}]
-    assert any(r["path"].startswith("/uploads/") for r in State.requests)  # file re-uploaded
+    assert State.settings["tagColors"]["value"] == [
+        {"name": "read", "color": "#5fb236"}
+    ]
+    assert any(
+        r["path"].startswith("/uploads/") for r in State.requests
+    )  # file re-uploaded
 
 
 def test_library_import_replace_existing(
@@ -678,9 +766,12 @@ def test_library_import_replace_existing(
 
     assert State.items["PAPER222"]["title"] == "P"
     assert State.collections["FOLDER22"]["name"] == "Proj"
-    assert any(r["method"] == "PATCH" and r["path"] == "/users/1/items" for r in State.requests)
     assert any(
-        r["method"] == "PATCH" and r["path"] == "/users/1/collections" for r in State.requests
+        r["method"] == "PATCH" and r["path"] == "/users/1/items" for r in State.requests
+    )
+    assert any(
+        r["method"] == "PATCH" and r["path"] == "/users/1/collections"
+        for r in State.requests
     )
     assert any(
         r["method"] == "POST"
@@ -699,11 +790,15 @@ def test_library_import_new_keys_merges_copy(
 
     main(["library", "import", out, "--no-files", "--new-keys"])
 
-    papers = [k for k, v in State.items.items() if v.get("itemType") == "journalArticle"]
+    papers = [
+        k for k, v in State.items.items() if v.get("itemType") == "journalArticle"
+    ]
     assert "PAPER222" in papers and len(papers) == 2
     new_paper = next(k for k in papers if k != "PAPER222")
     new_attach = next(
-        k for k, v in State.items.items() if v.get("itemType") == "attachment" and k != "ATTAC222"
+        k
+        for k, v in State.items.items()
+        if v.get("itemType") == "attachment" and k != "ATTAC222"
     )
     assert State.items[new_attach]["parentItem"] == new_paper
     assert State.items[new_paper]["collections"] != ["FOLDER22"]

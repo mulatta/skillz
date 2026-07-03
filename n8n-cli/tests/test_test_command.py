@@ -8,7 +8,9 @@ from tests.conftest import run_fail, run_ok
 
 
 class TestTestCommand:
-    def test_dry_run(self, server: tuple[str, int], capsys: pytest.CaptureFixture[str]) -> None:
+    def test_dry_run(
+        self, server: tuple[str, int], capsys: pytest.CaptureFixture[str]
+    ) -> None:
         """test --dry-run shows webhook URL without calling it."""
         out = run_ok(server, ["test", "wf-2", "--dry-run"], capsys)
         assert "webhook/test-hook" in out
@@ -60,7 +62,9 @@ class TestTestCommand:
     def test_wait_execution_skips_stale_execution_after_http_failure(
         self, server: tuple[str, int], capsys: pytest.CaptureFixture[str]
     ) -> None:
-        out = run_ok(server, ["-j", "test", "wf-3", "-d", "{}", "--wait-execution"], capsys)
+        out = run_ok(
+            server, ["-j", "test", "wf-3", "-d", "{}", "--wait-execution"], capsys
+        )
         data = json.loads(out)
         assert data["httpStatus"] == 403
         assert data["success"] is False

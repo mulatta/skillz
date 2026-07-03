@@ -6,14 +6,26 @@ from typing import Any
 
 from n8n_cli.client import Client
 from n8n_cli.errors import InputError
-from n8n_cli.output import emit, emit_json, emit_kv, emit_table, enc, read_json_input, ts
+from n8n_cli.output import (
+    emit,
+    emit_json,
+    emit_kv,
+    emit_table,
+    enc,
+    read_json_input,
+    ts,
+)
 from n8n_cli.strip import WORKFLOW_WRITABLE, keep_writable
 
 
 def _text_summary(wf: dict[str, Any]) -> None:
     """Print a compact workflow summary."""
     tags = wf.get("tags", [])
-    tag_str = ", ".join(t.get("name", "") for t in tags if isinstance(t, dict)) if tags else "-"
+    tag_str = (
+        ", ".join(t.get("name", "") for t in tags if isinstance(t, dict))
+        if tags
+        else "-"
+    )
     emit_kv(
         {
             "ID": str(wf.get("id", "")),
@@ -55,7 +67,9 @@ def cmd_workflow_list(client: Client, ns: Namespace) -> None:
                     str(w.get("name", "")),
                     "yes" if w.get("active") else "no",
                     ", ".join(
-                        t.get("name", "") for t in (w.get("tags") or []) if isinstance(t, dict)
+                        t.get("name", "")
+                        for t in (w.get("tags") or [])
+                        if isinstance(t, dict)
                     )
                     or "-",
                     ts(w.get("updatedAt")),
@@ -118,7 +132,9 @@ def _cmd_toggle(client: Client, ns: Namespace, *, action: str, endpoint: str) ->
 
     def text(data: dict[str, object]) -> None:
         past = f"{action}d" if action.endswith("e") else f"{action}ed"
-        print(f"{past.capitalize()} workflow {data.get('name', '')} (id: {data.get('id', ns.id)})")
+        print(
+            f"{past.capitalize()} workflow {data.get('name', '')} (id: {data.get('id', ns.id)})"
+        )
 
     emit(result, use_json=ns.use_json, text_fn=text)
 

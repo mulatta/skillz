@@ -12,7 +12,13 @@ from typing import Any
 from .exceptions import NixbotAPIError
 
 
-BAD_STATUSES = {"failed", "failed_eval", "dependency_failed", "cached_failure", "cancelled"}
+BAD_STATUSES = {
+    "failed",
+    "failed_eval",
+    "dependency_failed",
+    "cached_failure",
+    "cancelled",
+}
 RUNNING_STATUSES = {"pending", "evaluating", "building"}
 
 
@@ -158,7 +164,9 @@ class NixbotClient:
         return url
 
     def get_build_by_number(self, number: int) -> NixbotBuild:
-        detail = self._get(f"repos/{self.forge}/{self.owner}/{self.repo}/builds/{number}")
+        detail = self._get(
+            f"repos/{self.forge}/{self.owner}/{self.repo}/builds/{number}"
+        )
         self._last_attributes = list(detail.get("attributes") or [])
         self._build_number = number
         return NixbotBuild.from_json(detail["build"])

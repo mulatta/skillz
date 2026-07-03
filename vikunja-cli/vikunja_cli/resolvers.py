@@ -81,7 +81,8 @@ def _single_id(kind: str, ref: str, matches: list[dict[str, Any]]) -> int:
         raise InputError(f"no {kind} exactly matches {ref!r}")
     if len(matches) > 1:
         choices = ", ".join(
-            f"{item.get('id')}:{item.get('title', item.get('identifier', '?'))}" for item in matches
+            f"{item.get('id')}:{item.get('title', item.get('identifier', '?'))}"
+            for item in matches
         )
         raise InputError(f"ambiguous {kind} {ref!r}; candidates: {choices}")
     value = matches[0].get("id")

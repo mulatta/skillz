@@ -53,7 +53,9 @@ class Response:
 class Client:
     """zhost API client. Methods map directly onto the Zotero sync endpoints."""
 
-    def __init__(self, base_url: str, api_key: str, user_id: str, timeout: int = 60) -> None:
+    def __init__(
+        self, base_url: str, api_key: str, user_id: str, timeout: int = 60
+    ) -> None:
         self.base_url = base_url.rstrip("/")
         self.api_key = api_key
         self.user_id = user_id
@@ -88,7 +90,9 @@ class Client:
     def _send(self, req: urllib.request.Request) -> Response:
         try:
             with urllib.request.urlopen(req, timeout=self.timeout) as resp:
-                return Response(resp.status, _lower_headers(resp.headers.items()), resp.read())
+                return Response(
+                    resp.status, _lower_headers(resp.headers.items()), resp.read()
+                )
         except urllib.error.HTTPError as exc:
             headers = _lower_headers(exc.headers.items() if exc.headers else [])
             body = exc.read() if exc.fp else b""
@@ -113,7 +117,14 @@ class Client:
             # item query reads as separate AND-ed filters.
             for item in value if isinstance(value, list) else [value]:
                 pairs.append(
-                    (key, "true" if item is True else "false" if item is False else str(item))
+                    (
+                        key,
+                        "true"
+                        if item is True
+                        else "false"
+                        if item is False
+                        else str(item),
+                    )
                 )
         if pairs:
             url = f"{url}?{urllib.parse.urlencode(pairs)}"
@@ -126,12 +137,16 @@ class Client:
 
     def library_version(self) -> int:
         """Current library version, read from any versions endpoint's header."""
-        resp = self.request("GET", self.user_path("/collections"), query={"format": "versions"})
+        resp = self.request(
+            "GET", self.user_path("/collections"), query={"format": "versions"}
+        )
         return resp.version() or 0
 
     def versions(self, kind: str, since: int = 0) -> dict[str, int]:
         resp = self.request(
-            "GET", self.user_path(f"/{kind}s"), query={"format": "versions", "since": since}
+            "GET",
+            self.user_path(f"/{kind}s"),
+            query={"format": "versions", "since": since},
         )
         data = resp.json()
         return cast(dict[str, int], data) if isinstance(data, dict) else {}
@@ -147,24 +162,32 @@ class Client:
         data = resp.json()
         return cast(list[dict[str, Any]], data) if isinstance(data, list) else []
 
-    def query(self, suffix: str, params: dict[str, Any]) -> tuple[list[dict[str, Any]], int | None]:
+    def query(
+        self, suffix: str, params: dict[str, Any]
+    ) -> tuple[list[dict[str, Any]], int | None]:
         """A single page of a listing: returns the `[{key,version,data}]` array plus
         the Total-Results count. `suffix` selects the endpoint (e.g. "/items",
         "/items/top", "/items/trash", "/collections/<key>/items")."""
-        resp = self.request("GET", self.user_path(suffix), query={**params, "format": "json"})
+        resp = self.request(
+            "GET", self.user_path(suffix), query={**params, "format": "json"}
+        )
         data = resp.json()
         items = cast(list[dict[str, Any]], data) if isinstance(data, list) else []
         total = resp.headers.get("total-results")
         return items, int(total) if total is not None and total.isdigit() else None
 
-    def query_all(self, suffix: str, params: dict[str, Any] | None = None) -> list[dict[str, Any]]:
+    def query_all(
+        self, suffix: str, params: dict[str, Any] | None = None
+    ) -> list[dict[str, Any]]:
         """Every row of a listing, following the Total-Results pagination. The
         server caps a page at 100, so a full dump must walk `start`."""
         page = 100
         out: list[dict[str, Any]] = []
         start = 0
         while True:
-            rows, total = self.query(suffix, {**(params or {}), "start": start, "limit": page})
+            rows, total = self.query(
+                suffix, {**(params or {}), "start": start, "limit": page}
+            )
             out.extend(rows)
             start += len(rows)
             if not rows or (total is not None and start >= total) or len(rows) < page:
@@ -197,7 +220,9 @@ class Client:
         data = self.request("GET", self.user_path("/settings")).json()
         return cast(dict[str, Any], data) if isinstance(data, dict) else {}
 
-    def write_settings(self, body: dict[str, Any], expected: int | None = None) -> Response:
+    def write_settings(
+        self, body: dict[str, Any], expected: int | None = None
+    ) -> Response:
         """Write a `{key: {value}}` settings object under the version guard."""
         if expected is None:
             expected = self.library_version()
@@ -228,7 +253,9 @@ class Client:
             extra_headers={"If-Unmodified-Since-Version": str(expected)},
         )
 
-    def delete(self, kind: str, keys: list[str], expected: int | None = None) -> Response:
+    def delete(
+        self, kind: str, keys: list[str], expected: int | None = None
+    ) -> Response:
         if expected is None:
             expected = self.library_version()
         return self.request(
@@ -240,7 +267,9 @@ class Client:
 
     # -- file upload (3 steps) --------------------------------------------
 
-    def upload_file(self, attach_key: str, path: str, replace_md5: str | None = None) -> Response:
+    def upload_file(
+        self, attach_key: str, path: str, replace_md5: str | None = None
+    ) -> Response:
         """Run the full authorize -> upload -> register sequence for `path`."""
         data = open(path, "rb").read()
         md5 = hashlib.md5(data).hexdigest()
@@ -251,7 +280,9 @@ class Client:
             "filesize": str(len(data)),
             "mtime": str(int(stat.st_mtime * 1000)),
         }
-        precondition = {"If-Match": replace_md5} if replace_md5 else {"If-None-Match": "*"}
+        precondition = (
+            {"If-Match": replace_md5} if replace_md5 else {"If-None-Match": "*"}
+        )
         auth = self.request(
             "POST",
             self.user_path(f"/items/{attach_key}/file"),

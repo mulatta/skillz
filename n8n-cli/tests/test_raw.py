@@ -9,7 +9,9 @@ from tests.conftest import run_fail, run_ok
 
 
 class TestRaw:
-    def test_get(self, server: tuple[str, int], capsys: pytest.CaptureFixture[str]) -> None:
+    def test_get(
+        self, server: tuple[str, int], capsys: pytest.CaptureFixture[str]
+    ) -> None:
         out = run_ok(server, ["raw", "GET", "/custom/endpoint"], capsys)
         data = json.loads(out)
         assert data["ok"] is True
@@ -30,7 +32,9 @@ class TestRaw:
         data = json.loads(out)
         assert data["id"] == "43"
 
-    def test_delete(self, server: tuple[str, int], capsys: pytest.CaptureFixture[str]) -> None:
+    def test_delete(
+        self, server: tuple[str, int], capsys: pytest.CaptureFixture[str]
+    ) -> None:
         out = run_ok(server, ["raw", "DELETE", "/credentials/42"], capsys)
         data = json.loads(out)
         assert isinstance(data, dict)

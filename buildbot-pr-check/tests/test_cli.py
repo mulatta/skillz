@@ -55,11 +55,15 @@ def stub_nixbot(monkeypatch: pytest.MonkeyPatch) -> None:
         }
 
     monkeypatch.setattr(github_api, "get_pr_head_sha", lambda *a, **k: HEAD_SHA)
-    monkeypatch.setattr(github_api, "get_nixbot_urls_from_github", lambda *a, **k: [NIXBOT_WEB_URL])
+    monkeypatch.setattr(
+        github_api, "get_nixbot_urls_from_github", lambda *a, **k: [NIXBOT_WEB_URL]
+    )
     monkeypatch.setattr(NixbotClient, "_get", fake_nixbot_get)
 
 
-def test_cmd_pr_json_full_table(stub_nixbot: None, capsys: pytest.CaptureFixture[str]) -> None:
+def test_cmd_pr_json_full_table(
+    stub_nixbot: None, capsys: pytest.CaptureFixture[str]
+) -> None:
     code = _run([PR_URL, "--json"])
     assert code == 1
 
@@ -73,7 +77,9 @@ def test_cmd_pr_json_full_table(stub_nixbot: None, capsys: pytest.CaptureFixture
     assert by_attr["x86_64-linux.treefmt"]["status"] == "SUCCEEDED"
 
 
-def test_cmd_pr_failures_json(stub_nixbot: None, capsys: pytest.CaptureFixture[str]) -> None:
+def test_cmd_pr_failures_json(
+    stub_nixbot: None, capsys: pytest.CaptureFixture[str]
+) -> None:
     code = _run([PR_URL, "--failures", "--json", "--log-tail", "80"])
     assert code == 1
 
@@ -119,7 +125,9 @@ def test_discovery_accepts_buildbot_prefixed_nixbot_url(
             else {"statuses": []}
         ),
     )
-    assert github_api.get_nixbot_urls_from_github("mulatta", "dots", HEAD_SHA) == [NIXBOT_WEB_URL]
+    assert github_api.get_nixbot_urls_from_github("mulatta", "dots", HEAD_SHA) == [
+        NIXBOT_WEB_URL
+    ]
 
 
 def test_discovery_error_when_nothing_found(

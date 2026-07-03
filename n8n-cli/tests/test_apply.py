@@ -5,7 +5,11 @@ from pathlib import Path
 
 import pytest
 
-from n8n_cli.commands.apply import _strip_for_create, _strip_for_update, _workflows_differ
+from n8n_cli.commands.apply import (
+    _strip_for_create,
+    _strip_for_update,
+    _workflows_differ,
+)
 
 from tests.conftest import WORKFLOW_1, run_fail, run_ok
 
