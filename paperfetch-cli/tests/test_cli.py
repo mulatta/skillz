@@ -10,7 +10,12 @@ from typing import TYPE_CHECKING
 
 import pytest
 from paperfetch_cli import main as main_mod
-from paperfetch_cli.config import config_path, load_file_config, parse_headers
+from paperfetch_cli.config import (
+    config_path,
+    load_file_config,
+    parse_headers,
+    unpaywall_email_from_args,
+)
 from paperfetch_cli.errors import EXIT_OK, EXIT_UNRESOLVED, EXIT_USAGE, CLIError
 from paperfetch_cli.main import build_parser, main
 from paperfetch_cli.resolve import PaperMeta
@@ -61,7 +66,7 @@ def test_get_emits_manifest(
         year=2024,
         oa_pdf_url="https://example.org/x.pdf",
     )
-    monkeypatch.setattr(main_mod, "resolve_metadata", lambda _doi: meta)
+    monkeypatch.setattr(main_mod, "resolve_metadata", lambda _doi, _email=None: meta)
     monkeypatch.setattr(
         main_mod,
         "resolve_europepmc",
@@ -113,7 +118,7 @@ def test_get_keeps_europepmc_landing_when_direct_pdf_returns_html(
     monkeypatch.setattr(
         main_mod,
         "resolve_metadata",
-        lambda _doi: PaperMeta(doi="10.1371/journal.pone.0000308"),
+        lambda _doi, _email=None: PaperMeta(doi="10.1371/journal.pone.0000308"),
     )
     monkeypatch.setattr(main_mod, "resolve_europepmc", lambda **_kwargs: meta)
 
@@ -166,8 +171,40 @@ def test_setup_writes_config(
     capsys: pytest.CaptureFixture[str],
 ) -> None:
     monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path))
-    rc = main(["setup", "--profile-dir", "/p", "--chromium", "/c"])
+    rc = main(
+        [
+            "setup",
+            "--profile-dir",
+            "/p",
+            "--chromium",
+            "/c",
+            "--unpaywall-email",
+            "dev@example.org",
+        ]
+    )
     capsys.readouterr()
     assert rc == EXIT_OK
     assert config_path() == tmp_path / "paperfetch-cli" / "config.json"
-    assert load_file_config() == {"profile_dir": "/p", "chromium": "/c"}
+    assert load_file_config() == {
+        "profile_dir": "/p",
+        "chromium": "/c",
+        "unpaywall_email": "dev@example.org",
+    }
+
+
+def test_unpaywall_email_priority(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path))
+    config_path().parent.mkdir(parents=True)
+    config_path().write_text('{"unpaywall_email": "saved@example.org"}')
+    monkeypatch.setenv("PAPERFETCH_UNPAYWALL_EMAIL", "env@example.org")
+    args = build_parser().parse_args(
+        ["get", "10.1234/abc", "--unpaywall-email", "cli@example.org"]
+    )
+    assert unpaywall_email_from_args(args) == "cli@example.org"
+    args = build_parser().parse_args(["get", "10.1234/abc"])
+    assert unpaywall_email_from_args(args) == "env@example.org"
+    monkeypatch.delenv("PAPERFETCH_UNPAYWALL_EMAIL")
+    assert unpaywall_email_from_args(args) == "saved@example.org"

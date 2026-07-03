@@ -1,6 +1,6 @@
 ---
 name: paperfetch-cli
-description: Fetch one academic paper's full text and PDF on demand from a DOI, PMID, PMCID, or publisher URL, using legal OA sources (Europe PMC / PMC OA) and the host's institutional IP access. Use when an agent needs the PDF or full text of a specific paper (to read, summarize, or file into Zotero). Not a crawler - never loop it over many papers (systematic downloading risks an institution-wide access block). Literature search (biorefs-cli) and filing into Zotero (zhost-cli) belong to a meta-skill; this tool only fetches.
+description: Fetch one academic paper's full text and PDF on demand from a DOI, PMID, PMCID, or publisher URL, using legal OA sources (Europe PMC / PMC OA / configured Unpaywall) and the host's institutional IP access. Use when an agent needs the PDF or full text of a specific paper (to read, summarize, or file into Zotero). Not a crawler - never loop it over many papers (systematic downloading risks an institution-wide access block). Literature search (biorefs-cli) and filing into Zotero (zhost-cli) belong to a meta-skill; this tool only fetches.
 ---
 
 # paperfetch-cli
@@ -12,24 +12,31 @@ the run. **Not a crawler**; fetch one paper at a time.
 
 ## get - the main command
 
-`paperfetch-cli get <doi|pmid|pmcid|url> [--pdf] [--md] [--html] [--out DIR] [--json]`
+`paperfetch-cli get <doi|pmid|pmcid|url> [--pdf] [--md] [--html] [--out DIR] [--json] [--unpaywall-email EMAIL]`
 
 Resolves the paper and produces the requested artifacts. With **no artifact
 flag** it only prints a manifest (a probe - metadata + whether an OA PDF exists).
 
 - `--pdf` - download the PDF to `--out`. Tries legal open-access copies first
-  (Europe PMC / PMC OA and OpenAlex, no browser); if paywalled or OA-bot-blocked
-  it renders the article page and pulls the institutional PDF through the browser
-  (covers Cell, Science, Nature, and ScienceDirect/Elsevier journals). `--pdf-url
-  URL` forces an explicit URL and skips discovery. If a PMC direct PDF URL serves
-  HTML, the browser fallback keeps the Europe PMC/PMC landing instead of dropping
-  back to DOI-only resolution.
+  (Europe PMC / PMC OA, OpenAlex, and direct Unpaywall when a contact email is
+  configured, no browser); if paywalled or OA-bot-blocked it renders the article
+  page and pulls the institutional PDF through the browser (covers Cell, Science,
+  Nature, and ScienceDirect/Elsevier journals). `--pdf-url URL` forces an
+  explicit URL and skips discovery. If a PMC direct PDF URL serves HTML, the
+  browser fallback keeps the Europe PMC/PMC landing instead of dropping back to
+  DOI-only resolution.
 - `--md` - render the article page and print full-text markdown to stdout.
 - `--html` - save the rendered article HTML to `--out`.
 - `--json` - print the manifest as JSON to stdout (else it goes to stderr).
 
 Input may be a DOI (`10.1016/...`), PMID (`PMID:17375194` or bare digits),
 PMCID (`PMC1817623` / `PMCID:PMC1817623`), or a publisher/article URL.
+
+Unpaywall requires a contact email. Configure once with
+`paperfetch-cli setup --unpaywall-email you@example.org`, set
+`PAPERFETCH_UNPAYWALL_EMAIL`, or pass `--unpaywall-email` for one call. If no
+email is configured, Unpaywall is skipped and browser fallback behavior is
+unchanged.
 
 ```bash
 paperfetch-cli get 10.1016/j.cell.2024.04.041 --pdf --out ./papers
@@ -44,7 +51,7 @@ paperfetch-cli get 10.1038/s41586-024-08025-4 --json     # probe: metadata + OA
 
 `get` writes a JSON manifest: `doi`, `pmid`, `pmcid`, `title`, `authors`,
 `journal`, `year`, `landing_url`, the resolved `pdf` (`url`, `via` =
-`europepmc|pmc_oa|oa|citation_pdf_url|sciencedirect|adapter|explicit`, `path`),
+`europepmc|pmc_oa|unpaywall|oa|citation_pdf_url|sciencedirect|adapter|explicit`, `path`),
 `fulltext` (`chars`), and on failure `candidates.pdf_links`. Exit codes: `0` ok
 · `2` usage · `3` an artifact could not be resolved (see `candidates` /
 `warnings`) · `4` fetch / Cloudflare blocked.
