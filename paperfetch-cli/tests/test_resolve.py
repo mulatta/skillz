@@ -2,6 +2,9 @@
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
+from paperfetch_cli.errors import CLIError
 from paperfetch_cli.resolve import (
     europepmc_search_url,
     normalize_doi,
@@ -10,8 +13,13 @@ from paperfetch_cli.resolve import (
     parse_europepmc,
     parse_openalex,
     parse_pmc_oa_pdf,
+    parse_unpaywall,
+    resolve_metadata,
     sciencedirect_pdf_url,
 )
+
+if TYPE_CHECKING:
+    import pytest
 
 # Real pdfDownload island from a rendered ScienceDirect article page.
 SD_HTML = (
@@ -85,6 +93,19 @@ SAMPLE_PMC_OA = """
   </records>
 </OA>
 """
+
+SAMPLE_UNPAYWALL: dict[str, object] = {
+    "title": "Scalable watermarking from Unpaywall",
+    "year": 2023,
+    "journal_name": "OA Journal",
+    "doi_url": "https://doi.org/10.1/x",
+    "z_authors": [{"given": "Grace", "family": "Hopper"}],
+    "best_oa_location": {
+        "url_for_landing_page": "https://repository.example.org/item/1",
+        "url_for_pdf": "https://repository.example.org/paper.pdf",
+        "host_type": "repository",
+    },
+}
 
 
 def test_normalize_doi() -> None:
@@ -182,6 +203,31 @@ def test_parse_pmc_oa_pdf_skips_retracted_records() -> None:
     assert parse_pmc_oa_pdf(xml) is None
 
 
+def test_parse_unpaywall() -> None:
+    meta = parse_unpaywall(SAMPLE_UNPAYWALL, "10.1/x")
+    assert meta.doi == "10.1/x"
+    assert meta.title == "Scalable watermarking from Unpaywall"
+    assert meta.authors == ("Grace Hopper",)
+    assert meta.journal == "OA Journal"
+    assert meta.year == 2023
+    assert meta.oa_pdf_url == "https://repository.example.org/paper.pdf"
+    assert meta.oa_pdf_source == "unpaywall"
+    assert meta.landing_url == "https://repository.example.org/item/1"
+
+
+def test_parse_unpaywall_falls_back_to_oa_locations() -> None:
+    data: dict[str, object] = {
+        "best_oa_location": {"url_for_landing_page": "https://landing.example.org"},
+        "oa_locations": [
+            {"url_for_pdf": "https://mirror.example.org/paper.pdf"},
+        ],
+    }
+    meta = parse_unpaywall(data, "10.1/x")
+    assert meta.oa_pdf_url == "https://mirror.example.org/paper.pdf"
+    assert meta.oa_pdf_source == "unpaywall"
+    assert meta.landing_url == "https://landing.example.org"
+
+
 def test_sciencedirect_pdf_url() -> None:
     url = sciencedirect_pdf_url(
         SD_HTML, "https://www.sciencedirect.com/science/article/pii/S0968089624002517"
@@ -203,3 +249,58 @@ def test_parse_openalex_handles_missing_fields() -> None:
     assert meta.title == ""
     assert meta.authors == ()
     assert meta.oa_pdf_url is None
+
+
+def test_resolve_metadata_merges_unpaywall_pdf_when_openalex_has_none(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    openalex = dict(SAMPLE_OPENALEX)
+    openalex["best_oa_location"] = {}
+
+    def fake_get_json(url: str, source: str = "metadata") -> dict[str, object]:
+        if "openalex" in url:
+            return openalex
+        assert "email=dev%40example.org" in url
+        assert source == "Unpaywall"
+        return SAMPLE_UNPAYWALL
+
+    monkeypatch.setattr("paperfetch_cli.resolve._get_json", fake_get_json)
+    meta = resolve_metadata("10.1/x", "dev@example.org")
+    assert meta.title == "Scalable watermarking"
+    assert meta.authors == ("Ada Lovelace", "Alan Turing")
+    assert meta.journal == "Nature"
+    assert meta.year == 2024
+    assert meta.oa_pdf_url == "https://repository.example.org/paper.pdf"
+    assert meta.landing_url == "https://www.nature.com/articles/s41586-024-08025-4"
+
+
+def test_resolve_metadata_uses_unpaywall_when_openalex_fails(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    def fake_get_json(url: str, source: str = "metadata") -> dict[str, object]:
+        if "openalex" in url:
+            msg = "OpenAlex lookup failed"
+            raise CLIError(msg, 2)
+        return SAMPLE_UNPAYWALL
+
+    monkeypatch.setattr("paperfetch_cli.resolve._get_json", fake_get_json)
+    meta = resolve_metadata("10.1/x", "dev@example.org")
+    assert meta.title == "Scalable watermarking from Unpaywall"
+    assert meta.oa_pdf_url == "https://repository.example.org/paper.pdf"
+
+
+def test_resolve_metadata_skips_unpaywall_without_email(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    calls: list[str] = []
+    openalex = dict(SAMPLE_OPENALEX)
+    openalex["best_oa_location"] = {}
+
+    def fake_get_json(url: str, source: str = "metadata") -> dict[str, object]:
+        calls.append(url)
+        return openalex
+
+    monkeypatch.setattr("paperfetch_cli.resolve._get_json", fake_get_json)
+    meta = resolve_metadata("10.1/x")
+    assert meta.oa_pdf_url is None
+    assert len(calls) == 1

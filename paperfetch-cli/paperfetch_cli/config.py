@@ -1,7 +1,8 @@
 """Runtime configuration: CLI flags layered over a saved config file.
 
 ``setup`` writes ``$XDG_CONFIG_HOME/paperfetch-cli/config.json`` once (profile
-dir, chromium path) so the browser/auth options need not be passed per call.
+dir, chromium path, Unpaywall contact email) so browser/auth/OA options need not
+be passed per call.
 """
 
 from __future__ import annotations
@@ -60,6 +61,22 @@ def load_file_config() -> dict[str, object]:
 
 def _as_str(value: object) -> str | None:
     return value if isinstance(value, str) else None
+
+
+def _clean_str(value: object) -> str | None:
+    if not isinstance(value, str):
+        return None
+    stripped = value.strip()
+    return stripped or None
+
+
+def unpaywall_email_from_args(args: argparse.Namespace) -> str | None:
+    saved = load_file_config()
+    return (
+        _clean_str(args.unpaywall_email)
+        or _clean_str(os.environ.get("PAPERFETCH_UNPAYWALL_EMAIL"))
+        or _clean_str(saved.get("unpaywall_email"))
+    )
 
 
 def resolve_chromium(arg: object, saved: dict[str, object]) -> str | None:

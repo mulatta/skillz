@@ -20,6 +20,7 @@ from paperfetch_cli.config import (
     browser_config_from_args,
     config_path,
     load_file_config,
+    unpaywall_email_from_args,
 )
 from paperfetch_cli.errors import (
     EXIT_OK,
@@ -92,7 +93,7 @@ def cmd_get(args: argparse.Namespace) -> int:
     meta = PaperMeta(doi=doi or "", pmid=pmid or "", pmcid=pmcid or "")
     if doi is not None:
         with contextlib.suppress(CLIError):
-            meta = resolve_metadata(doi)
+            meta = resolve_metadata(doi, unpaywall_email_from_args(args))
     if doi is not None or pmcid is not None or pmid is not None:
         with contextlib.suppress(CLIError):
             meta = _merge_meta(
@@ -377,6 +378,8 @@ def cmd_setup(args: argparse.Namespace) -> int:
         data["profile_dir"] = args.profile_dir
     if args.chromium:
         data["chromium"] = args.chromium
+    if args.unpaywall_email:
+        data["unpaywall_email"] = args.unpaywall_email
     path.write_text(json.dumps(data, indent=2, sort_keys=True) + "\n")
     print(f"wrote {path}")
     return EXIT_OK
@@ -413,6 +416,14 @@ def _build_get(sub: argparse._SubParsersAction[argparse.ArgumentParser]) -> None
     )
     parser.add_argument(
         "--json", action="store_true", help="emit the manifest as JSON to stdout"
+    )
+    parser.add_argument(
+        "--unpaywall-email",
+        metavar="EMAIL",
+        help=(
+            "contact email for direct Unpaywall OA fallback "
+            "(or PAPERFETCH_UNPAYWALL_EMAIL / config)"
+        ),
     )
     _add_browser_options(parser)
     parser.set_defaults(handler=cmd_get)
@@ -461,6 +472,11 @@ def _build_setup(sub: argparse._SubParsersAction[argparse.ArgumentParser]) -> No
     )
     parser.add_argument("--profile-dir", metavar="DIR")
     parser.add_argument("--chromium", metavar="PATH")
+    parser.add_argument(
+        "--unpaywall-email",
+        metavar="EMAIL",
+        help="contact email saved for direct Unpaywall OA fallback",
+    )
     parser.set_defaults(handler=cmd_setup)
 
 

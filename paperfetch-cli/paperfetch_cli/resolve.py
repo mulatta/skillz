@@ -2,8 +2,9 @@
 
 OpenAlex returns DOI metadata and broad open-access hints. Europe PMC / PMC OA
 adds native legal full-text coverage for biomedical papers and identifier inputs
-(PMID / PMCID) without publisher scraping. The browser is only needed later for
-paywalled full text / PDF.
+(PMID / PMCID), and Unpaywall adds independent DOI OA coverage when configured
+with a contact email. The browser is only needed later for paywalled full text /
+PDF.
 """
 
 from __future__ import annotations
@@ -34,6 +35,7 @@ _PMID_MARKED_RE = re.compile(
 _OPENALEX = "https://api.openalex.org/works/doi:"
 _EUROPEPMC_SEARCH = "https://www.ebi.ac.uk/europepmc/webservices/rest/search"
 _PMC_OA = "https://www.ncbi.nlm.nih.gov/pmc/utils/oa/oa.fcgi?id="
+_UNPAYWALL = "https://api.unpaywall.org/v2/"
 _TIMEOUT = 20
 _UA = "paperfetch-cli (https://github.com/mulatta/skillz)"
 
@@ -77,7 +79,7 @@ def normalize_pmid(value: str) -> str | None:
     return match.group(1)
 
 
-def _get_json(url: str) -> dict[str, object]:
+def _get_json(url: str, source: str = "metadata") -> dict[str, object]:
     request = urllib.request.Request(  # noqa: S310 - https URL built from constants
         url,
         headers={"User-Agent": _UA, "Accept": "application/json"},
@@ -86,10 +88,10 @@ def _get_json(url: str) -> dict[str, object]:
         with urllib.request.urlopen(request, timeout=_TIMEOUT) as response:  # noqa: S310
             payload: object = json.loads(response.read().decode("utf-8"))
     except (urllib.error.URLError, TimeoutError, ValueError) as exc:
-        msg = f"metadata lookup failed: {exc}"
+        msg = f"{source} lookup failed: {exc}"
         raise CLIError(msg, EXIT_UNRESOLVED) from exc
     if not isinstance(payload, dict):
-        msg = "unexpected metadata response"
+        msg = f"unexpected {source} response"
         raise CLIError(msg, EXIT_UNRESOLVED)
     return payload
 
@@ -123,6 +125,27 @@ def _authors(value: object) -> tuple[str, ...]:
         _str(_dict(_dict(item).get("author")).get("display_name")) for item in value
     ]
     return tuple(name for name in names if name)
+
+
+def _unpaywall_authors(value: object) -> tuple[str, ...]:
+    if not isinstance(value, list):
+        return ()
+    names: list[str] = []
+    for item in value:
+        author = _dict(item)
+        name = _str(author.get("name"))
+        if not name:
+            name = " ".join(
+                part
+                for part in (
+                    _str(author.get("given")),
+                    _str(author.get("family")),
+                )
+                if part
+            )
+        if name:
+            names.append(name)
+    return tuple(names)
 
 
 def parse_openalex(data: dict[str, object], doi: str) -> PaperMeta:
@@ -319,9 +342,109 @@ def resolve_europepmc(
     return meta
 
 
-def resolve_metadata(doi: str) -> PaperMeta:
-    data = _get_json(_OPENALEX + urllib.parse.quote(doi, safe=""))
-    return parse_openalex(data, doi)
+def _location_pdf_url(location: dict[str, object]) -> str | None:
+    return _str(location.get("url_for_pdf")) or None
+
+
+def _location_landing_url(location: dict[str, object]) -> str | None:
+    return (
+        _str(location.get("url_for_landing_page")) or _str(location.get("url")) or None
+    )
+
+
+def _best_unpaywall_pdf(data: dict[str, object]) -> str | None:
+    best = _dict(data.get("best_oa_location"))
+    pdf_url = _location_pdf_url(best)
+    if pdf_url:
+        return pdf_url
+    locations = data.get("oa_locations")
+    if not isinstance(locations, list):
+        return None
+    for item in locations:
+        pdf_url = _location_pdf_url(_dict(item))
+        if pdf_url:
+            return pdf_url
+    return None
+
+
+def _best_unpaywall_landing(data: dict[str, object]) -> str | None:
+    best = _dict(data.get("best_oa_location"))
+    landing_url = _location_landing_url(best)
+    if landing_url:
+        return landing_url
+    return _str(data.get("doi_url")) or None
+
+
+def parse_unpaywall(data: dict[str, object], doi: str) -> PaperMeta:
+    year = data.get("year")
+    pdf_url = _best_unpaywall_pdf(data)
+    return PaperMeta(
+        doi=doi,
+        title=_str(data.get("title")),
+        authors=_unpaywall_authors(data.get("z_authors")),
+        journal=_str(data.get("journal_name")),
+        year=year if isinstance(year, int) else None,
+        oa_pdf_url=pdf_url,
+        landing_url=_best_unpaywall_landing(data),
+        oa_pdf_source="unpaywall" if pdf_url else "oa",
+    )
+
+
+def resolve_unpaywall(doi: str, email: str | None) -> PaperMeta | None:
+    email = email.strip() if email else ""
+    if not email:
+        return None
+    query = urllib.parse.urlencode({"email": email})
+    data = _get_json(
+        f"{_UNPAYWALL}{urllib.parse.quote(doi, safe='')}?{query}",
+        "Unpaywall",
+    )
+    return parse_unpaywall(data, doi)
+
+
+def _merge_metadata(primary: PaperMeta, fallback: PaperMeta) -> PaperMeta:
+    use_fallback_pdf = primary.oa_pdf_url is None and fallback.oa_pdf_url is not None
+    return PaperMeta(
+        doi=primary.doi or fallback.doi,
+        title=primary.title or fallback.title,
+        authors=primary.authors or fallback.authors,
+        journal=primary.journal or fallback.journal,
+        year=primary.year or fallback.year,
+        oa_pdf_url=primary.oa_pdf_url or fallback.oa_pdf_url,
+        landing_url=primary.landing_url or fallback.landing_url,
+        pmid=primary.pmid or fallback.pmid,
+        pmcid=primary.pmcid or fallback.pmcid,
+        oa_pdf_source=fallback.oa_pdf_source
+        if use_fallback_pdf
+        else primary.oa_pdf_source,
+        oa_landing_url=primary.oa_landing_url or fallback.oa_landing_url,
+    )
+
+
+def resolve_metadata(doi: str, unpaywall_email: str | None = None) -> PaperMeta:
+    openalex_error: CLIError | None = None
+    openalex_meta: PaperMeta | None = None
+    try:
+        data = _get_json(_OPENALEX + urllib.parse.quote(doi, safe=""), "OpenAlex")
+        openalex_meta = parse_openalex(data, doi)
+    except CLIError as exc:
+        openalex_error = exc
+    if openalex_meta is not None and openalex_meta.oa_pdf_url:
+        return openalex_meta
+    try:
+        unpaywall_meta = resolve_unpaywall(doi, unpaywall_email)
+    except CLIError:
+        unpaywall_meta = None
+    if openalex_meta is not None:
+        if unpaywall_meta is None:
+            return openalex_meta
+        return _merge_metadata(openalex_meta, unpaywall_meta)
+    if unpaywall_meta is not None:
+        return unpaywall_meta
+    if openalex_error is not None:
+        raise openalex_error
+    msg = "metadata lookup failed"
+    raise CLIError(msg, EXIT_UNRESOLVED)
 
 
 _CITATION_PDF = (
