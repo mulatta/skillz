@@ -706,7 +706,12 @@ def download_file(url: str, dest: Path) -> None:
                     f"(likely bot-blocked): {url}"
                 )
                 raise CLIError(msg, EXIT_UNRESOLVED)
+            prefix = response.read(5)
+            if prefix != b"%PDF-":
+                msg = f"OA link returned bytes that are not a PDF: {url}"
+                raise CLIError(msg, EXIT_UNRESOLVED)
             with dest.open("wb") as handle:
+                handle.write(prefix)
                 shutil.copyfileobj(response, handle)
     except (urllib.error.URLError, TimeoutError) as exc:
         msg = f"download failed: {exc}"

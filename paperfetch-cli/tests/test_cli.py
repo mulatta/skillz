@@ -9,6 +9,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 import pytest
+
 from paperfetch_cli import main as main_mod
 from paperfetch_cli.config import (
     config_path,
@@ -68,6 +69,18 @@ def test_get_accepts_arxiv_identifier(
     assert '"arxiv": "2401.12345"' in out
     assert '"url": "https://arxiv.org/pdf/2401.12345.pdf"' in out
     assert '"via": "arxiv"' in out
+
+
+def test_get_rejects_markdown_json_stdout_mix(
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    monkeypatch.setattr(main_mod, "resolve_arxiv_metadata", arxiv_paper_meta)
+    rc = main(["get", "arXiv:2401.12345", "--md", "--json"])
+    captured = capsys.readouterr()
+    assert rc == EXIT_USAGE
+    assert captured.out == ""
+    assert "cannot combine --json with --md" in captured.err
 
 
 def test_get_emits_manifest(

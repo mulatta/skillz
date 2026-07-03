@@ -82,6 +82,9 @@ def _add_browser_options(parser: argparse.ArgumentParser) -> None:
 
 
 def cmd_get(args: argparse.Namespace) -> int:
+    if args.json and args.md:
+        msg = "cannot combine --json with --md because both write stdout"
+        raise CLIError(msg, EXIT_USAGE)
     target = args.target.strip()
     identifier = parse_identifier(target)
     if identifier is None:

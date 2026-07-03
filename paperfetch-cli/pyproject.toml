@@ -15,7 +15,55 @@ paperfetch-cli = "paperfetch_cli.main:main"
 [tool.hatch.build.targets.wheel]
 packages = ["paperfetch_cli"]
 
+[tool.ruff]
+line-length = 88
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["ALL"]
+ignore = [
+  "ARG001",
+  "B905",
+  "C901",
+  "COM812",
+  "D",
+  "E501",
+  "EM101",
+  "EM102",
+  "ERA001",
+  "EXE001",
+  "FBT001",
+  "FBT002",
+  "FIX",
+  "G004",
+  "ISC001",
+  "PLR0911",
+  "PLR0913",
+  "PLR0915",
+  "PLR2004",
+  "PYI041",
+  "RUF007",
+  "RUF100",
+  "S101",
+  "S603",
+  "S607",
+  "T201",
+  "TC001",
+  "TC002",
+  "TC003",
+  "TD",
+  "TRY003",
+  "UP022",
+]
+
+[tool.ruff.lint.per-file-ignores]
+"*/tests/*.py" = [
+  "ARG002",
+  "INP001",
+]
+
 [tool.mypy]
+python_version = "3.12"
 strict = true
 
 [[tool.mypy.overrides]]

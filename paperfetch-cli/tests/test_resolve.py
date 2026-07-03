@@ -2,11 +2,14 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Self
+
+import pytest
 
 from paperfetch_cli.errors import CLIError
 from paperfetch_cli.resolve import (
     arxiv_paper_meta,
+    download_file,
     europepmc_search_url,
     normalize_arxiv_id,
     normalize_doi,
@@ -23,7 +26,7 @@ from paperfetch_cli.resolve import (
 )
 
 if TYPE_CHECKING:
-    import pytest
+    from pathlib import Path
 
 # Real pdfDownload island from a rendered ScienceDirect article page.
 SD_HTML = (
@@ -373,3 +376,40 @@ def test_resolve_metadata_skips_unpaywall_without_email(
     meta = resolve_metadata("10.1/x")
     assert meta.oa_pdf_url is None
     assert len(calls) == 1
+
+
+class FakeResponse:
+    def __init__(self, payload: bytes, content_type: str) -> None:
+        self._payload = payload
+        self.headers = {"content-type": content_type}
+
+    def __enter__(self) -> Self:
+        return self
+
+    def __exit__(self, *_exc: object) -> None:
+        return None
+
+    def read(self, size: int = -1) -> bytes:
+        if size < 0:
+            data = self._payload
+            self._payload = b""
+            return data
+        data = self._payload[:size]
+        self._payload = self._payload[size:]
+        return data
+
+
+def test_download_file_rejects_non_pdf_bytes(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    dest = tmp_path / "paper.pdf"
+
+    def fake_urlopen(_request: object, timeout: int) -> FakeResponse:
+        assert timeout > 0
+        return FakeResponse(b"not a pdf", "application/pdf")
+
+    monkeypatch.setattr("paperfetch_cli.resolve.urllib.request.urlopen", fake_urlopen)
+    with pytest.raises(CLIError, match="not a PDF"):
+        download_file("https://example.org/paper.pdf", dest)
+    assert not dest.exists()
