@@ -26,6 +26,7 @@ python3Packages.buildPythonApplication {
 
   dependencies = [
     patchright
+    python3Packages.defusedxml
     python3Packages.pyvirtualdisplay
     python3Packages.markdownify
   ];

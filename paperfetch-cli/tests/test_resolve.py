@@ -1,4 +1,4 @@
-"""Tests for DOI normalization and OpenAlex parsing (no network)."""
+"""Tests for identifier normalization and OA metadata parsing (no network)."""
 
 from __future__ import annotations
 
@@ -6,14 +6,18 @@ from typing import TYPE_CHECKING
 
 from paperfetch_cli.errors import CLIError
 from paperfetch_cli.resolve import (
+    arxiv_paper_meta,
     europepmc_search_url,
+    normalize_arxiv_id,
     normalize_doi,
     normalize_pmcid,
     normalize_pmid,
     parse_europepmc,
+    parse_identifier,
     parse_openalex,
     parse_pmc_oa_pdf,
     parse_unpaywall,
+    resolve_arxiv_metadata,
     resolve_metadata,
     sciencedirect_pdf_url,
 )
@@ -28,6 +32,19 @@ SD_HTML = (
     '"pid":"1-s2.0-S0968089624002517-main.pdf"},"pii":"S0968089624002517",'
     '"pdfExtension":"/pdfft","path":"science/article/pii"}},...'
 )
+
+SAMPLE_ARXIV_ATOM = """\
+<feed xmlns="http://www.w3.org/2005/Atom" xmlns:arxiv="http://arxiv.org/schemas/atom">
+  <entry>
+    <title>Native identifiers for open access</title>
+    <published>2024-01-02T00:00:00Z</published>
+    <author><name>Ada Lovelace</name></author>
+    <author><name>Alan Turing</name></author>
+    <arxiv:doi>10.1234/example</arxiv:doi>
+    <arxiv:journal_ref>Journal of Legal Fetching</arxiv:journal_ref>
+  </entry>
+</feed>
+"""
 
 SAMPLE_OPENALEX: dict[str, object] = {
     "title": "Scalable watermarking",
@@ -114,7 +131,59 @@ def test_normalize_doi() -> None:
         == "10.1016/j.cell.2024.01.001"
     )
     assert normalize_doi("doi:10.1126/science.aea2535") == "10.1126/science.aea2535"
+    assert (
+        normalize_doi(
+            "https://www.biorxiv.org/content/10.1101/2024.01.02.123456v2.full"
+        )
+        == "10.1101/2024.01.02.123456"
+    )
     assert normalize_doi("no doi here") is None
+
+
+def test_normalize_arxiv_id() -> None:
+    assert normalize_arxiv_id("2401.12345") == "2401.12345"
+    assert normalize_arxiv_id("arXiv:hep-th/9901001v2") == "hep-th/9901001v2"
+    assert normalize_arxiv_id("https://arxiv.org/pdf/2401.12345.pdf") == "2401.12345"
+    assert normalize_arxiv_id("not an arxiv id") is None
+
+
+def test_parse_identifier_prefers_specific_kinds() -> None:
+    doi = parse_identifier("https://doi.org/10.1234/ABC")
+    assert doi is not None
+    assert doi.kind == "doi"
+    assert doi.value == "10.1234/abc"
+    assert doi.is_url
+    arxiv = parse_identifier("arXiv:2401.12345")
+    assert arxiv is not None
+    assert arxiv.kind == "arxiv"
+    assert arxiv.value == "2401.12345"
+    pmcid = parse_identifier("PMC1234567")
+    assert pmcid is not None
+    assert pmcid.kind == "pmcid"
+    assert parse_identifier("https://example.org/article") is not None
+    assert parse_identifier("not supported") is None
+
+
+def test_arxiv_meta_direct_url() -> None:
+    meta = arxiv_paper_meta("2401.12345")
+    assert meta.oa_pdf_url == "https://arxiv.org/pdf/2401.12345.pdf"
+    assert meta.landing_url == "https://arxiv.org/abs/2401.12345"
+    assert meta.oa_pdf_source == "arxiv"
+
+
+def test_resolve_arxiv_metadata(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(
+        "paperfetch_cli.resolve._get_text",
+        lambda _url, _accept: SAMPLE_ARXIV_ATOM,
+    )
+    meta = resolve_arxiv_metadata("2401.12345")
+    assert meta.arxiv_id == "2401.12345"
+    assert meta.doi == "10.1234/example"
+    assert meta.title == "Native identifiers for open access"
+    assert meta.authors == ("Ada Lovelace", "Alan Turing")
+    assert meta.journal == "Journal of Legal Fetching"
+    assert meta.year == 2024
+    assert meta.oa_pdf_url == "https://arxiv.org/pdf/2401.12345.pdf"
 
 
 def test_normalize_pmid_and_pmcid() -> None:
