@@ -1,18 +1,18 @@
 # paperfetch-cli
 
-On-demand fetcher for an academic paper's full text + PDF, from a DOI, PMID,
-PMCID, or publisher URL, using the host's institutional IP access. Built for
-human/agent invocation, not scheduled scraping.
+On-demand fetcher for an academic paper's full text + PDF, from a DOI, arXiv ID,
+PMID, PMCID, or publisher URL, using the host's institutional IP access. Built
+for human/agent invocation, not scheduled scraping.
 
-Working: metadata + open-access resolution through OpenAlex, Europe PMC / PMC
-OA, and configured Unpaywall, plus byte-level PDF download for arXiv, PMC,
-Nature, Cell, Science, and ScienceDirect/Elsevier - self-contained, no
-cookie/cache injection.
+Working: metadata + open-access resolution through OpenAlex, native arXiv,
+Europe PMC / PMC OA, and configured Unpaywall, plus byte-level PDF download for
+arXiv, PMC, Nature, Cell, Science, and ScienceDirect/Elsevier - self-contained,
+no cookie/cache injection.
 
 ## Commands
 
 ```
-paperfetch-cli get <doi|pmid|pmcid|url> [--pdf] [--md] [--html] [--out DIR]
+paperfetch-cli get <doi|arxiv|pmid|pmcid|url> [--pdf] [--md] [--html] [--out DIR]
                    [--json] [--unpaywall-email EMAIL]
 paperfetch-cli render <url> [--format md|html|text] [--links] [--json]
 paperfetch-cli grab <url> --out FILE [--expect MIME] [--from PAGE_URL]
@@ -21,16 +21,30 @@ paperfetch-cli setup [--profile-dir DIR] [--chromium PATH]
 ```
 
 `get` with no artifact flag prints a manifest (probe). `--pdf` tries legal
-open-access copies first (Europe PMC / PMC OA when available, then OpenAlex and
-configured direct Unpaywall metadata), then the institutional PDF through the
-browser. See `skills/SKILL.md` for the agent-facing reference.
+open-access copies first (native arXiv, Europe PMC / PMC OA when available, then
+OpenAlex and configured direct Unpaywall metadata), then the institutional PDF
+through the browser. See `skills/SKILL.md` for the agent-facing reference.
+
+Examples:
+
+```bash
+paperfetch-cli get arXiv:2401.12345 --pdf --out ./papers
+paperfetch-cli get hep-th/9901001 --json
+paperfetch-cli get PMID:12345678 --json
+paperfetch-cli get PMCID:PMC1234567 --pdf --out ./papers
+paperfetch-cli get 'https://www.biorxiv.org/content/10.1101/2024.01.02.123456v2.full' --pdf
+```
 
 ## How it works
 
-DOI, PMID, and PMCID inputs are checked against Europe PMC / PMC OA before the
-browser path. When those services expose a direct legal PDF, the CLI downloads it
-without rendering a publisher page; if that direct URL serves HTML, the browser
-fallback opens the cleaner Europe PMC/PMC landing instead of discarding that path.
+arXiv IDs (`2401.12345`, `arXiv:2401.12345`, old-style IDs when recognized)
+resolve to `https://arxiv.org/pdf/<id>.pdf` directly, with a single-record arXiv
+metadata lookup when possible. DOI, PMID, and PMCID inputs are checked against
+Europe PMC / PMC OA before the browser path. Common bioRxiv/medRxiv article URLs
+are normalized to their DOI. When OA services expose a direct legal PDF, the CLI
+downloads it without rendering a publisher page; if that direct URL serves HTML,
+the browser fallback opens the cleaner Europe PMC/PMC landing instead of
+discarding that path.
 
 A headful Chromium under Xvfb (Linux) clears Cloudflare where a headless browser
 gets a 403. The PDF is read with an in-page `fetch()` run from a same-origin

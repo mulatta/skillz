@@ -18,13 +18,16 @@ from paperfetch_cli.config import (
 )
 from paperfetch_cli.errors import EXIT_OK, EXIT_UNRESOLVED, EXIT_USAGE, CLIError
 from paperfetch_cli.main import build_parser, main
-from paperfetch_cli.resolve import PaperMeta
+from paperfetch_cli.resolve import PaperMeta, arxiv_paper_meta
 
 if TYPE_CHECKING:
     from pathlib import Path
 
 MINIMAL_INVOCATIONS = (
     ["get", "10.1016/j.cell.2024.01.001"],
+    ["get", "arXiv:2401.12345"],
+    ["get", "PMID:12345678"],
+    ["get", "PMC1234567"],
     ["render", "https://example.org/x"],
     ["grab", "https://example.org/x.pdf", "--out", "x.pdf"],
     ["setup"],
@@ -47,11 +50,24 @@ def test_no_command_prints_help_and_returns_usage(
     assert "paperfetch-cli" in captured.out
 
 
-def test_get_rejects_non_doi(capsys: pytest.CaptureFixture[str]) -> None:
+def test_get_rejects_non_identifier(capsys: pytest.CaptureFixture[str]) -> None:
     rc = main(["get", "not a doi"])
     captured = capsys.readouterr()
     assert rc == EXIT_USAGE
     assert "DOI" in captured.err
+
+
+def test_get_accepts_arxiv_identifier(
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    monkeypatch.setattr(main_mod, "resolve_arxiv_metadata", arxiv_paper_meta)
+    rc = main(["get", "arXiv:2401.12345", "--json"])
+    out = capsys.readouterr().out
+    assert rc == EXIT_OK
+    assert '"arxiv": "2401.12345"' in out
+    assert '"url": "https://arxiv.org/pdf/2401.12345.pdf"' in out
+    assert '"via": "arxiv"' in out
 
 
 def test_get_emits_manifest(

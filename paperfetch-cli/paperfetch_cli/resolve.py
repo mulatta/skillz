@@ -18,7 +18,10 @@ import urllib.parse
 import urllib.request
 from dataclasses import dataclass
 from html.parser import HTMLParser
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Literal
+from xml.etree.ElementTree import Element, ParseError
+
+from defusedxml import ElementTree
 
 from paperfetch_cli.errors import EXIT_FETCH, EXIT_UNRESOLVED, CLIError
 
@@ -26,6 +29,8 @@ if TYPE_CHECKING:
     from pathlib import Path
 
 _DOI_RE = re.compile(r"10\.\d{4,9}/\S+")
+_BIORXIV_HOSTS = ("biorxiv.org", "medrxiv.org")
+_ARXIV_API = "https://export.arxiv.org/api/query?id_list="
 _PMCID_RE = re.compile(r"\bPMC\d+\b", re.IGNORECASE)
 _PMID_MARKED_RE = re.compile(
     r"(?:\bPMID\s*:?\s*|pubmed\.ncbi\.nlm\.nih\.gov/|europepmc\.org/article/MED/)"
@@ -39,6 +44,15 @@ _UNPAYWALL = "https://api.unpaywall.org/v2/"
 _TIMEOUT = 20
 _UA = "paperfetch-cli (https://github.com/mulatta/skillz)"
 
+IdentifierKind = Literal["doi", "url", "arxiv", "pmid", "pmcid"]
+
+
+@dataclass(frozen=True)
+class ParsedIdentifier:
+    kind: IdentifierKind
+    value: str
+    is_url: bool = False
+
 
 @dataclass
 class PaperMeta:
@@ -51,15 +65,74 @@ class PaperMeta:
     landing_url: str | None = None
     pmid: str = ""
     pmcid: str = ""
+    arxiv_id: str = ""
     oa_pdf_source: str = "oa"
     oa_landing_url: str | None = None
 
 
+def _looks_like_url(value: str) -> bool:
+    return value.lower().startswith(("http://", "https://"))
+
+
+def _host_matches(host: str, domain: str) -> bool:
+    return host == domain or host.endswith(f".{domain}")
+
+
+def normalize_biorxiv_url_doi(value: str) -> str | None:
+    parsed = urllib.parse.urlparse(value.strip())
+    host = parsed.netloc.lower()
+    if not any(_host_matches(host, item) for item in _BIORXIV_HOSTS):
+        return None
+    match = re.search(r"/content/[^?#]*(10\.1101/[^/?#]+)", parsed.path)
+    if match is None:
+        return None
+    doi = urllib.parse.unquote(match.group(1))
+    for suffix in (
+        ".full.pdf",
+        ".full",
+        ".abstract",
+        ".article-info",
+        ".external-links",
+    ):
+        if doi.lower().endswith(suffix):
+            doi = doi[: -len(suffix)]
+    doi = re.sub(r"v\d+$", "", doi, flags=re.IGNORECASE)
+    return doi.rstrip(").,;>").lower()
+
+
 def normalize_doi(value: str) -> str | None:
+    biorxiv_doi = normalize_biorxiv_url_doi(value)
+    if biorxiv_doi is not None:
+        return biorxiv_doi
     match = _DOI_RE.search(value.strip())
     if match is None:
         return None
     return match.group(0).rstrip(").,;>").lower()
+
+
+_ARXIV_NEW_RE = re.compile(r"\d{4}\.\d{4,5}(?:v\d+)?", re.IGNORECASE)
+_ARXIV_OLD_RE = re.compile(
+    r"[a-z][a-z-]*(?:\.[A-Za-z]{2})?/\d{7}(?:v\d+)?",
+    re.IGNORECASE,
+)
+
+
+def normalize_arxiv_id(value: str) -> str | None:
+    target = value.strip()
+    parsed = urllib.parse.urlparse(target)
+    if parsed.scheme in {"http", "https"} and _host_matches(
+        parsed.netloc.lower(), "arxiv.org"
+    ):
+        parts = [urllib.parse.unquote(part) for part in parsed.path.split("/") if part]
+        if len(parts) >= 2 and parts[0] in {"abs", "pdf", "html"}:
+            target = "/".join(parts[1:])
+    if target.lower().startswith("arxiv:"):
+        target = target.split(":", 1)[1].strip()
+    if target.lower().endswith(".pdf"):
+        target = target[:-4]
+    if _ARXIV_NEW_RE.fullmatch(target) or _ARXIV_OLD_RE.fullmatch(target):
+        return target
+    return None
 
 
 def normalize_pmcid(value: str) -> str | None:
@@ -77,6 +150,26 @@ def normalize_pmid(value: str) -> str | None:
     if match is None:
         return None
     return match.group(1)
+
+
+def parse_identifier(value: str) -> ParsedIdentifier | None:
+    target = value.strip()
+    is_url = _looks_like_url(target)
+    doi = normalize_doi(target)
+    if doi is not None:
+        return ParsedIdentifier("doi", doi, is_url=is_url)
+    arxiv_id = normalize_arxiv_id(target)
+    if arxiv_id is not None:
+        return ParsedIdentifier("arxiv", arxiv_id, is_url=is_url)
+    pmcid = normalize_pmcid(target)
+    if pmcid is not None:
+        return ParsedIdentifier("pmcid", pmcid, is_url=is_url)
+    pmid = normalize_pmid(target)
+    if pmid is not None:
+        return ParsedIdentifier("pmid", pmid, is_url=is_url)
+    if is_url:
+        return ParsedIdentifier("url", target, is_url=True)
+    return None
 
 
 def _get_json(url: str, source: str = "metadata") -> dict[str, object]:
@@ -414,6 +507,7 @@ def _merge_metadata(primary: PaperMeta, fallback: PaperMeta) -> PaperMeta:
         landing_url=primary.landing_url or fallback.landing_url,
         pmid=primary.pmid or fallback.pmid,
         pmcid=primary.pmcid or fallback.pmcid,
+        arxiv_id=primary.arxiv_id or fallback.arxiv_id,
         oa_pdf_source=fallback.oa_pdf_source
         if use_fallback_pdf
         else primary.oa_pdf_source,
@@ -445,6 +539,59 @@ def resolve_metadata(doi: str, unpaywall_email: str | None = None) -> PaperMeta:
         raise openalex_error
     msg = "metadata lookup failed"
     raise CLIError(msg, EXIT_UNRESOLVED)
+
+
+def arxiv_paper_meta(arxiv_id: str) -> PaperMeta:
+    escaped = urllib.parse.quote(arxiv_id, safe="/.")
+    return PaperMeta(
+        doi="",
+        oa_pdf_url=f"https://arxiv.org/pdf/{escaped}.pdf",
+        landing_url=f"https://arxiv.org/abs/{escaped}",
+        arxiv_id=arxiv_id,
+        oa_pdf_source="arxiv",
+        oa_landing_url=f"https://arxiv.org/abs/{escaped}",
+    )
+
+
+_ATOM = "{http://www.w3.org/2005/Atom}"
+_ARXIV_ATOM = "{http://arxiv.org/schemas/atom}"
+
+
+def _xml_text(element: Element, name: str) -> str:
+    child = element.find(name)
+    if child is None or child.text is None:
+        return ""
+    return " ".join(child.text.split())
+
+
+def resolve_arxiv_metadata(arxiv_id: str) -> PaperMeta:
+    payload = _get_text(
+        _ARXIV_API + urllib.parse.quote(arxiv_id, safe="/"),
+        "application/atom+xml",
+    )
+    try:
+        root = ElementTree.fromstring(payload)
+    except ParseError as exc:
+        msg = f"metadata lookup failed: {exc}"
+        raise CLIError(msg, EXIT_UNRESOLVED) from exc
+    entry = root.find(f"{_ATOM}entry")
+    if entry is None:
+        msg = f"arXiv metadata not found for {arxiv_id}"
+        raise CLIError(msg, EXIT_UNRESOLVED)
+    authors = tuple(
+        name
+        for author in entry.findall(f"{_ATOM}author")
+        if (name := _xml_text(author, f"{_ATOM}name"))
+    )
+    published = _xml_text(entry, f"{_ATOM}published")
+    year = int(published[:4]) if re.fullmatch(r"\d{4}.*", published) else None
+    meta = arxiv_paper_meta(arxiv_id)
+    meta.doi = normalize_doi(_xml_text(entry, f"{_ARXIV_ATOM}doi")) or ""
+    meta.title = _xml_text(entry, f"{_ATOM}title")
+    meta.authors = authors
+    meta.journal = _xml_text(entry, f"{_ARXIV_ATOM}journal_ref")
+    meta.year = year
+    return meta
 
 
 _CITATION_PDF = (

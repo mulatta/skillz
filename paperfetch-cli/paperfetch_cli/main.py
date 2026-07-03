@@ -1,8 +1,8 @@
 """Command-line entry point.
 
-``get`` resolves a paper (metadata via OpenAlex, open-access PDF, then the
-institutional PDF / full text through the browser); ``render`` / ``grab`` are
-the low-level browser primitives; ``setup`` writes config. The browser engine is
+``get`` resolves native IDs / DOI metadata, tries legal OA PDFs, then falls
+back to institutional PDF / full text through the browser. ``render`` / ``grab``
+are low-level browser primitives; ``setup`` writes config. The browser engine is
 imported lazily so ``--help`` and argument parsing do not require patchright.
 """
 
@@ -30,14 +30,14 @@ from paperfetch_cli.errors import (
 )
 from paperfetch_cli.resolve import (
     PaperMeta,
+    arxiv_paper_meta,
     cellpress_article_url,
     citation_pdf_url,
     download_file,
-    normalize_doi,
-    normalize_pmcid,
-    normalize_pmid,
+    parse_identifier,
     pdf_candidates,
     publisher_pdf_url,
+    resolve_arxiv_metadata,
     resolve_europepmc,
     resolve_metadata,
     sciencedirect_pdf_url,
@@ -83,29 +83,37 @@ def _add_browser_options(parser: argparse.ArgumentParser) -> None:
 
 def cmd_get(args: argparse.Namespace) -> int:
     target = args.target.strip()
-    is_url = target.lower().startswith(("http://", "https://"))
-    doi = normalize_doi(target)
-    pmcid = normalize_pmcid(target)
-    pmid = normalize_pmid(target)
-    if doi is None and pmcid is None and pmid is None and not is_url:
-        msg = "input is neither a DOI, PMID, PMCID, nor an http(s) URL"
+    identifier = parse_identifier(target)
+    if identifier is None:
+        msg = "input is not a DOI, URL, arXiv ID, PMID, or PMCID"
         raise CLIError(msg, EXIT_USAGE)
+    if identifier.kind == "arxiv":
+        meta = arxiv_paper_meta(identifier.value)
+        with contextlib.suppress(CLIError):
+            meta = resolve_arxiv_metadata(identifier.value)
+        return _emit_get(args, meta, meta.landing_url)
+    if identifier.kind == "url":
+        meta = PaperMeta(doi="", landing_url=identifier.value)
+        return _emit_get(args, meta, identifier.value)
+
+    doi = identifier.value if identifier.kind == "doi" else None
+    pmcid = identifier.value if identifier.kind == "pmcid" else None
+    pmid = identifier.value if identifier.kind == "pmid" else None
     meta = PaperMeta(doi=doi or "", pmid=pmid or "", pmcid=pmcid or "")
     if doi is not None:
         with contextlib.suppress(CLIError):
             meta = resolve_metadata(doi, unpaywall_email_from_args(args))
-    if doi is not None or pmcid is not None or pmid is not None:
-        with contextlib.suppress(CLIError):
-            meta = _merge_meta(
-                meta,
-                resolve_europepmc(doi=doi, pmid=pmid, pmcid=pmcid),
-            )
+    with contextlib.suppress(CLIError):
+        meta = _merge_meta(
+            meta,
+            resolve_europepmc(doi=doi, pmid=pmid, pmcid=pmcid),
+        )
     # Prefer the doi.org resolver over OpenAlex's landing_page_url: it redirects
     # to the canonical publisher article page (cell.com, science.org, ...) where
     # citation_pdf_url / the per-publisher pattern apply, whereas OpenAlex may
     # point at an aggregator.
     landing = (
-        (target if is_url else None)
+        (target if identifier.is_url else None)
         or (f"https://doi.org/{doi}" if doi else None)
         or meta.landing_url
     )
@@ -124,12 +132,15 @@ def _merge_meta(base: PaperMeta, extra: PaperMeta) -> PaperMeta:
         landing_url=base.landing_url or extra.landing_url,
         pmid=base.pmid or extra.pmid,
         pmcid=base.pmcid or extra.pmcid,
+        arxiv_id=base.arxiv_id or extra.arxiv_id,
         oa_pdf_source=extra.oa_pdf_source if use_extra_pdf else base.oa_pdf_source,
         oa_landing_url=extra.oa_landing_url or base.oa_landing_url,
     )
 
 
 def _slug(meta: PaperMeta) -> str:
+    if meta.arxiv_id:
+        return "arxiv_" + meta.arxiv_id.replace("/", "_")
     if meta.doi:
         return meta.doi.replace("/", "_")
     return meta.pmcid or (f"PMID{meta.pmid}" if meta.pmid else "paper")
@@ -148,6 +159,8 @@ def _manifest(meta: PaperMeta) -> dict[str, object]:
         manifest["pmid"] = meta.pmid
     if meta.pmcid:
         manifest["pmcid"] = meta.pmcid
+    if meta.arxiv_id:
+        manifest["arxiv"] = meta.arxiv_id
     if meta.oa_pdf_url:
         manifest["pdf"] = {"url": meta.oa_pdf_url, "via": meta.oa_pdf_source}
     return manifest
@@ -283,6 +296,7 @@ def _print_human(manifest: dict[str, object], *, to_stderr: bool = False) -> Non
     print(f"  doi: {manifest.get('doi')}", file=stream)
     _print_optional_line(manifest, "pmid", stream)
     _print_optional_line(manifest, "pmcid", stream)
+    _print_optional_line(manifest, "arxiv", stream)
     if manifest.get("journal"):
         print(
             f"  journal: {manifest.get('journal')} ({manifest.get('year')})",
@@ -387,9 +401,9 @@ def cmd_setup(args: argparse.Namespace) -> int:
 
 def _build_get(sub: argparse._SubParsersAction[argparse.ArgumentParser]) -> None:
     parser = sub.add_parser(
-        "get", help="resolve a paper's artifacts from a URL, DOI, PMID, or PMCID"
+        "get", help="resolve a paper's artifacts from a URL, DOI, or native ID"
     )
-    parser.add_argument("target", metavar="URL|DOI|PMID|PMCID")
+    parser.add_argument("target", metavar="URL|DOI|ID")
     parser.add_argument(
         "--md",
         action="store_true",
@@ -468,7 +482,7 @@ def _build_grab(sub: argparse._SubParsersAction[argparse.ArgumentParser]) -> Non
 
 def _build_setup(sub: argparse._SubParsersAction[argparse.ArgumentParser]) -> None:
     parser = sub.add_parser(
-        "setup", help="write configuration (profile dir, chromium path)"
+        "setup", help="write configuration (profile dir, chromium path, OA email)"
     )
     parser.add_argument("--profile-dir", metavar="DIR")
     parser.add_argument("--chromium", metavar="PATH")

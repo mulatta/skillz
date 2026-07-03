@@ -7,7 +7,7 @@ name = "paperfetch-cli"
 version = "0.1.0"
 description = "On-demand academic paper full-text and PDF fetcher"
 requires-python = ">=3.12"
-dependencies = []
+dependencies = ["defusedxml"]
 
 [project.scripts]
 paperfetch-cli = "paperfetch_cli.main:main"
@@ -19,6 +19,6 @@ packages = ["paperfetch_cli"]
 strict = true
 
 [[tool.mypy.overrides]]
-module = ["patchright.*", "pyvirtualdisplay.*", "markdownify.*", "pytest"]
+module = ["patchright.*", "pyvirtualdisplay.*", "markdownify.*", "pytest", "defusedxml.*"]
 ignore_missing_imports = true
 implicit_reexport = true
