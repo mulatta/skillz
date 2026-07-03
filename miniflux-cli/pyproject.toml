@@ -18,10 +18,10 @@ packages = ["miniflux_cli"]
 
 [tool.ruff]
 line-length = 100
-target-version = "py313"
+target-version = "py312"
 
 [tool.mypy]
-python_version = "3.13"
+python_version = "3.12"
 warn_return_any = true
 warn_unused_configs = true
 strict = true

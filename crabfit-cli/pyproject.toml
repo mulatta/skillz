@@ -6,6 +6,7 @@ build-backend = "hatchling.build"
 name = "crabfit-cli"
 version = "0.1.0"
 description = "CLI for creating and managing Crab.fit scheduling events"
+requires-python = ">=3.12"
 
 [project.scripts]
 crabfit-cli = "crabfit_cli:main"
@@ -14,7 +15,7 @@ crabfit-cli = "crabfit_cli:main"
 packages = ["crabfit_cli.py"]
 
 [tool.ruff]
-target-version = "py313"
+target-version = "py312"
 line-length = 100
 
 [tool.ruff.lint]
@@ -27,5 +28,5 @@ ignore = [
 ]
 
 [tool.mypy]
-python_version = "3.13"
+python_version = "3.12"
 strict = true
