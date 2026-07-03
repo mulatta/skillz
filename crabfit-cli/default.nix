@@ -13,9 +13,17 @@ python3Packages.buildPythonApplication {
 
   build-system = [ python3Packages.hatchling ];
 
+  nativeCheckInputs = [
+    python3Packages.mypy
+    python3Packages.ruff
+  ];
+
   checkPhase = ''
     runHook preCheck
-    python -m unittest discover -s $src/tests
+    ruff format --check crabfit_cli.py tests
+    ruff check crabfit_cli.py tests
+    mypy crabfit_cli.py tests
+    python -m unittest discover -s tests
     runHook postCheck
   '';
 
