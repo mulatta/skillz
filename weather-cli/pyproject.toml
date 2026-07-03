@@ -14,3 +14,34 @@ weather-cli = "weather_cli.main:main"
 
 [tool.hatch.build.targets.wheel]
 packages = ["weather_cli"]
+
+[tool.ruff]
+line-length = 88
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["ALL"]
+ignore = [
+  "ARG001",
+  "ARG002",
+  "COM812",
+  "D",
+  "E501",
+  "ERA001",
+  "FBT001",
+  "FBT002",
+  "FIX",
+  "G004",
+  "INP001",
+  "ISC001",
+  "PLR2004",
+  "S101",
+  "S603",
+  "S607",
+  "T201",
+  "TD",
+]
+
+[tool.mypy]
+python_version = "3.12"
+strict = true

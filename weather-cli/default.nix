@@ -19,13 +19,16 @@ python3Packages.buildPythonApplication {
   '';
 
   nativeCheckInputs = [
+    python3Packages.mypy
     python3Packages.pytestCheckHook
     python3Packages.ruff
   ];
 
   checkPhase = ''
     runHook preCheck
+    ruff format --check weather_cli tests
     ruff check weather_cli tests
+    mypy weather_cli tests
     pytest tests
     runHook postCheck
   '';
