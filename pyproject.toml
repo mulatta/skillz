@@ -33,6 +33,28 @@ lint.ignore = [
   "E501",    # line too long
   "T201",    # `print` found
   "PLR2004", # Magic value used in comparison
+  "B905",    # zip without strict
+  "C901",    # complex functions
+  "EM101",   # string literal in exception
+  "EM102",   # f-string in exception
+  "EXE001",  # shebang on non-executable checked source
+  "PLR0911", # Too many return statements
+  "PLR0913", # Too many arguments
+  "PLR0915", # Too many statements
+  "PYI041",  # int | float annotation
+  "RUF007",  # Prefer pairwise
+  "RUF100",  # Unused noqa from package-local lint baselines
+  "TC001",   # Move application imports into TYPE_CHECKING
+  "TC002",   # Move third-party imports into TYPE_CHECKING
+  "TC003",   # Move standard-library imports into TYPE_CHECKING
+  "TRY003",  # Long exception messages
+  "UP022",   # Prefer capture_output
+]
+
+[tool.ruff.lint.per-file-ignores]
+"*/tests/*.py" = [
+  "ARG002",
+  "INP001",
 ]
 
 [tool.mypy]
