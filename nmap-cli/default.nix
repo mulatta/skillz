@@ -19,9 +19,19 @@ python3Packages.buildPythonApplication {
   '';
 
   nativeCheckInputs = with python3Packages; [
+    mypy
     pytestCheckHook
     ruff
   ];
+
+  checkPhase = ''
+    runHook preCheck
+    ruff format --check nmap_cli.py tests
+    ruff check nmap_cli.py tests
+    mypy nmap_cli.py tests
+    pytest tests
+    runHook postCheck
+  '';
 
   meta = {
     description = "Use NAVER Cloud Maps APIs from the command line";
