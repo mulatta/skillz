@@ -6,6 +6,10 @@
   patchright,
   xvfb,
   chromium,
+  dejavu_fonts,
+  liberation_ttf,
+  makeFontsConf,
+  noto-fonts,
 }:
 
 let
@@ -14,6 +18,13 @@ let
   chromeForTesting = callPackage ./chromium-cft.nix { };
   defaultChromium =
     if stdenv.hostPlatform.isLinux then lib.getExe chromium else lib.getExe chromeForTesting;
+  fontsConf = makeFontsConf {
+    fontDirectories = [
+      dejavu_fonts
+      liberation_ttf
+      noto-fonts
+    ];
+  };
 in
 python3Packages.buildPythonApplication {
   pname = "paperfetch-cli";
@@ -40,6 +51,9 @@ python3Packages.buildPythonApplication {
       "PATH"
       ":"
       (lib.makeBinPath [ xvfb ])
+      "--set"
+      "FONTCONFIG_FILE"
+      fontsConf
     ]
     ++ [
       "--set"
