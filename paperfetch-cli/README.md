@@ -96,6 +96,24 @@ a host without Xvfb (macOS) the headful browser is visible and Cloudflare does
 not auto-clear, so a one-time warmed `--profile` (solve the challenge by hand in
 `render`, then reuse) is needed for ScienceDirect.
 
+## Live tests
+
+Normal package checks do not hit the network. Opt into source-by-source live
+coverage with environment variables:
+
+```bash
+PAPERFETCH_LIVE=1 pytest tests/test_live_e2e.py
+PAPERFETCH_LIVE_BROWSER=1 pytest tests/test_live_e2e.py
+PAPERFETCH_LIVE_UNPAYWALL_EMAIL=you@example.org PAPERFETCH_LIVE=1 pytest tests/test_live_e2e.py
+```
+
+ScienceDirect is gated separately because macOS visible Chrome often stops at
+Cloudflare's interactive "Are you a robot" prompt; run it only on Linux/Xvfb:
+
+```bash
+PAPERFETCH_LIVE_BROWSER=1 PAPERFETCH_LIVE_SCIENCEDIRECT=1 pytest tests/test_live_e2e.py
+```
+
 ## Boundaries
 
 This CLI only fetches one paper. Rich literature search (`biorefs-cli`) and
