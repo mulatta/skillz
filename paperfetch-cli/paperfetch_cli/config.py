@@ -14,6 +14,8 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING
 
+from paperfetch_cli.errors import CLIError
+
 if TYPE_CHECKING:
     import argparse
 
@@ -55,7 +57,11 @@ def load_file_config() -> dict[str, object]:
     path = config_path()
     if not path.is_file():
         return {}
-    loaded: object = json.loads(path.read_text())
+    try:
+        loaded: object = json.loads(path.read_text())
+    except json.JSONDecodeError as exc:
+        msg = f"invalid config JSON at {path}: {exc}"
+        raise CLIError(msg) from exc
     return loaded if isinstance(loaded, dict) else {}
 
 

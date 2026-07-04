@@ -9,7 +9,6 @@ imported lazily so ``--help`` and argument parsing do not require patchright.
 from __future__ import annotations
 
 import argparse
-import contextlib
 import json
 import sys
 from pathlib import Path
@@ -91,10 +90,13 @@ def cmd_get(args: argparse.Namespace) -> int:
         msg = "input is not a DOI, URL, arXiv ID, PMID, or PMCID"
         raise CLIError(msg, EXIT_USAGE)
     if identifier.kind == "arxiv":
+        arxiv_warnings: list[str] = []
         meta = arxiv_paper_meta(identifier.value)
-        with contextlib.suppress(CLIError):
+        try:
             meta = resolve_arxiv_metadata(identifier.value)
-        return _emit_get(args, meta, meta.landing_url)
+        except CLIError as exc:
+            arxiv_warnings.append(str(exc))
+        return _emit_get(args, meta, meta.landing_url, warnings=arxiv_warnings)
     if identifier.kind == "url":
         meta = PaperMeta(doi="", landing_url=identifier.value)
         return _emit_get(args, meta, identifier.value)
@@ -102,15 +104,20 @@ def cmd_get(args: argparse.Namespace) -> int:
     doi = identifier.value if identifier.kind == "doi" else None
     pmcid = identifier.value if identifier.kind == "pmcid" else None
     pmid = identifier.value if identifier.kind == "pmid" else None
+    warnings: list[str] = []
     meta = PaperMeta(doi=doi or "", pmid=pmid or "", pmcid=pmcid or "")
     if doi is not None:
-        with contextlib.suppress(CLIError):
+        try:
             meta = resolve_metadata(doi, unpaywall_email_from_args(args))
-    with contextlib.suppress(CLIError):
+        except CLIError as exc:
+            warnings.append(str(exc))
+    try:
         meta = _merge_meta(
             meta,
             resolve_europepmc(doi=doi, pmid=pmid, pmcid=pmcid),
         )
+    except CLIError as exc:
+        warnings.append(str(exc))
     # Prefer the doi.org resolver over OpenAlex's landing_page_url: it redirects
     # to the canonical publisher article page (cell.com, science.org, ...) where
     # citation_pdf_url / the per-publisher pattern apply, whereas OpenAlex may
@@ -120,7 +127,7 @@ def cmd_get(args: argparse.Namespace) -> int:
         or (f"https://doi.org/{doi}" if doi else None)
         or meta.landing_url
     )
-    return _emit_get(args, meta, landing)
+    return _emit_get(args, meta, landing, warnings=warnings)
 
 
 def _merge_meta(base: PaperMeta, extra: PaperMeta) -> PaperMeta:
@@ -169,9 +176,15 @@ def _manifest(meta: PaperMeta) -> dict[str, object]:
     return manifest
 
 
-def _emit_get(args: argparse.Namespace, meta: PaperMeta, landing: str | None) -> int:
+def _emit_get(
+    args: argparse.Namespace,
+    meta: PaperMeta,
+    landing: str | None,
+    *,
+    warnings: list[str] | None = None,
+) -> int:
     manifest = _manifest(meta)
-    warnings: list[str] = []
+    warnings = [] if warnings is None else warnings
     rc = EXIT_OK
     # Open-access PDF first - no browser, no publisher hit.
     pdf_done = False
@@ -184,8 +197,8 @@ def _emit_get(args: argparse.Namespace, meta: PaperMeta, landing: str | None) ->
             # OA direct download is a best-effort fast path. If a Europe PMC /
             # PMC URL failed as HTML, keep that legal landing in the browser path
             # instead of falling back to doi.org and losing the cleaner source.
+            warnings.append(str(exc))
             if meta.oa_pdf_source in {"europepmc", "pmc_oa"}:
-                warnings.append(str(exc))
                 landing = meta.oa_landing_url or meta.landing_url or landing
         else:
             manifest["pdf"] = {

@@ -83,32 +83,37 @@ def test_get_rejects_markdown_json_stdout_mix(
     assert "cannot combine --json with --md" in captured.err
 
 
-def test_get_emits_manifest(
+def test_get_reports_suppressed_metadata_failures(
     monkeypatch: pytest.MonkeyPatch,
     capsys: pytest.CaptureFixture[str],
 ) -> None:
-    meta = PaperMeta(
-        doi="10.1234/abc",
-        title="A Paper",
-        authors=("Ada L",),
-        journal="J",
-        year=2024,
-        oa_pdf_url="https://example.org/x.pdf",
-    )
-    monkeypatch.setattr(main_mod, "resolve_metadata", lambda _doi, _email=None: meta)
-    monkeypatch.setattr(
-        main_mod,
-        "resolve_europepmc",
-        lambda **_kwargs: PaperMeta(doi="10.1234/abc"),
-    )
+    def fail_metadata(_doi: str, _email: str | None = None) -> PaperMeta:
+        msg = "OpenAlex lookup failed"
+        raise CLIError(msg, EXIT_UNRESOLVED)
+
+    def fail_europepmc(**_kwargs: object) -> PaperMeta:
+        msg = "Europe PMC lookup found no matching record"
+        raise CLIError(msg, EXIT_UNRESOLVED)
+
+    monkeypatch.setattr(main_mod, "resolve_metadata", fail_metadata)
+    monkeypatch.setattr(main_mod, "resolve_europepmc", fail_europepmc)
     rc = main(["get", "10.1234/abc", "--json"])
     out = capsys.readouterr().out
     assert rc == EXIT_OK
-    assert '"doi": "10.1234/abc"' in out
-    assert '"via": "oa"' in out
+    assert "OpenAlex lookup failed" in out
+    assert "Europe PMC lookup found no matching record" in out
 
 
-def test_get_accepts_pmcid_and_uses_europepmc_metadata(
+@pytest.mark.parametrize(
+    ("target", "expected"),
+    [
+        ("PMID:17375194", '"pmid": "17375194"'),
+        ("PMC1817623", '"pmcid": "PMC1817623"'),
+    ],
+)
+def test_get_accepts_pubmed_identifiers(
+    target: str,
+    expected: str,
     monkeypatch: pytest.MonkeyPatch,
     capsys: pytest.CaptureFixture[str],
 ) -> None:
@@ -167,25 +172,20 @@ def test_get_keeps_europepmc_landing_when_direct_pdf_returns_html(
 
     monkeypatch.setattr(main_mod, "download_file", fail_download)
     monkeypatch.setattr(main_mod, "_browser_get", fake_browser_get)
-    rc = main(["get", "10.1371/journal.pone.0000308", "--pdf", "--out", str(tmp_path)])
-    capsys.readouterr()
-    assert rc == EXIT_OK
-    assert seen["landing"] == "https://europepmc.org/articles/PMC1817623"
-
-
-def test_get_accepts_pmid(
-    monkeypatch: pytest.MonkeyPatch,
-    capsys: pytest.CaptureFixture[str],
-) -> None:
-    monkeypatch.setattr(
-        main_mod,
-        "resolve_europepmc",
-        lambda **_kwargs: PaperMeta(title="PMID Paper", pmid="17375194", doi=""),
+    rc = main(
+        [
+            "get",
+            "10.1371/journal.pone.0000308",
+            "--pdf",
+            "--json",
+            "--out",
+            str(tmp_path),
+        ]
     )
-    rc = main(["get", "PMID:17375194", "--json"])
     out = capsys.readouterr().out
     assert rc == EXIT_OK
-    assert '"pmid": "17375194"' in out
+    assert seen["landing"] == "https://europepmc.org/articles/PMC1817623"
+    assert "OA link returned an HTML page" in out
 
 
 def test_parse_headers_round_trip() -> None:
@@ -219,6 +219,17 @@ def test_setup_writes_config(
         "chromium": "/c",
         "unpaywall_email": "dev@example.org",
     }
+
+
+def test_load_file_config_reports_corrupt_json(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path))
+    config_path().parent.mkdir(parents=True)
+    config_path().write_text("not-json")
+    with pytest.raises(CLIError, match="invalid config JSON"):
+        load_file_config()
 
 
 def test_unpaywall_email_priority(
