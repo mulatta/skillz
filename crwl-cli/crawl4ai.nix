@@ -52,6 +52,12 @@
 }:
 
 let
+  nltkNoCheck = nltk.overridePythonAttrs (_old: {
+    # The NLTK test suite imports tkinter on Darwin, but crawl4ai only needs the
+    # runtime package and does not exercise NLTK's GUI-adjacent test fixture.
+    doCheck = false;
+  });
+
   # Combined browsers: playwright (chromium-1200) + patchright (chromium-1208)
   # so both PlaywrightAdapter and UndetectedAdapter find their chromium.
   browsers = symlinkJoin {
@@ -106,7 +112,7 @@ buildPythonPackage (finalAttrs: {
     pyopenssl
     psutil
     pyyaml
-    nltk
+    nltkNoCheck
     rich
     cssselect
     httpx
@@ -124,7 +130,7 @@ buildPythonPackage (finalAttrs: {
     pdf = [ pypdf ];
     torch = [
       torch
-      nltk
+      nltkNoCheck
       scikit-learn
     ];
     transformer = [
@@ -135,7 +141,7 @@ buildPythonPackage (finalAttrs: {
     cosine = [
       torch
       transformers
-      nltk
+      nltkNoCheck
       sentence-transformers
     ];
     sync = [ selenium ];
