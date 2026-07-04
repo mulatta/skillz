@@ -58,6 +58,8 @@ def _is_challenge(title: str, html: str) -> bool:
 _LAUNCH_ARGS = [
     "--no-sandbox",
     "--disable-setuid-sandbox",
+    "--disable-dev-shm-usage",
+    "--disable-gpu",
     "--disable-blink-features=AutomationControlled",
     "--ignore-certificate-errors",
 ]
@@ -221,42 +223,62 @@ class Browser:
         wait_for: str | None = None,
         wait_ms: int | None = None,
     ) -> PageResult:
-        page = self._ctx.new_page()
-        try:
-            resp = page.goto(
-                url,
-                timeout=self._cfg.timeout * 1000,
-                wait_until="domcontentloaded",
-            )
-            if wait_for:
-                with contextlib.suppress(Exception):
-                    page.wait_for_selector(wait_for, timeout=self._cfg.timeout * 1000)
-            page.wait_for_timeout(_DEFAULT_SETTLE_MS if wait_ms is None else wait_ms)
-            title, html, links = self._page_snapshot(page)
-            challenged = _is_challenge(title, html)
-            attempts = 0
-            while challenged and attempts < _CHALLENGE_TRIES:
-                # Wait for the JS challenge to set cf_clearance, then reload to
-                # load the real page with it.
-                page.wait_for_timeout(_CHALLENGE_WAIT_MS)
-                with contextlib.suppress(PlaywrightError):
-                    page.reload(
-                        timeout=self._cfg.timeout * 1000, wait_until="domcontentloaded"
-                    )
+        last: CLIError | PlaywrightError | None = None
+        for _ in range(_NAV_TRIES):
+            try:
+                page = self._ctx.new_page()
+            except PlaywrightError as exc:
+                last = exc
+                break
+            try:
+                resp = page.goto(
+                    url,
+                    timeout=self._cfg.timeout * 1000,
+                    wait_until="domcontentloaded",
+                )
+                if wait_for:
+                    with contextlib.suppress(PlaywrightError):
+                        page.wait_for_selector(
+                            wait_for, timeout=self._cfg.timeout * 1000
+                        )
+                page.wait_for_timeout(
+                    _DEFAULT_SETTLE_MS if wait_ms is None else wait_ms
+                )
                 title, html, links = self._page_snapshot(page)
                 challenged = _is_challenge(title, html)
-                attempts += 1
-            status = int(resp.status) if resp is not None else 0
-            return PageResult(
-                url=str(page.url),
-                status=status,
-                title=title,
-                html=html,
-                links=[str(link) for link in links],
-                challenged=challenged,
-            )
-        finally:
-            page.close()
+                attempts = 0
+                while challenged and attempts < _CHALLENGE_TRIES:
+                    # Wait for the JS challenge to set cf_clearance, then reload to
+                    # load the real page with it.
+                    page.wait_for_timeout(_CHALLENGE_WAIT_MS)
+                    with contextlib.suppress(PlaywrightError):
+                        page.reload(
+                            timeout=self._cfg.timeout * 1000,
+                            wait_until="domcontentloaded",
+                        )
+                    title, html, links = self._page_snapshot(page)
+                    challenged = _is_challenge(title, html)
+                    attempts += 1
+                status = int(resp.status) if resp is not None else 0
+                return PageResult(
+                    url=str(page.url),
+                    status=status,
+                    title=title,
+                    html=html,
+                    links=[str(link) for link in links],
+                    challenged=challenged,
+                )
+            except CLIError as exc:
+                last = exc
+            except PlaywrightError as exc:
+                last = exc
+                with contextlib.suppress(PlaywrightError):
+                    page.wait_for_timeout(1500)
+            finally:
+                with contextlib.suppress(PlaywrightError):
+                    page.close()
+        msg = f"could not render page: {last}"
+        raise CLIError(msg, EXIT_FETCH)
 
     def _page_snapshot(self, page: Any) -> tuple[str, str, list[str]]:  # noqa: ANN401
         # Cloudflare and publisher pages can continue redirecting after
@@ -273,7 +295,8 @@ class Browser:
                 return title, html, [str(link) for link in links]
             except PlaywrightError as exc:
                 last = exc
-                page.wait_for_timeout(1500)
+                with contextlib.suppress(PlaywrightError):
+                    page.wait_for_timeout(1500)
         msg = f"could not read rendered page: {last}"
         raise CLIError(msg, EXIT_FETCH)
 

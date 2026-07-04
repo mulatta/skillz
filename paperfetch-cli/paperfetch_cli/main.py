@@ -22,6 +22,7 @@ from paperfetch_cli.config import (
     unpaywall_email_from_args,
 )
 from paperfetch_cli.errors import (
+    EXIT_FETCH,
     EXIT_OK,
     EXIT_UNRESOLVED,
     EXIT_USAGE,
@@ -237,27 +238,39 @@ def _browser_get(
 
     out_dir = Path(args.out)
     out_dir.mkdir(parents=True, exist_ok=True)
-    md_text: str | None = None
-    rc = EXIT_OK
-    with Browser(browser_config_from_args(args)) as browser:
-        page = browser.render(landing)
-        # A Cell DOI lands on Elsevier; the article is also on cell.com (same
-        # PII) where the PDF is reachable - re-render there.
-        cell_url = cellpress_article_url(page.url)
-        if cell_url is not None and cell_url != page.url:
-            page = browser.render(cell_url)
-        if page.challenged:
-            warnings.append("Cloudflare challenge did not clear")
-        if args.html:
-            dest = out_dir / (_slug(meta) + ".html")
-            dest.write_text(page.html, encoding="utf-8")
-            manifest["html_path"] = str(dest)
-        if args.md:
-            md_text = _render_content("md", page.html)
-            manifest["fulltext"] = {"chars": len(md_text)}
-        if args.pdf:
-            rc = _browser_pdf(args, meta, manifest, browser, page, warnings, out_dir)
-    return md_text, rc
+    last_error: CLIError | None = None
+    for _ in range(3):
+        md_text: str | None = None
+        rc = EXIT_OK
+        with Browser(browser_config_from_args(args)) as browser:
+            try:
+                page = browser.render(landing)
+                # A Cell DOI lands on Elsevier; the article is also on cell.com (same
+                # PII) where the PDF is reachable - re-render there.
+                cell_url = cellpress_article_url(page.url)
+                if cell_url is not None and cell_url != page.url:
+                    page = browser.render(cell_url)
+            except CLIError as exc:
+                last_error = exc
+                continue
+            if page.challenged:
+                warnings.append("Cloudflare challenge did not clear")
+            if args.html:
+                dest = out_dir / (_slug(meta) + ".html")
+                dest.write_text(page.html, encoding="utf-8")
+                manifest["html_path"] = str(dest)
+            if args.md:
+                md_text = _render_content("md", page.html)
+                manifest["fulltext"] = {"chars": len(md_text)}
+            if args.pdf:
+                rc = _browser_pdf(
+                    args, meta, manifest, browser, page, warnings, out_dir
+                )
+        return md_text, rc
+    if last_error is not None:
+        warnings.append(str(last_error))
+        return None, last_error.exit_code
+    return None, EXIT_FETCH
 
 
 def _browser_pdf(  # noqa: PLR0913
