@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Self
+from email.message import Message
+from typing import TYPE_CHECKING, Any, Self, cast
+from urllib.error import HTTPError
 
 import pytest
 
@@ -413,3 +415,30 @@ def test_download_file_rejects_non_pdf_bytes(
     with pytest.raises(CLIError, match="not a PDF"):
         download_file("https://example.org/paper.pdf", dest)
     assert not dest.exists()
+
+
+def test_download_file_falls_back_to_deprecated_pmc_mirror(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    dest = tmp_path / "pmc.pdf"
+    seen: list[str] = []
+
+    def fake_urlopen(request: object, timeout: int) -> FakeResponse:
+        assert timeout > 0
+        url = cast("Any", request).full_url
+        seen.append(url)
+        if "/deprecated/" not in url:
+            raise HTTPError(url, 404, "Not Found", Message(), None)
+        return FakeResponse(b"%PDF-body", "application/pdf")
+
+    monkeypatch.setattr("paperfetch_cli.resolve.urllib.request.urlopen", fake_urlopen)
+    download_file(
+        "https://ftp.ncbi.nlm.nih.gov/pub/pmc/oa_pdf/8f/84/example.pdf",
+        dest,
+    )
+    assert seen == [
+        "https://ftp.ncbi.nlm.nih.gov/pub/pmc/oa_pdf/8f/84/example.pdf",
+        "https://ftp.ncbi.nlm.nih.gov/pub/pmc/deprecated/oa_pdf/8f/84/example.pdf",
+    ]
+    assert dest.read_bytes() == b"%PDF-body"

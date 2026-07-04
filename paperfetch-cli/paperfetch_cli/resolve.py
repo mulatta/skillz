@@ -402,6 +402,13 @@ def _https_ftp_ncbi(url: str) -> str:
     return url
 
 
+def _deprecated_pmc_url(url: str) -> str | None:
+    prefix = "https://ftp.ncbi.nlm.nih.gov/pub/pmc/"
+    if url.startswith(prefix) and not url.startswith(prefix + "deprecated/"):
+        return prefix + "deprecated/" + url.removeprefix(prefix)
+    return None
+
+
 def parse_pmc_oa_pdf(xml_text: str) -> str | None:
     parser = _PmcOaParser()
     parser.feed(xml_text)
@@ -695,24 +702,41 @@ def pdf_candidates(links: list[str]) -> list[str]:
     return out
 
 
-def download_file(url: str, dest: Path) -> None:
+def _download_pdf_once(url: str, dest: Path) -> None:
     request = urllib.request.Request(url, headers={"User-Agent": _UA})  # noqa: S310
-    try:
-        with urllib.request.urlopen(request, timeout=_TIMEOUT) as response:  # noqa: S310
-            ctype = response.headers.get("content-type", "").lower()
-            if "html" in ctype:
-                msg = (
-                    f"OA link returned an HTML page, not a PDF "
-                    f"(likely bot-blocked): {url}"
-                )
-                raise CLIError(msg, EXIT_UNRESOLVED)
-            prefix = response.read(5)
-            if prefix != b"%PDF-":
-                msg = f"OA link returned bytes that are not a PDF: {url}"
-                raise CLIError(msg, EXIT_UNRESOLVED)
-            with dest.open("wb") as handle:
-                handle.write(prefix)
-                shutil.copyfileobj(response, handle)
-    except (urllib.error.URLError, TimeoutError) as exc:
-        msg = f"download failed: {exc}"
-        raise CLIError(msg, EXIT_FETCH) from exc
+    with urllib.request.urlopen(request, timeout=_TIMEOUT) as response:  # noqa: S310
+        ctype = response.headers.get("content-type", "").lower()
+        if "html" in ctype:
+            msg = (
+                f"OA link returned an HTML page, not a PDF (likely bot-blocked): {url}"
+            )
+            raise CLIError(msg, EXIT_UNRESOLVED)
+        prefix = response.read(5)
+        if prefix != b"%PDF-":
+            msg = f"OA link returned bytes that are not a PDF: {url}"
+            raise CLIError(msg, EXIT_UNRESOLVED)
+        with dest.open("wb") as handle:
+            handle.write(prefix)
+            shutil.copyfileobj(response, handle)
+
+
+def download_file(url: str, dest: Path) -> None:
+    candidates = [url]
+    if deprecated := _deprecated_pmc_url(url):
+        candidates.append(deprecated)
+    last_error: urllib.error.URLError | TimeoutError | None = None
+    for candidate in candidates:
+        try:
+            _download_pdf_once(candidate, dest)
+        except urllib.error.HTTPError as exc:
+            last_error = exc
+            if exc.code == 404 and candidate != candidates[-1]:
+                continue
+            break
+        except (urllib.error.URLError, TimeoutError) as exc:
+            last_error = exc
+            break
+        else:
+            return
+    msg = f"download failed: {last_error}"
+    raise CLIError(msg, EXIT_FETCH) from last_error

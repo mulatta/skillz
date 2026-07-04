@@ -232,8 +232,7 @@ class Browser:
                 with contextlib.suppress(Exception):
                     page.wait_for_selector(wait_for, timeout=self._cfg.timeout * 1000)
             page.wait_for_timeout(_DEFAULT_SETTLE_MS if wait_ms is None else wait_ms)
-            title = str(page.title())
-            html = str(page.content())
+            title, html, links = self._page_snapshot(page)
             challenged = _is_challenge(title, html)
             attempts = 0
             while challenged and attempts < _CHALLENGE_TRIES:
@@ -244,11 +243,9 @@ class Browser:
                     page.reload(
                         timeout=self._cfg.timeout * 1000, wait_until="domcontentloaded"
                     )
-                title = str(page.title())
-                html = str(page.content())
+                title, html, links = self._page_snapshot(page)
                 challenged = _is_challenge(title, html)
                 attempts += 1
-            links = page.eval_on_selector_all("a[href]", "els => els.map(e => e.href)")
             status = int(resp.status) if resp is not None else 0
             return PageResult(
                 url=str(page.url),
@@ -260,6 +257,25 @@ class Browser:
             )
         finally:
             page.close()
+
+    def _page_snapshot(self, page: Any) -> tuple[str, str, list[str]]:  # noqa: ANN401
+        # Cloudflare and publisher pages can continue redirecting after
+        # domcontentloaded. Retrying avoids surfacing Playwright's transient
+        # "execution context was destroyed" as a failed fetch.
+        last: PlaywrightError | None = None
+        for _ in range(3):
+            try:
+                title = str(page.title())
+                html = str(page.content())
+                links = page.eval_on_selector_all(
+                    "a[href]", "els => els.map(e => e.href)"
+                )
+                return title, html, [str(link) for link in links]
+            except PlaywrightError as exc:
+                last = exc
+                page.wait_for_timeout(1500)
+        msg = f"could not read rendered page: {last}"
+        raise CLIError(msg, EXIT_FETCH)
 
     def fetch_bytes(
         self,
