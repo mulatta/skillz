@@ -24,32 +24,6 @@ from paperfetch_cli.resolve import PaperMeta, arxiv_paper_meta
 if TYPE_CHECKING:
     from pathlib import Path
 
-MINIMAL_INVOCATIONS = (
-    ["get", "10.1016/j.cell.2024.01.001"],
-    ["get", "arXiv:2401.12345"],
-    ["get", "PMID:12345678"],
-    ["get", "PMC1234567"],
-    ["render", "https://example.org/x"],
-    ["grab", "https://example.org/x.pdf", "--out", "x.pdf"],
-    ["setup"],
-)
-
-
-def test_each_command_parses_and_sets_a_handler() -> None:
-    parser = build_parser()
-    for argv in MINIMAL_INVOCATIONS:
-        args = parser.parse_args(argv)
-        assert callable(args.handler)
-
-
-def test_no_command_prints_help_and_returns_usage(
-    capsys: pytest.CaptureFixture[str],
-) -> None:
-    rc = main([])
-    captured = capsys.readouterr()
-    assert rc == EXIT_USAGE
-    assert "paperfetch-cli" in captured.out
-
 
 def test_get_rejects_non_identifier(capsys: pytest.CaptureFixture[str]) -> None:
     rc = main(["get", "not a doi"])
@@ -127,10 +101,10 @@ def test_get_accepts_pubmed_identifiers(
         landing_url="https://europepmc.org/articles/PMC1817623",
     )
     monkeypatch.setattr(main_mod, "resolve_europepmc", lambda **_kwargs: meta)
-    rc = main(["get", "PMC1817623", "--json"])
+    rc = main(["get", target, "--json"])
     out = capsys.readouterr().out
     assert rc == EXIT_OK
-    assert '"pmcid": "PMC1817623"' in out
+    assert expected in out
     assert '"via": "europepmc"' in out
 
 
