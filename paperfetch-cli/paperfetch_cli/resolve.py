@@ -624,10 +624,18 @@ def citation_pdf_url(html: str) -> str | None:
 
 def publisher_pdf_url(page_url: str) -> str | None:
     """Per-publisher PDF URL for sites that omit the citation_pdf_url meta."""
-    if "cell.com" in page_url and "/fulltext/" in page_url:
-        return page_url.replace("/fulltext/", "/pdf/") + ".pdf"
-    if "science.org/doi/" in page_url:
-        return re.sub(r"/doi/(full/|abs/)?", "/doi/pdf/", page_url, count=1)
+    parsed = urllib.parse.urlsplit(page_url)
+    host = parsed.netloc.lower()
+    if _host_matches(host, "cell.com") and "/fulltext/" in parsed.path:
+        return urllib.parse.urlunsplit(
+            parsed._replace(path=parsed.path.replace("/fulltext/", "/pdf/") + ".pdf")
+        )
+    if _host_matches(host, "science.org") and parsed.path.startswith("/doi/"):
+        return urllib.parse.urlunsplit(
+            parsed._replace(
+                path=re.sub(r"/doi/(full/|abs/)?", "/doi/pdf/", parsed.path, count=1)
+            )
+        )
     return None
 
 
@@ -635,23 +643,37 @@ def publisher_pdf_url(page_url: str) -> str | None:
 # than a citation_pdf_url meta. The article page carries pdfDownload.urlMetadata
 # with the per-session md5/pid, so the link is reconstructable from the rendered
 # HTML (same approach as Zotero's translator) - no extra token call needed.
-_SD_URLMETA = re.compile(
-    r'"urlMetadata"\s*:\s*\{'
-    r'\s*"queryParams"\s*:\s*\{\s*"md5"\s*:\s*"([0-9a-f]+)"\s*,'
-    r'\s*"pid"\s*:\s*"([^"]+)"\s*\}\s*,'
-    r'\s*"pii"\s*:\s*"([^"]+)"\s*,'
-    r'\s*"pdfExtension"\s*:\s*"([^"]+)"\s*,'
-    r'\s*"path"\s*:\s*"([^"]+)"',
-    re.IGNORECASE,
-)
+_SD_PDF_DOWNLOAD = re.compile(r'"pdfDownload"\s*:', re.IGNORECASE)
+
+
+def _json_object_after(html: str, start: int) -> dict[str, object] | None:
+    opener = html.find("{", start)
+    if opener < 0:
+        return None
+    try:
+        value, _end = json.JSONDecoder().raw_decode(html[opener:])
+    except json.JSONDecodeError:
+        return None
+    return value if isinstance(value, dict) else None
 
 
 def sciencedirect_pdf_url(html: str, base_url: str) -> str | None:
     """Reconstruct the ScienceDirect PDF URL from the page's pdfDownload JSON."""
-    match = _SD_URLMETA.search(html)
+    match = _SD_PDF_DOWNLOAD.search(html)
     if match is None:
         return None
-    md5, pid, pii, ext, path = match.groups()
+    pdf_download = _json_object_after(html, match.end())
+    if pdf_download is None:
+        return None
+    metadata = _dict(pdf_download.get("urlMetadata"))
+    query_params = _dict(metadata.get("queryParams"))
+    md5 = _str(query_params.get("md5"))
+    pid = _str(query_params.get("pid"))
+    pii = _str(metadata.get("pii"))
+    ext = _str(metadata.get("pdfExtension"))
+    path = _str(metadata.get("path"))
+    if not all((md5, pid, pii, ext, path)):
+        return None
     query = urllib.parse.urlencode({"md5": md5, "pid": pid})
     return urllib.parse.urljoin(base_url, f"/{path}/{pii}{ext}?{query}")
 
@@ -679,7 +701,10 @@ _SD_PII = re.compile(r"/pii/(S\d{16})", re.IGNORECASE)
 
 def cellpress_article_url(url: str) -> str | None:
     """cell.com article URL for an Elsevier/ScienceDirect Cell Press PII URL."""
-    if "elsevier.com" not in url and "sciencedirect.com" not in url:
+    host = urllib.parse.urlsplit(url).netloc.lower()
+    if not (
+        _host_matches(host, "elsevier.com") or _host_matches(host, "sciencedirect.com")
+    ):
         return None
     match = _SD_PII.search(url)
     if match is None:

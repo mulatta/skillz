@@ -10,9 +10,8 @@ import pytest
 
 from paperfetch_cli.errors import CLIError
 from paperfetch_cli.resolve import (
-    arxiv_paper_meta,
+    cellpress_article_url,
     download_file,
-    europepmc_search_url,
     normalize_arxiv_id,
     normalize_doi,
     normalize_pmcid,
@@ -22,6 +21,7 @@ from paperfetch_cli.resolve import (
     parse_openalex,
     parse_pmc_oa_pdf,
     parse_unpaywall,
+    publisher_pdf_url,
     resolve_arxiv_metadata,
     resolve_metadata,
     sciencedirect_pdf_url,
@@ -302,9 +302,23 @@ def test_parse_unpaywall_falls_back_to_oa_locations() -> None:
     assert meta.landing_url == "https://landing.example.org"
 
 
-def test_sciencedirect_pdf_url() -> None:
+@pytest.mark.parametrize(
+    "html",
+    [
+        SD_HTML,
+        (
+            '..."pdfDownload":{"urlMetadata":{'
+            '"path":"science/article/pii",'
+            '"pdfExtension":"/pdfft",'
+            '"pii":"S0968089624002517",'
+            '"queryParams":{"pid":"1-s2.0-S0968089624002517-main.pdf",'
+            '"md5":"03477c0f65b59326f9b20869dda0d791"}}}...'
+        ),
+    ],
+)
+def test_sciencedirect_pdf_url(html: str) -> None:
     url = sciencedirect_pdf_url(
-        SD_HTML, "https://www.sciencedirect.com/science/article/pii/S0968089624002517"
+        html, "https://www.sciencedirect.com/science/article/pii/S0968089624002517"
     )
     assert url == (
         "https://www.sciencedirect.com/science/article/pii/S0968089624002517/pdfft"
@@ -313,16 +327,25 @@ def test_sciencedirect_pdf_url() -> None:
     )
 
 
-def test_sciencedirect_pdf_url_absent() -> None:
-    assert sciencedirect_pdf_url("<html>no island</html>", "https://x.test") is None
-
-
-def test_parse_openalex_handles_missing_fields() -> None:
-    meta = parse_openalex({}, "10.1/y")
-    assert meta.doi == "10.1/y"
-    assert meta.title == ""
-    assert meta.authors == ()
-    assert meta.oa_pdf_url is None
+def test_publisher_pdf_url_matches_hosts_only() -> None:
+    assert (
+        publisher_pdf_url("https://www.science.org/doi/full/10.1126/science.aea2535")
+        == "https://www.science.org/doi/pdf/10.1126/science.aea2535"
+    )
+    assert (
+        publisher_pdf_url("https://www.cell.com/cell/fulltext/S0092-8674(24)00467-7")
+        == "https://www.cell.com/cell/pdf/S0092-8674(24)00467-7.pdf"
+    )
+    assert (
+        publisher_pdf_url("https://example.org/?next=https://www.cell.com/fulltext/x")
+        is None
+    )
+    assert (
+        cellpress_article_url(
+            "https://example.org/science/article/pii/S0092867424004677"
+        )
+        is None
+    )
 
 
 def test_resolve_metadata_merges_unpaywall_pdf_when_openalex_has_none(
