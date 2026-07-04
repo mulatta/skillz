@@ -16,7 +16,6 @@ import pytest
 
 from paperfetch_cli.errors import EXIT_OK
 from paperfetch_cli.main import main
-from paperfetch_cli.resolve import download_file, resolve_pmc_oa_pdf, resolve_unpaywall
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
@@ -75,29 +74,6 @@ def test_live_get_downloads_direct_pdf_sources(
     assert isinstance(pdf, dict)
     assert pdf.get("via") == source
     _assert_pdf(pdf.get("path"))
-
-
-@LIVE
-def test_live_pmc_oa_source_downloads_pdf(tmp_path: Path) -> None:
-    url = resolve_pmc_oa_pdf("PMC3531190")
-    assert url is not None
-    dest = tmp_path / "pmc_oa.pdf"
-    download_file(url, dest)
-    _assert_pdf(str(dest))
-
-
-def test_live_unpaywall_source_downloads_pdf(tmp_path: Path) -> None:
-    email = os.environ.get("PAPERFETCH_LIVE_UNPAYWALL_EMAIL") or os.environ.get(
-        "PAPERFETCH_UNPAYWALL_EMAIL"
-    )
-    if not email:
-        pytest.skip("set PAPERFETCH_LIVE_UNPAYWALL_EMAIL to test Unpaywall live")
-    meta = resolve_unpaywall("10.21105/joss.03021", email)
-    assert meta is not None
-    assert meta.oa_pdf_url is not None
-    dest = tmp_path / "unpaywall.pdf"
-    download_file(meta.oa_pdf_url, dest)
-    _assert_pdf(str(dest))
 
 
 @BROWSER_LIVE

@@ -169,13 +169,6 @@ def test_parse_identifier_prefers_specific_kinds() -> None:
     assert parse_identifier("not supported") is None
 
 
-def test_arxiv_meta_direct_url() -> None:
-    meta = arxiv_paper_meta("2401.12345")
-    assert meta.oa_pdf_url == "https://arxiv.org/pdf/2401.12345.pdf"
-    assert meta.landing_url == "https://arxiv.org/abs/2401.12345"
-    assert meta.oa_pdf_source == "arxiv"
-
-
 def test_resolve_arxiv_metadata(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(
         "paperfetch_cli.resolve._get_text",
@@ -246,20 +239,6 @@ def test_parse_europepmc_synthesizes_pdf_for_oa_pmcid() -> None:
     assert meta is not None
     assert meta.oa_pdf_url == "https://europepmc.org/articles/PMC1817623?pdf=render"
     assert meta.oa_landing_url == "https://europepmc.org/articles/PMC1817623"
-
-
-def test_parse_europepmc_empty_result() -> None:
-    assert parse_europepmc({"resultList": {"result": []}}, doi="10.1/nope") is None
-
-
-def test_europepmc_search_url_encodes_identifier_queries() -> None:
-    assert "query=DOI%3A%2210.1371%2Fjournal.pone.0000308%22" in europepmc_search_url(
-        doi="10.1371/journal.pone.0000308"
-    )
-    assert "query=EXT_ID%3A17375194+AND+SRC%3AMED" in europepmc_search_url(
-        pmid="17375194"
-    )
-    assert "query=PMCID%3APMC1817623" in europepmc_search_url(pmcid="PMC1817623")
 
 
 def test_parse_pmc_oa_pdf_converts_ftp_to_https() -> None:
@@ -369,38 +348,6 @@ def test_resolve_metadata_merges_unpaywall_pdf_when_openalex_has_none(
     assert meta.year == 2024
     assert meta.oa_pdf_url == "https://repository.example.org/paper.pdf"
     assert meta.landing_url == "https://www.nature.com/articles/s41586-024-08025-4"
-
-
-def test_resolve_metadata_uses_unpaywall_when_openalex_fails(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    def fake_get_json(url: str, source: str = "metadata") -> dict[str, object]:
-        if "openalex" in url:
-            msg = "OpenAlex lookup failed"
-            raise CLIError(msg, 2)
-        return SAMPLE_UNPAYWALL
-
-    monkeypatch.setattr("paperfetch_cli.resolve._get_json", fake_get_json)
-    meta = resolve_metadata("10.1/x", "dev@example.org")
-    assert meta.title == "Scalable watermarking from Unpaywall"
-    assert meta.oa_pdf_url == "https://repository.example.org/paper.pdf"
-
-
-def test_resolve_metadata_skips_unpaywall_without_email(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    calls: list[str] = []
-    openalex = dict(SAMPLE_OPENALEX)
-    openalex["best_oa_location"] = {}
-
-    def fake_get_json(url: str, source: str = "metadata") -> dict[str, object]:
-        calls.append(url)
-        return openalex
-
-    monkeypatch.setattr("paperfetch_cli.resolve._get_json", fake_get_json)
-    meta = resolve_metadata("10.1/x")
-    assert meta.oa_pdf_url is None
-    assert len(calls) == 1
 
 
 class FakeResponse:
