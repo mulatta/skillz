@@ -31,6 +31,7 @@ skillz/
 - `nmap-cli` - use NAVER Cloud Maps APIs
 - `n8n-cli` - inspect and manage n8n workflows/API objects
 - `pexpect-cli` - automate interactive terminal applications
+- `pymol-cli` - control PyMOL XML-RPC sessions and structure views
 - `shortcuts-cli` - build and run Apple Shortcuts from Cherri on macOS
 - `vikunja-cli` - manage Vikunja tasks, projects, and kanban buckets
 - `weather-cli` - get Korean weather from KMA APIs
