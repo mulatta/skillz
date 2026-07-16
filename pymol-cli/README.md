@@ -8,6 +8,7 @@ PyMOL must be started with remote control enabled (`-R`):
 pymol-cli launch --script show.pml
 pymol-cli status
 pymol-cli load structure.cif --object protein
+pymol-cli load https://example.org/model.cif --object protein --allow-url
 pymol-cli do 'bg_color white'
 pymol-cli render view.png --ray
 pymol-cli script edits.pml

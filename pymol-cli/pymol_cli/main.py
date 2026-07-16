@@ -19,6 +19,7 @@ DEFAULT_HOST = "localhost"
 DEFAULT_PORT = 9123
 TOKEN_RE = re.compile(r"^[A-Za-z0-9_.:-]+$")
 RESI_RE = re.compile(r"^[A-Za-z0-9_.:+,-]+$")
+URL_RE = re.compile(r"^[A-Za-z][A-Za-z0-9+.-]*://")
 
 
 class CLIError(Exception):
@@ -49,6 +50,10 @@ def split_csv(value: str) -> list[str]:
     return parts
 
 
+def is_url(value: str) -> bool:
+    return bool(URL_RE.match(value))
+
+
 def server_url(host: str, port: int) -> str:
     return f"http://{host}:{port}/RPC2"
 
@@ -63,14 +68,88 @@ def read_pml(path: str) -> list[str]:
     return [line.rstrip() for line in text.splitlines() if line.strip()]
 
 
+def connection_error(host: str, port: int, exc: OSError) -> CLIError:
+    return CLIError(f"cannot connect to {server_url(host, port)}: {exc}")
+
+
 def execute_commands(
     commands: Iterable[str], host: str, port: int, timeout: float
 ) -> list[Any]:
     server = make_server(host, port, timeout)
     results: list[Any] = []
-    for command in commands:
-        results.append(server.do(command))
+    try:
+        for command in commands:
+            results.append(server.do(command))
+    except OSError as exc:
+        raise connection_error(host, port, exc) from exc
     return results
+
+
+def resolve_ligand_chains(
+    counts: dict[str, int], *, strict: bool, ligand: str
+) -> tuple[list[str], list[str]]:
+    present = [chain for chain, count in counts.items() if count > 0]
+    missing = [chain for chain, count in counts.items() if count == 0]
+    if not present or (strict and missing):
+        missing_text = ",".join(missing)
+        raise CLIError(f"ligand {ligand} not found in chains: {missing_text}")
+    return present, missing
+
+
+def validate_ligand_chains(
+    *,
+    object_name: str,
+    ligand: str,
+    chains: Sequence[str],
+    host: str,
+    port: int,
+    timeout: float,
+    strict: bool,
+) -> tuple[list[str], list[str]]:
+    server = make_server(host, port, timeout)
+    counts: dict[str, int] = {}
+    try:
+        for chain in chains:
+            selection = f"({object_name} and chain {chain} and resn {ligand})"
+            counts[chain] = cast(int, server.count_atoms(selection))
+    except OSError as exc:
+        raise connection_error(host, port, exc) from exc
+    return resolve_ligand_chains(counts, strict=strict, ligand=ligand)
+
+
+def split_mark_residues(value: str) -> list[str]:
+    return [residue for residue in re.split(r"[,+]", value) if residue]
+
+
+def require_mark_residues(counts: dict[str, int]) -> None:
+    missing = [residue for residue, count in counts.items() if count == 0]
+    if missing:
+        raise CLIError(f"marked residues not found: {','.join(missing)}")
+
+
+def validate_mark_residues(
+    *,
+    object_name: str,
+    marks: dict[str, str],
+    chains: Sequence[str],
+    host: str,
+    port: int,
+    timeout: float,
+) -> None:
+    server = make_server(host, port, timeout)
+    counts: dict[str, int] = {}
+    try:
+        for chain in chains:
+            for residue in split_mark_residues(marks.get(chain, "")):
+                selection = f"({object_name} and chain {chain} and resi {residue})"
+                counts[f"{chain}:{residue}"] = cast(int, server.count_atoms(selection))
+    except OSError as exc:
+        raise connection_error(host, port, exc) from exc
+    require_mark_residues(counts)
+
+
+def warn(message: str) -> None:
+    print(f"pymol-cli: warning: {message}", file=sys.stderr)
 
 
 def parse_mapping(
@@ -118,12 +197,15 @@ def generate_load_pml(
     color: str | None,
     orient: bool,
     zoom_buffer: float,
+    allow_url: bool,
 ) -> list[str]:
     validate_token(object_name, "object")
     if color is not None:
         validate_token(color, "color")
     if zoom_buffer < 0:
         raise CLIError("zoom buffer must be non-negative")
+    if is_url(path) and not allow_url:
+        raise CLIError("remote load URLs require --allow-url")
     lines = [f"load {pml_quote(path)}, {object_name}"]
     if style != "none":
         lines.append(f"hide everything, {object_name}")
@@ -163,10 +245,15 @@ def generate_ligand_pocket_pml(
     grid: bool,
     scene: str | None,
     disable_source: bool,
+    cleanup_chains: Sequence[str] | None = None,
 ) -> list[str]:
     validate_token(object_name, "object")
     validate_token(ligand, "ligand")
     validated_chains = [validate_token(chain, "chain") for chain in chains]
+    cleanup_source = validated_chains if cleanup_chains is None else cleanup_chains
+    validated_cleanup_chains = [
+        validate_token(chain, "cleanup chain") for chain in cleanup_source
+    ]
     for color in colors.values():
         validate_token(color, "color")
     for residues in marks.values():
@@ -180,7 +267,10 @@ def generate_ligand_pocket_pml(
     pocket_union = selection_union(pocket_names)
     mark_names = [f"mark_{chain}" for chain in validated_chains if chain in marks]
     mark_union = selection_union(mark_names)
-    cleanup = [*sites, *pocket_names, *mark_names, "pocket_all"]
+    cleanup_sites = chain_objects(validated_cleanup_chains)
+    cleanup_pockets = [f"pocket_{chain}" for chain in validated_cleanup_chains]
+    cleanup_marks = [f"mark_{chain}" for chain in validated_cleanup_chains]
+    cleanup = [*cleanup_sites, *cleanup_pockets, *cleanup_marks, "pocket_all"]
 
     lines = [f"delete {selection_union(cleanup)}"]
     if grid:
@@ -332,7 +422,10 @@ def cmd_script(ns: argparse.Namespace) -> None:
 
 def cmd_count(ns: argparse.Namespace) -> None:
     server = make_server(ns.host, ns.port, ns.timeout)
-    count = server.count_atoms(ns.selection)
+    try:
+        count = server.count_atoms(ns.selection)
+    except OSError as exc:
+        raise connection_error(ns.host, ns.port, exc) from exc
     emit(
         {"selection": ns.selection, "count": count} if ns.json else count,
         use_json=ns.json,
@@ -347,6 +440,7 @@ def cmd_load(ns: argparse.Namespace) -> None:
         color=ns.color,
         orient=not ns.no_orient,
         zoom_buffer=ns.zoom_buffer,
+        allow_url=ns.allow_url,
     )
     output_path = write_pml(ns.output, commands) if ns.output else None
     if ns.dry_run:
@@ -419,16 +513,43 @@ def cmd_launch(ns: argparse.Namespace) -> None:
 
 def cmd_ligand_pocket(ns: argparse.Namespace) -> None:
     chains = split_csv(ns.chains)
+    requested_chains = chains
+    colors = parse_mapping(ns.color)
+    marks = parse_mapping(ns.mark, allow_residues=True)
+    if ns.send and not ns.no_validate:
+        chains, missing = validate_ligand_chains(
+            object_name=ns.object,
+            ligand=ns.ligand,
+            chains=chains,
+            host=ns.host,
+            port=ns.port,
+            timeout=ns.timeout,
+            strict=ns.strict_chains,
+        )
+        if missing:
+            warn(
+                f"ligand {ns.ligand} missing from chains {','.join(missing)}; "
+                "skipping those chains"
+            )
+        validate_mark_residues(
+            object_name=ns.object,
+            marks=marks,
+            chains=chains,
+            host=ns.host,
+            port=ns.port,
+            timeout=ns.timeout,
+        )
     commands = generate_ligand_pocket_pml(
         object_name=ns.object,
         ligand=ns.ligand,
         chains=chains,
         distance=ns.distance,
-        colors=parse_mapping(ns.color),
-        marks=parse_mapping(ns.mark, allow_residues=True),
+        colors=colors,
+        marks=marks,
         grid=ns.grid,
         scene=ns.scene,
         disable_source=not ns.keep_source,
+        cleanup_chains=requested_chains,
     )
     output_path = write_pml(ns.output, commands) if ns.output else None
     if ns.send:
@@ -495,6 +616,7 @@ def build_parser() -> argparse.ArgumentParser:
     load.add_argument("--color")
     load.add_argument("--no-orient", action="store_true")
     load.add_argument("--zoom-buffer", type=float, default=8.0)
+    load.add_argument("--allow-url", action="store_true")
     load.add_argument("--output")
     load.add_argument("--dry-run", action="store_true")
     load.set_defaults(func=cmd_load)
@@ -532,6 +654,9 @@ def build_parser() -> argparse.ArgumentParser:
     pocket.add_argument("--scene")
     pocket.add_argument("--keep-source", action="store_true")
     pocket.add_argument("--output")
+    validation = pocket.add_mutually_exclusive_group()
+    validation.add_argument("--no-validate", action="store_true")
+    validation.add_argument("--strict-chains", action="store_true")
     pocket.add_argument("--send", action="store_true")
     pocket.set_defaults(func=cmd_ligand_pocket)
 

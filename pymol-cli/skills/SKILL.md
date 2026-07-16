@@ -29,6 +29,7 @@ pymol-cli status -j
 # Load a structure with basic styling
 pymol-cli load structure.cif --object protein
 pymol-cli load structure.cif --object protein --style sticks --output load_view.pml
+pymol-cli load https://example.org/model.cif --object protein --allow-url
 
 # Send commands
 pymol-cli do 'bg_color white' 'zoom all, 5'
@@ -105,7 +106,7 @@ orient hb
 zoom hb, 8
 ```
 
-For common load-and-style cases, use `load` instead:
+For common load-and-style cases, use `load` instead. Local files are the default; URL loads require `--allow-url` so remote fetches are explicit.
 
 ```bash
 pymol-cli load structures/4hhb_assembly1.cif --object hb --style cartoon --color gray70
@@ -119,7 +120,7 @@ pymol-cli script view.pml
 
 ## Workflow: ligand pocket view
 
-Use `ligand-pocket` when user asks to show ligand-binding residues, binding site, pocket, or residues near ligand.
+Use `ligand-pocket` when user asks to show ligand-binding residues, binding site, pocket, or residues near ligand. Before `--send`, it checks ligand atoms per requested chain and every `--mark` residue. Partial ligand occupancy warns and skips missing chains; complete absence or missing marked residues fails before restyling.
 
 - `--object`: loaded PyMOL object, e.g. `hb`.
 - `--ligand`: residue name, e.g. `HEM`, `ATP`, `NAD`.
@@ -130,6 +131,8 @@ Use `ligand-pocket` when user asks to show ligand-binding residues, binding site
 - `--grid`: show each chain/object in separate grid panel.
 - `--scene NAME`: store PyMOL scene after view is built.
 - `--output FILE`: save generated PML for replay/review.
+- `--strict-chains`: fail instead of skipping when ligand is absent from any requested chain.
+- `--no-validate`: skip ligand and marked-residue preflight for structures whose unusual naming makes normal PyMOL selections inaccurate.
 - `--send`: execute immediately; without it, print PML or output path.
 
 For hemoglobin heme pockets:
