@@ -43,3 +43,7 @@ nix build .#drawio-cli
 ```
 
 The updater builds an unchecked candidate only for review. It rejects incomplete factories, failed or remote resources, and missing canaries before changing the committed baseline.
+
+## Licenses
+
+Original repository code is MIT licensed. Adapted material and generated draw.io data retain the terms listed in `THIRD_PARTY_NOTICES.md` and `licenses/`.

@@ -15,6 +15,7 @@
   context7-cli = { };
   crabfit-cli = { };
   crwl-cli = { };
+  drawio-cli = { };
   gmaps-cli = { };
   kmap-cli = { };
   linkwarden-cli = { };
