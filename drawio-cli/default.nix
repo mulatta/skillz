@@ -24,11 +24,12 @@ stdenvNoCC.mkDerivation {
   installPhase = ''
     runHook preInstall
 
-    mkdir -p $out/libexec/drawio-cli $out/bin $out/share/drawio-cli $out/share/doc/drawio-cli
+    mkdir -p $out/libexec/drawio-cli $out/bin $out/share/drawio-cli $out/share/skills $out/share/doc/drawio-cli
     cp -r src/drawio_cli $out/libexec/drawio-cli/
     cp ${drawioShapeIndex}/share/drawio-cli/shape-index.json.gz $out/share/drawio-cli/shape-index.json.gz
     cp ${drawioShapeIndex}/share/drawio-cli/index-manifest.json $out/share/drawio-cli/index-manifest.json
-    cp README.md $out/share/doc/drawio-cli/
+    cp -r skills/drawio-cli $out/share/skills/drawio-cli
+    cp README.md THIRD_PARTY_NOTICES.md $out/share/doc/drawio-cli/
     cp ${../LICENSE} $out/share/doc/drawio-cli/LICENSE
     cp -r licenses $out/share/doc/drawio-cli/licenses
 
