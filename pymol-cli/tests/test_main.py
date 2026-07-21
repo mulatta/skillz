@@ -27,12 +27,24 @@ def test_parse_mapping_rejects_missing_colon() -> None:
 
 def test_launch_command_adds_remote_before_script() -> None:
     command = build_launch_command(
-        "nix run nixpkgs#pymol --",
+        "pymol",
         remote=True,
+        headless=False,
         script="show.pml",
         extra_args=["--", "-q"],
     )
-    assert command == ["nix", "run", "nixpkgs#pymol", "--", "-R", "-q", "show.pml"]
+    assert command == ["pymol", "-R", "-q", "show.pml"]
+
+
+def test_launch_command_adds_headless_flags() -> None:
+    command = build_launch_command(
+        "pymol",
+        remote=True,
+        headless=True,
+        script=None,
+        extra_args=[],
+    )
+    assert command == ["pymol", "-R", "-cq"]
 
 
 def test_load_generates_basic_cartoon_view() -> None:

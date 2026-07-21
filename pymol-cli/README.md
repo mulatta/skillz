@@ -2,10 +2,11 @@
 
 Agent-oriented helper for PyMOL XML-RPC sessions and repeatable structure views.
 
-PyMOL must be started with remote control enabled (`-R`):
+`pymol-cli launch` starts the packaged PyMOL with remote control enabled (`-R`):
 
 ```bash
 pymol-cli launch --script show.pml
+pymol-cli launch --headless --script render.pml
 pymol-cli status
 pymol-cli load structure.cif --object protein
 pymol-cli load https://example.org/model.cif --object protein --allow-url

@@ -1,5 +1,6 @@
 {
   lib,
+  pymol,
   python3Packages,
   pueue,
 }:
@@ -15,6 +16,16 @@ python3Packages.buildPythonApplication {
   build-system = [ python3Packages.hatchling ];
 
   dependencies = [ ];
+
+  makeWrapperArgs = [
+    "--prefix"
+    "PATH"
+    ":"
+    (lib.makeBinPath [
+      pueue
+      pymol
+    ])
+  ];
 
   nativeCheckInputs = [
     python3Packages.mypy
