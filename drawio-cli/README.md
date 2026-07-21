@@ -13,8 +13,9 @@ Offline, file-first draw.io authoring helper for agents.
 - `drawio-cli search-shapes "aws lambda" --json`
 - `drawio-cli layout graph.json --output diagram.drawio`
 - `drawio-cli render diagram.drawio --format png --output diagram.png`
+- `drawio-cli open diagram.drawio` (GUI sessions only; alias `handoff`)
 
-Legacy names `pages`, `page-get`, `page-replace`, and `shapes` remain aliases. Commands with structured status support both `-j` and `--json`; data is written to stdout and diagnostics to stderr.
+Legacy names `pages`, `page-get`, `page-replace`, `shapes`, and `handoff` remain aliases. Commands with structured status support both `-j` and `--json`; data is written to stdout and diagnostics to stderr.
 
 ## Exit codes
 
@@ -28,7 +29,7 @@ The packaged shape index is generated offline from nixpkgs `pkgs.drawio.src`, st
 
 ## Rendering
 
-Rendering uses nixpkgs `drawio-headless` by default. On macOS this still launches draw.io's Electron app and may access Keychain, so `render` refuses to run unless `--allow-darwin-render` is passed after user approval. Prefer Linux/Xvfb for automated rendering.
+Rendering uses nixpkgs `drawio-headless` by default. On macOS this still launches draw.io's Electron app and may access Keychain. `render` preserves the real `HOME` on Darwin so Electron can find the login Keychain. Prefer Linux/Xvfb for automated rendering when desktop integration is unreliable.
 
 ## Shape index maintenance
 

@@ -110,7 +110,9 @@ On macOS, draw.io export launches Electron and may access the user's draw.io pro
 
 ## Desktop ownership recovery
 
-After handing a file to Desktop:
+Use Desktop handoff only in a GUI session. The `drawio-cli open FILE` command checks the environment and refuses headless sessions automatically. On macOS it invokes the `drawio` executable directly, not the macOS `open` command.
+
+After handing a file to Desktop with `drawio-cli open FILE`:
 
 1. Stop agent writes.
 1. Ask the user to save and close Desktop.

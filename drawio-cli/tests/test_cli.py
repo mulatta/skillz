@@ -24,6 +24,8 @@ FIXTURES = Path(__file__).parent / "fixtures"
             "0" * 64,
         ],
         ["search-shapes", "lambda"],
+        ["open", "diagram.drawio"],
+        ["handoff", "diagram.drawio"],
         ["pages", "diagram.drawio"],
         ["page-get", "diagram.drawio"],
         [

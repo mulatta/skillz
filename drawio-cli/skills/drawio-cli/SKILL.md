@@ -77,7 +77,7 @@ On macOS, `render` launches draw.io Desktop/Electron directly. If export fails b
 - Validate the final source and inspect the final render.
 - Return the `.drawio` plus requested PNG/SVG/PDF exports.
 - State which file is source of truth.
-- If the user opens the file in Desktop, relinquish agent ownership until they save and close it.
+- Use Desktop handoff only in a GUI session. Run `drawio-cli open FILE` (alias `handoff`); the command refuses headless sessions, and the agent must relinquish ownership until the user saves and closes it. On macOS this invokes the `drawio` executable directly, not the macOS `open` command.
 - Do not promise live co-edit, unsaved Desktop recovery, browser editing, importers, or automatic composite-template insertion; this skill does not provide them.
 
 ## Command summary
@@ -90,6 +90,7 @@ drawio-cli validate FILE --strict --json
 drawio-cli search-shapes "aws lambda" --kind vertex --json
 drawio-cli layout graph.json --output diagram.drawio --direction LR
 drawio-cli render diagram.drawio --format png --output diagram.png
+drawio-cli open diagram.drawio
 ```
 
 ## References
