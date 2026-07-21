@@ -11,6 +11,7 @@ from typing import Any
 
 from . import __version__, xmlsafe
 from .atomic import same_file
+from .desktop import handoff_to_desktop
 from .document import DrawioDocument, DrawioError, Sha256Conflict, element_to_text
 from .layout import layout_graph
 from .render import render_diagram
@@ -210,6 +211,15 @@ def _cmd_render(ns: argparse.Namespace) -> int:
     return EXIT_OK
 
 
+def _cmd_open(ns: argparse.Namespace) -> int:
+    handoff_to_desktop(Path(ns.file), drawio=ns.drawio)
+    print(
+        "Opened in draw.io Desktop. Stop agent edits until the file is saved and closed.",
+        file=sys.stderr,
+    )
+    return EXIT_OK
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="drawio-cli",
@@ -324,6 +334,18 @@ def build_parser() -> argparse.ArgumentParser:
     )
     _json_arg(layout)
     layout.set_defaults(func=_cmd_layout)
+
+    open_cmd = sub.add_parser(
+        "open",
+        aliases=["handoff"],
+        help="open a draw.io file in Desktop",
+        description="Launch draw.io Desktop with a local .drawio file. On macOS this uses the drawio command, not the macOS open command.",
+    )
+    open_cmd.add_argument("file", metavar="FILE", help="draw.io source document")
+    open_cmd.add_argument(
+        "--drawio", metavar="PATH", help="override draw.io executable for diagnostics"
+    )
+    open_cmd.set_defaults(func=_cmd_open)
 
     render = sub.add_parser(
         "render",
