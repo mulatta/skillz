@@ -345,6 +345,7 @@ def build_launch_command(
     pymol_command: str,
     *,
     remote: bool,
+    headless: bool,
     script: str | None,
     extra_args: Sequence[str],
 ) -> list[str]:
@@ -356,6 +357,8 @@ def build_launch_command(
         args = args[1:]
     if remote:
         command.append("-R")
+    if headless:
+        command.append("-cq")
     command.extend(args)
     if script:
         command.append(script)
@@ -478,6 +481,7 @@ def cmd_launch(ns: argparse.Namespace) -> None:
     command = build_launch_command(
         ns.pymol_command,
         remote=not ns.no_remote,
+        headless=ns.headless,
         script=ns.script,
         extra_args=ns.extra_args,
     )
@@ -632,8 +636,9 @@ def build_parser() -> argparse.ArgumentParser:
     render.set_defaults(func=cmd_render)
 
     launch = sub.add_parser("launch", help="start PyMOL with XML-RPC enabled")
-    launch.add_argument("--pymol-command", default="nix run nixpkgs#pymol --")
+    launch.add_argument("--pymol-command", default="pymol")
     launch.add_argument("--script")
+    launch.add_argument("--headless", action="store_true")
     launch.add_argument("--no-remote", action="store_true")
     launch.add_argument("--foreground", action="store_true")
     launch.add_argument("--pueue", action="store_true", help=argparse.SUPPRESS)

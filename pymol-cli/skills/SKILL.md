@@ -11,6 +11,7 @@ Use `pymol-cli` for PyMOL session control and repeatable structure visualization
 
 - Use `pymol-cli status` before sending commands when session state is uncertain.
 - If PyMOL was not started with `-R`, restart it with `pymol-cli launch`. Launch uses `pueue` by default because PyMOL is long-running.
+- Use `pymol-cli launch --headless` on servers, CI, or when GUI/Qt startup fails. Do not silently fallback from GUI to headless unless user asks.
 - Keep PML commands explicit and reproducible. Save generated scripts when view state matters.
 - Use structural data sources (RCSB/mmCIF, UniProt residue annotations) for biological claims; PyMOL selections are visualization/geometry evidence.
 - Do not use hidden scraping or non-local remote hosts unless user explicitly provides host/port.
@@ -19,8 +20,9 @@ Use `pymol-cli` for PyMOL session control and repeatable structure visualization
 ## Commands
 
 ```bash
-# Start PyMOL with XML-RPC via nix and pueue defaults
+# Start packaged PyMOL with XML-RPC and pueue defaults
 pymol-cli launch --script show.pml
+pymol-cli launch --headless --script render.pml
 
 # Check connection
 pymol-cli status
