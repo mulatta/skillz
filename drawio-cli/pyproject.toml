@@ -6,6 +6,9 @@ requires-python = ">=3.13"
 license = { text = "MIT" }
 dependencies = ["defusedxml"]
 
+[project.scripts]
+drawio-cli = "drawio_cli.cli:main"
+
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"

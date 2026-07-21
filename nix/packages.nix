@@ -1,5 +1,6 @@
 {
   callPackage,
+  drawio,
   python3,
   vdirsyncer,
   msmtp,
@@ -20,6 +21,12 @@ let
       symlinkJoin
       ;
   };
+  drawioShapeIndexCandidate = callPackage ../drawio-cli/shape-index.nix {
+    expectedIndex = null;
+  };
+  drawioShapeIndex = callPackage ../drawio-cli/shape-index.nix {
+    updateCandidate = drawioShapeIndexCandidate;
+  };
 in
 {
   inherit
@@ -34,6 +41,8 @@ in
   context7-cli = callPackage ../context7-cli { };
   crabfit-cli = callPackage ../crabfit-cli { };
   crwl-cli = callPackage ../crwl-cli { inherit crawl4ai; };
+  drawio-shape-index = drawioShapeIndex;
+  drawio-cli = callPackage ../drawio-cli { inherit drawioShapeIndex; };
   gmaps-cli = callPackage ../gmaps-cli { };
   kmap-cli = callPackage ../kmap-cli { };
   linkwarden-cli = callPackage ../linkwarden-cli { };
