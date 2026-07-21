@@ -24,6 +24,7 @@ skillz/
 - `context7-cli` - fetch up-to-date library docs from Context7
 - `crabfit-cli` - create and manage Crab.fit scheduling events
 - `crwl-cli` - crawl web pages and extract markdown
+- `drawio-cli` - create, validate, lay out, search, and render draw.io diagrams offline
 - `gmaps-cli` - search places and get directions with Google Maps
 - `kmap-cli` - search Korean places and public transit routes with TMAP
 - `linkwarden-cli` - manage Linkwarden bookmarks and collections

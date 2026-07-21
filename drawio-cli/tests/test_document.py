@@ -8,6 +8,7 @@ from pathlib import Path
 
 import pytest
 from drawio_cli import xmlsafe
+from drawio_cli.cli import main
 from drawio_cli.document import DrawioDocument, sha256_file
 
 FIXTURES = Path(__file__).parent / "fixtures"
@@ -25,6 +26,16 @@ def _changed_model(doc: DrawioDocument) -> ET.Element:
     assert node is not None
     node.set("value", "Changed")
     return model
+
+
+def test_page_get_refuses_to_overwrite_source(tmp_path: Path) -> None:
+    src = _copy_minimal(tmp_path)
+    alias = tmp_path / "alias.drawio"
+    alias.hardlink_to(src)
+    before = src.read_bytes()
+
+    assert main(["get-page", str(src), "--output", str(alias)]) == 1
+    assert src.read_bytes() == alias.read_bytes() == before
 
 
 def test_page_replace_uses_sha_guard(tmp_path: Path) -> None:
