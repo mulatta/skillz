@@ -7,7 +7,12 @@ from unittest.mock import patch
 
 import pytest
 from drawio_cli.png import PNG_MAGIC, assert_png, repair_png_iend
-from drawio_cli.render import _render_command, _validate_render_output, render_diagram
+from drawio_cli.render import (
+    _render_command,
+    _render_env,
+    _validate_render_output,
+    render_diagram,
+)
 
 FIXTURES = Path(__file__).parent / "fixtures"
 
@@ -98,14 +103,25 @@ def test_render_refuses_to_overwrite_source() -> None:
         render_diagram(source, source, fmt="png")
 
 
-def test_render_refuses_darwin_without_explicit_approval(tmp_path: Path) -> None:
+def test_render_preserves_home_on_darwin_for_keychain_access(tmp_path: Path) -> None:
     with (
         patch("drawio_cli.render.platform.system", return_value="Darwin"),
-        pytest.raises(RuntimeError, match="Keychain"),
+        patch.dict(
+            "drawio_cli.render.os.environ", {"HOME": "/Users/alice"}, clear=True
+        ),
     ):
-        render_diagram(
-            FIXTURES / "minimal.drawio",
-            tmp_path / "out.png",
-            fmt="png",
-            drawio="false",
-        )
+        env = _render_env(tmp_path)
+
+    assert env["HOME"] == "/Users/alice"
+    assert env["XDG_CONFIG_HOME"] == str(tmp_path / "config")
+    assert env["XDG_CACHE_HOME"] == str(tmp_path / "cache")
+
+
+def test_render_uses_temp_home_off_darwin(tmp_path: Path) -> None:
+    with (
+        patch("drawio_cli.render.platform.system", return_value="Linux"),
+        patch.dict("drawio_cli.render.os.environ", {"HOME": "/home/alice"}, clear=True),
+    ):
+        env = _render_env(tmp_path)
+
+    assert env["HOME"] == str(tmp_path)
