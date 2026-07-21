@@ -78,3 +78,7 @@ description: Short description of what this skill does
 
 Instructions for the LLM...
 ```
+
+## License
+
+Original repository code is available under the MIT License. Individual tools may include third-party or generated material under additional terms; see package-local license and notice files.
