@@ -59,12 +59,11 @@ def test_setup_check_runs_secret_commands_without_printing_stdout(
     tmp_path: Path,
     capsys: pytest.CaptureFixture[str],
 ) -> None:
-    command = write_script(
-        tmp_path / "secret-command", "#!/bin/sh\nprintf 'TOPSECRET\\n'\n"
-    )
     config_path = tmp_path / "config.json"
     config_path.write_text(
-        json.dumps({"ncbi_api_key_command": str(command), "timeout_seconds": 3}),
+        json.dumps(
+            {"ncbi_api_key_command": "printf 'TOPSECRET\\n'", "timeout_seconds": 3}
+        ),
         encoding="utf-8",
     )
 
