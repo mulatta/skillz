@@ -39,16 +39,10 @@ def render_diagram(
     page_index: int | None = None,
     width: int | None = None,
     transparent: bool = False,
-    allow_darwin_render: bool = False,
 ) -> None:
     _validate_render_options(fmt, page_index, width, transparent)
     if same_file(source, output):
         raise ValueError("render output must not overwrite source file")
-    if platform.system() == "Darwin" and not allow_darwin_render:
-        raise RuntimeError(
-            "draw.io export on macOS launches Electron and may access Keychain; "
-            "run on Linux/drawio-headless or pass --allow-darwin-render after user approval"
-        )
     before = sha256_file(source)
     validation = validate_document(DrawioDocument.from_file(source))
     if validation.errors:
@@ -72,12 +66,7 @@ def render_diagram(
             text=True,
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
-            env={
-                **os.environ,
-                "HOME": tmp,
-                "XDG_CONFIG_HOME": str(Path(tmp) / "config"),
-                "XDG_CACHE_HOME": str(Path(tmp) / "cache"),
-            },
+            env=_render_env(Path(tmp)),
         )
         if result.returncode != 0:
             raise RuntimeError(
@@ -87,6 +76,21 @@ def render_diagram(
         if sha256_file(source) != before:
             raise RuntimeError("source changed during render")
         atomic_write_bytes(output, tmp_out.read_bytes())
+
+
+def _render_env(tmp: Path) -> dict[str, str]:
+    env = {
+        **os.environ,
+        "XDG_CONFIG_HOME": str(tmp / "config"),
+        "XDG_CACHE_HOME": str(tmp / "cache"),
+    }
+    if platform.system() == "Darwin":
+        # Electron's safeStorage uses ~/Library/Keychains on macOS. A temporary
+        # HOME hides the user's unlocked login keychain and makes draw.io fail
+        # before export with "A keychain cannot be found".
+        return env
+    env["HOME"] = str(tmp)
+    return env
 
 
 def _render_command(

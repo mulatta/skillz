@@ -205,7 +205,6 @@ def _cmd_render(ns: argparse.Namespace) -> int:
         width=ns.width,
         transparent=ns.transparent,
         drawio=ns.drawio,
-        allow_darwin_render=ns.allow_darwin_render,
     )
     _report_output(ns)
     return EXIT_OK
@@ -357,11 +356,6 @@ def build_parser() -> argparse.ArgumentParser:
     )
     render.add_argument(
         "--drawio", metavar="PATH", help="override draw.io executable for diagnostics"
-    )
-    render.add_argument(
-        "--allow-darwin-render",
-        action="store_true",
-        help="allow macOS Electron export after approval; may access Keychain",
     )
     _json_arg(render)
     render.set_defaults(func=_cmd_render)

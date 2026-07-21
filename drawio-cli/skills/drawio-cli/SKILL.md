@@ -70,7 +70,7 @@ drawio-cli validate diagram.drawio --strict
 drawio-cli render diagram.drawio --format png --width 2000 --output diagram-preview.png
 ```
 
-On macOS, `render` is blocked because draw.io export launches Electron and may access Keychain. Prefer Linux/Xvfb. Pass `--allow-darwin-render` only after explicit user approval.
+On macOS, `render` launches draw.io Desktop/Electron directly. If export fails because the desktop app cannot access the login Keychain, use Linux/Xvfb or fix the local Keychain session.
 
 ## Finish and hand off
 

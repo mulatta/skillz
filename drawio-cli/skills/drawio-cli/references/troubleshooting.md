@@ -104,11 +104,9 @@ Rendering uses packaged `drawio-headless`. First run strict validation and prese
 
 PNG export repair only restores a missing terminal IEND chunk. It cannot repair arbitrary corrupt image data.
 
-## macOS Keychain guard
+## macOS Keychain access
 
-On macOS, draw.io export launches Electron and can access the user's draw.io profile or ask for Keychain. `render` therefore refuses by default.
-
-Prefer Linux rendering. Pass `--allow-darwin-render` only after telling the user about Electron/Keychain access and receiving explicit approval. Do not persist approval across unrelated requests.
+On macOS, draw.io export launches Electron and may access the user's draw.io profile or login Keychain. `render` preserves the real `HOME` on Darwin so Electron can find the user's unlocked login Keychain. If export fails with a Keychain error, confirm the login Keychain exists, is unlocked, and is visible from the current GUI session, or retry on Linux/Xvfb.
 
 ## Desktop ownership recovery
 
