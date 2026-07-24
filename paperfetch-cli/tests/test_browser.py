@@ -71,6 +71,57 @@ class RecordingChromium:
         return object()
 
 
+class FetchPage:
+    def __init__(self) -> None:
+        self.closed = False
+        self.url = "https://example.org/article"
+
+    def goto(self, *_args: object, **_kwargs: object) -> object:
+        return type("Response", (), {"status": 200})()
+
+    def wait_for_timeout(self, _timeout: int) -> None:
+        return None
+
+    def title(self) -> str:
+        return "Article"
+
+    def content(self) -> str:
+        return "<main>Article</main>"
+
+    def eval_on_selector_all(self, *_args: object) -> list[str]:
+        return ["https://example.org/paper.pdf"]
+
+    def evaluate(self, _script: str, _url: str) -> dict[str, object]:
+        return {"status": 200, "type": "application/pdf", "b64": "JVBERi0="}
+
+    def close(self) -> None:
+        self.closed = True
+
+
+class FetchContext:
+    def __init__(self) -> None:
+        self.pages: list[FetchPage] = []
+
+    def new_page(self) -> FetchPage:
+        page = FetchPage()
+        self.pages.append(page)
+        return page
+
+
+def test_fetch_pdf_from_rendered_page_reuses_article_tab() -> None:
+    browser = Browser(BrowserConfig())
+    context = FetchContext()
+    browser.__dict__["_ctx"] = context
+
+    rendered = browser.render_page("https://example.org/article", wait_ms=0)
+    result = browser.fetch_pdf_from_page("https://example.org/paper.pdf", rendered)
+    rendered.close()
+
+    assert result.data == b"%PDF-"
+    assert len(context.pages) == 1
+    assert context.pages[0].closed
+
+
 def test_launch_keeps_sandbox_and_tls_verification_enabled() -> None:
     chromium = RecordingChromium()
     browser = Browser(BrowserConfig())

@@ -117,6 +117,16 @@ class FetchResult:
     data: bytes
 
 
+@dataclass
+class BrowserPage:
+    page: Any
+    result: PageResult
+
+    def close(self) -> None:
+        with contextlib.suppress(PlaywrightError):
+            self.page.close()
+
+
 class Browser:
     """A patchright browser session usable as a context manager."""
 
@@ -220,6 +230,19 @@ class Browser:
         wait_for: str | None = None,
         wait_ms: int | None = None,
     ) -> PageResult:
+        rendered = self.render_page(url, wait_for=wait_for, wait_ms=wait_ms)
+        try:
+            return rendered.result
+        finally:
+            rendered.close()
+
+    def render_page(
+        self,
+        url: str,
+        *,
+        wait_for: str | None = None,
+        wait_ms: int | None = None,
+    ) -> BrowserPage:
         last: CLIError | PlaywrightError | None = None
         for _ in range(_NAV_TRIES):
             try:
@@ -258,7 +281,7 @@ class Browser:
                     attempts += 1
                 status = int(resp.status) if resp is not None else 0
                 link_list = [str(link) for link in links]
-                return PageResult(
+                result = PageResult(
                     url=str(page.url),
                     status=status,
                     title=title,
@@ -267,15 +290,15 @@ class Browser:
                     challenged=challenged,
                     pdf_link_count=_pdf_link_count(link_list),
                 )
+                return BrowserPage(page=page, result=result)
             except CLIError as exc:
                 last = exc
             except PlaywrightError as exc:
                 last = exc
                 with contextlib.suppress(PlaywrightError):
                     page.wait_for_timeout(1500)
-            finally:
-                with contextlib.suppress(PlaywrightError):
-                    page.close()
+            with contextlib.suppress(PlaywrightError):
+                page.close()
         msg = f"could not render page: {last}"
         raise CLIError(msg, EXIT_FETCH)
 
@@ -321,15 +344,24 @@ class Browser:
                 raise CLIError(msg, EXIT_FETCH)
             if _is_challenge(str(page.title()), str(page.content())):
                 page.wait_for_timeout(_CHALLENGE_WAIT_MS)
-            result = self._evaluate_fetch(page, url)
-            status = int(result["status"])
-            ctype = str(result["type"])
-            payload = result.get("b64") or ""
-            data = base64.b64decode(payload) if payload else b""
-            _check_expect(expect, ctype, status)
-            return FetchResult(status=status, content_type=ctype, data=data)
+            return self._fetch_bytes_from_page(page, url, expect=expect)
         finally:
             page.close()
+
+    def _fetch_bytes_from_page(
+        self,
+        page: Any,  # noqa: ANN401
+        url: str,
+        *,
+        expect: str | None = None,
+    ) -> FetchResult:
+        result = self._evaluate_fetch(page, url)
+        status = int(result["status"])
+        ctype = str(result["type"])
+        payload = result.get("b64") or ""
+        data = base64.b64decode(payload) if payload else b""
+        _check_expect(expect, ctype, status)
+        return FetchResult(status=status, content_type=ctype, data=data)
 
     def fetch_pdf(self, url: str, *, context_url: str | None = None) -> FetchResult:
         # Most publishers (Cell/Nature/Science) serve the PDF bytes at the URL,
@@ -341,6 +373,12 @@ class Browser:
         if "pdf" in result.content_type and result.data[:4] == b"%PDF":
             return result
         return self._capture_download(url, context_url)
+
+    def fetch_pdf_from_page(self, url: str, rendered: BrowserPage) -> FetchResult:
+        result = self._fetch_bytes_from_page(rendered.page, url)
+        if "pdf" in result.content_type and result.data[:4] == b"%PDF":
+            return result
+        return self._capture_download(url, rendered.result.url)
 
     def _capture_download(self, url: str, context_url: str | None) -> FetchResult:
         # ScienceDirect gates /pdfft behind a second, *interactive* Cloudflare

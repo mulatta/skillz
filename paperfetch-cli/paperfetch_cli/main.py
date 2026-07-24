@@ -49,7 +49,7 @@ from paperfetch_cli.resolve import (
 if TYPE_CHECKING:
     from collections.abc import Sequence
 
-    from paperfetch_cli.browser import Browser, PageResult
+    from paperfetch_cli.browser import Browser, BrowserPage, PageResult
 
 
 def _add_browser_options(parser: argparse.ArgumentParser) -> None:
@@ -259,29 +259,37 @@ def _browser_get(
         md_text: str | None = None
         rc = EXIT_OK
         with Browser(browser_config_from_args(args)) as browser:
+            rendered = None
             try:
-                page = browser.render(landing)
+                rendered = browser.render_page(landing)
+                page = rendered.result
                 # A Cell DOI lands on Elsevier; the article is also on cell.com (same
                 # PII) where the PDF is reachable - re-render there.
                 cell_url = cellpress_article_url(page.url)
                 if cell_url is not None and cell_url != page.url:
-                    page = browser.render(cell_url)
+                    rendered.close()
+                    rendered = browser.render_page(cell_url)
+                    page = rendered.result
             except CLIError as exc:
                 last_error = exc
                 continue
-            if page.challenged:
-                warnings.extend(_page_diagnostics(page))
-            if args.html:
-                dest = out_dir / (_slug(meta) + ".html")
-                dest.write_text(page.html, encoding="utf-8")
-                manifest["html_path"] = str(dest)
-            if args.md:
-                md_text = _render_content("md", page.html)
-                manifest["fulltext"] = {"chars": len(md_text)}
-            if args.pdf:
-                rc = _browser_pdf(
-                    args, meta, manifest, browser, page, warnings, out_dir
-                )
+            try:
+                if page.challenged:
+                    warnings.extend(_page_diagnostics(page))
+                if args.html:
+                    dest = out_dir / (_slug(meta) + ".html")
+                    dest.write_text(page.html, encoding="utf-8")
+                    manifest["html_path"] = str(dest)
+                if args.md:
+                    md_text = _render_content("md", page.html)
+                    manifest["fulltext"] = {"chars": len(md_text)}
+                if args.pdf:
+                    rc = _browser_pdf(
+                        args, meta, manifest, browser, rendered, warnings, out_dir
+                    )
+            finally:
+                if rendered is not None:
+                    rendered.close()
         return md_text, rc
     if last_error is not None:
         warnings.append(str(last_error))
@@ -294,16 +302,17 @@ def _browser_pdf(  # noqa: PLR0913
     meta: PaperMeta,
     manifest: dict[str, object],
     browser: Browser,
-    page: PageResult,
+    rendered: BrowserPage,
     warnings: list[str],
     out_dir: Path,
 ) -> int:
+    page = rendered.result
     cited = citation_pdf_url(page.html)
     sd = sciencedirect_pdf_url(page.html, page.url)
     pdf_url = args.pdf_url or cited or sd or publisher_pdf_url(page.url)
     if pdf_url is None:
         warnings.append("no PDF URL found on the page")
-        warnings.extend(_page_diagnostics(page, include_challenge=False))
+        _append_page_diagnostics(warnings, page)
         manifest["candidates"] = {"pdf_links": _redacted_pdf_candidates(page.links)}
         return EXIT_UNRESOLVED
     if args.pdf_url:
@@ -315,13 +324,15 @@ def _browser_pdf(  # noqa: PLR0913
     else:
         via = "adapter"
     try:
-        result = browser.fetch_pdf(pdf_url, context_url=page.url)
+        result = browser.fetch_pdf_from_page(pdf_url, rendered)
     except CLIError as exc:
         warnings.append(str(exc))
+        _append_page_diagnostics(warnings, page)
         manifest["candidates"] = {"pdf_links": _redacted_pdf_candidates(page.links)}
         return EXIT_UNRESOLVED
     if result.data[:5] != b"%PDF-":
         warnings.append(f"fetched {_redact_url(pdf_url)} but it was not a PDF")
+        _append_page_diagnostics(warnings, page)
         manifest["candidates"] = {"pdf_links": _redacted_pdf_candidates(page.links)}
         return EXIT_UNRESOLVED
     dest = out_dir / (_slug(meta) + ".pdf")
@@ -349,6 +360,12 @@ def _page_diagnostics(page: PageResult, *, include_challenge: bool = True) -> li
         f"url={_redact_url(page.url)}, pdf_selector_links={page.pdf_link_count}"
     )
     return warnings
+
+
+def _append_page_diagnostics(warnings: list[str], page: PageResult) -> None:
+    for warning in _page_diagnostics(page, include_challenge=False):
+        if warning not in warnings:
+            warnings.append(warning)
 
 
 def _redact_url(url: str) -> str:
