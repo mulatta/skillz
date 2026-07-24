@@ -45,6 +45,7 @@ _TIMEOUT = 20
 _UA = "paperfetch-cli (https://github.com/mulatta/skillz)"
 
 IdentifierKind = Literal["doi", "url", "arxiv", "pmid", "pmcid"]
+PdfPreference = Literal["primary", "fallback"]
 
 
 @dataclass(frozen=True)
@@ -502,15 +503,22 @@ def resolve_unpaywall(doi: str, email: str | None) -> PaperMeta | None:
     return parse_unpaywall(data, doi)
 
 
-def _merge_metadata(primary: PaperMeta, fallback: PaperMeta) -> PaperMeta:
-    use_fallback_pdf = primary.oa_pdf_url is None and fallback.oa_pdf_url is not None
+def merge_paper_meta(
+    primary: PaperMeta,
+    fallback: PaperMeta,
+    *,
+    prefer_pdf: PdfPreference = "primary",
+) -> PaperMeta:
+    use_fallback_pdf = (
+        prefer_pdf == "fallback" and fallback.oa_pdf_url is not None
+    ) or (primary.oa_pdf_url is None and fallback.oa_pdf_url is not None)
     return PaperMeta(
         doi=primary.doi or fallback.doi,
         title=primary.title or fallback.title,
         authors=primary.authors or fallback.authors,
         journal=primary.journal or fallback.journal,
         year=primary.year or fallback.year,
-        oa_pdf_url=primary.oa_pdf_url or fallback.oa_pdf_url,
+        oa_pdf_url=fallback.oa_pdf_url if use_fallback_pdf else primary.oa_pdf_url,
         landing_url=primary.landing_url or fallback.landing_url,
         pmid=primary.pmid or fallback.pmid,
         pmcid=primary.pmcid or fallback.pmcid,
@@ -518,7 +526,9 @@ def _merge_metadata(primary: PaperMeta, fallback: PaperMeta) -> PaperMeta:
         oa_pdf_source=fallback.oa_pdf_source
         if use_fallback_pdf
         else primary.oa_pdf_source,
-        oa_landing_url=primary.oa_landing_url or fallback.oa_landing_url,
+        oa_landing_url=fallback.oa_landing_url
+        if use_fallback_pdf
+        else primary.oa_landing_url,
     )
 
 
@@ -539,7 +549,7 @@ def resolve_metadata(doi: str, unpaywall_email: str | None = None) -> PaperMeta:
     if openalex_meta is not None:
         if unpaywall_meta is None:
             return openalex_meta
-        return _merge_metadata(openalex_meta, unpaywall_meta)
+        return merge_paper_meta(openalex_meta, unpaywall_meta)
     if unpaywall_meta is not None:
         return unpaywall_meta
     if openalex_error is not None:

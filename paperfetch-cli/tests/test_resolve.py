@@ -10,8 +10,10 @@ import pytest
 
 from paperfetch_cli.errors import CLIError
 from paperfetch_cli.resolve import (
+    PaperMeta,
     cellpress_article_url,
     download_file,
+    merge_paper_meta,
     normalize_arxiv_id,
     normalize_doi,
     normalize_pmcid,
@@ -279,6 +281,27 @@ def test_parse_unpaywall_falls_back_to_oa_locations() -> None:
     assert meta.oa_pdf_url == "https://mirror.example.org/paper.pdf"
     assert meta.oa_pdf_source == "unpaywall"
     assert meta.landing_url == "https://landing.example.org"
+
+
+def test_merge_paper_meta_keeps_selected_pdf_fields_together() -> None:
+    primary = PaperMeta(
+        doi="10.1/x",
+        oa_pdf_url="https://primary.example.org/paper.pdf",
+        oa_pdf_source="primary",
+        oa_landing_url="https://primary.example.org/article",
+    )
+    fallback = PaperMeta(
+        doi="10.1/x",
+        oa_pdf_url="https://fallback.example.org/paper.pdf",
+        oa_pdf_source="fallback",
+        oa_landing_url="https://fallback.example.org/article",
+    )
+
+    merged = merge_paper_meta(primary, fallback, prefer_pdf="fallback")
+
+    assert merged.oa_pdf_url == fallback.oa_pdf_url
+    assert merged.oa_pdf_source == fallback.oa_pdf_source
+    assert merged.oa_landing_url == fallback.oa_landing_url
 
 
 @pytest.mark.parametrize(
