@@ -35,15 +35,7 @@ replacement currently returns 404 for `oa.fcgi`.
 
 ## Remaining debt
 
-### 1. Anti-pattern: duplicated metadata merge logic
-
-`resolve.py` (`_merge_metadata`) and `main.py` (`_merge_meta`) still perform
-near-identical field-by-field merges with different PDF precedence. Adding a
-`PaperMeta` field still means editing both helpers plus every parser.
-
-Suggested fix: add one `merge_meta(primary, fallback, *, prefer_fallback_pdf: bool)` helper in `resolve.py`, or move to a `dataclasses.replace`-based design.
-
-### 2. Typing: `PaperMeta` is mutable and carries an unenforced invariant
+### 1. Typing: `PaperMeta` is mutable and carries an unenforced invariant
 
 `PaperMeta` is still mutable and is updated in place in Europe PMC and arXiv
 resolution. The fields `oa_pdf_url`, `oa_pdf_source`, and `oa_landing_url` still
@@ -52,7 +44,7 @@ encode an implicit invariant the type system cannot see.
 Suggested fix: group those fields into `OaPdf(url, source, landing)` and make
 `PaperMeta` frozen. This pairs naturally with merge unification.
 
-### 3. Typing: browser layer is an `Any` hole under strict mypy
+### 2. Typing: browser layer is an `Any` hole under strict mypy
 
 The patchright browser/session/page objects are still typed as `Any`. Strict
 mypy therefore checks little inside the browser module.
@@ -60,7 +52,7 @@ mypy therefore checks little inside the browser module.
 Suggested fix: try patchright's Playwright types first. If stubs prove unstable,
 introduce small local Protocols for the methods paperfetch actually uses.
 
-### 4. Anti-pattern: raw `argparse.Namespace` passed through get internals
+### 3. Anti-pattern: raw `argparse.Namespace` passed through get internals
 
 `cmd_get`, `_emit_get`, `_browser_get`, and `_browser_pdf` still pass raw
 `argparse.Namespace` through the call stack. Attribute access remains invisible
@@ -69,7 +61,7 @@ to mypy and `_browser_pdf` still needs many parameters.
 Suggested fix: convert CLI args into a typed `GetOptions` dataclass at the
 command boundary.
 
-### 5. ScienceDirect live coverage is host-dependent
+### 4. ScienceDirect live coverage is host-dependent
 
 The ScienceDirect live test remains opt-in and Linux-only because its supported
 headful automation path needs Xvfb. A current Linux/Xvfb smoke test returned PDF
@@ -79,7 +71,7 @@ portable guarantee.
 Suggested fix: keep a periodic Linux/Xvfb smoke test rather than promoting this
 to a required check until PDF byte return is deterministic.
 
-### 6. Papercuts
+### 5. Papercuts
 
 - Version string `0.1.0` is still maintained in both `__init__.py` and
   `pyproject.toml`; switch to hatch dynamic versioning or `importlib.metadata`.
@@ -93,7 +85,7 @@ to a required check until PDF byte return is deterministic.
 
 ## Recommended order
 
-1. Merge unification plus `PaperMeta`/`OaPdf` redesign.
+1. `PaperMeta`/`OaPdf` redesign.
 1. Typed `GetOptions` for `get` internals.
 1. Browser typing cleanup.
 1. Periodic Linux/Xvfb ScienceDirect validation.

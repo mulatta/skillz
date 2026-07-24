@@ -37,6 +37,7 @@ from paperfetch_cli.resolve import (
     cellpress_article_url,
     citation_pdf_url,
     download_file,
+    merge_paper_meta,
     parse_identifier,
     pdf_candidates,
     publisher_pdf_url,
@@ -116,9 +117,10 @@ def cmd_get(args: argparse.Namespace) -> int:
         except CLIError as exc:
             warnings.append(str(exc))
     try:
-        meta = _merge_meta(
+        meta = merge_paper_meta(
             meta,
             resolve_europepmc(doi=doi, pmid=pmid, pmcid=pmcid),
+            prefer_pdf="fallback",
         )
     except CLIError as exc:
         warnings.append(str(exc))
@@ -132,24 +134,6 @@ def cmd_get(args: argparse.Namespace) -> int:
         or meta.landing_url
     )
     return _emit_get(args, meta, landing, warnings=warnings)
-
-
-def _merge_meta(base: PaperMeta, extra: PaperMeta) -> PaperMeta:
-    use_extra_pdf = extra.oa_pdf_url is not None
-    return PaperMeta(
-        doi=base.doi or extra.doi,
-        title=base.title or extra.title,
-        authors=base.authors or extra.authors,
-        journal=base.journal or extra.journal,
-        year=base.year or extra.year,
-        oa_pdf_url=extra.oa_pdf_url or base.oa_pdf_url,
-        landing_url=base.landing_url or extra.landing_url,
-        pmid=base.pmid or extra.pmid,
-        pmcid=base.pmcid or extra.pmcid,
-        arxiv_id=base.arxiv_id or extra.arxiv_id,
-        oa_pdf_source=extra.oa_pdf_source if use_extra_pdf else base.oa_pdf_source,
-        oa_landing_url=extra.oa_landing_url or base.oa_landing_url,
-    )
 
 
 def _slug(meta: PaperMeta) -> str:
