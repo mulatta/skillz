@@ -1,7 +1,7 @@
 """Tests for the command surface, config, and the metadata path of ``get``.
 
-The browser-driven paths (``render`` / ``grab``, paywalled full text) are
-integration-tested against a real browser on the deploy host, not here.
+Browser orchestration is unit-tested with deterministic page objects here; live
+publisher behavior is tested separately on the deploy host.
 """
 
 from __future__ import annotations
@@ -13,7 +13,7 @@ from typing import TYPE_CHECKING
 import pytest
 
 from paperfetch_cli import main as main_mod
-from paperfetch_cli.browser import Browser, FetchResult, PageResult
+from paperfetch_cli.browser import Browser, BrowserPage, FetchResult, PageResult
 from paperfetch_cli.config import (
     config_path,
     load_file_config,
@@ -207,21 +207,25 @@ def test_page_diagnostics_redact_url_query_and_body_excerpt() -> None:
     assert "body_excerpt" not in PageResult.__dataclass_fields__
 
 
+def _rendered(page: PageResult) -> BrowserPage:
+    return BrowserPage(page=object(), result=page)
+
+
 class HtmlBrowser(Browser):
     def __init__(self) -> None:
-        self.calls: list[tuple[str, str | None]] = []
+        self.calls: list[tuple[str, str]] = []
 
-    def fetch_pdf(self, url: str, *, context_url: str | None = None) -> FetchResult:
-        self.calls.append((url, context_url))
+    def fetch_pdf_from_page(self, url: str, rendered: BrowserPage) -> FetchResult:
+        self.calls.append((url, rendered.result.url))
         return FetchResult(status=200, content_type="text/html", data=b"<html></html>")
 
 
 class PdfBrowser(Browser):
     def __init__(self) -> None:
-        self.calls: list[tuple[str, str | None]] = []
+        self.calls: list[tuple[str, str]] = []
 
-    def fetch_pdf(self, url: str, *, context_url: str | None = None) -> FetchResult:
-        self.calls.append((url, context_url))
+    def fetch_pdf_from_page(self, url: str, rendered: BrowserPage) -> FetchResult:
+        self.calls.append((url, rendered.result.url))
         return FetchResult(
             status=200,
             content_type="application/pdf",
@@ -247,7 +251,7 @@ def test_browser_pdf_redacts_candidate_url_queries_when_pdf_is_missing(
         PaperMeta(doi="10.1234/example"),
         manifest,
         HtmlBrowser(),
-        page,
+        _rendered(page),
         warnings,
         tmp_path,
     )
@@ -280,7 +284,7 @@ def test_browser_pdf_redacts_signed_url_when_response_is_not_pdf(
         PaperMeta(doi="10.1234/example"),
         {},
         browser,
-        page,
+        _rendered(page),
         warnings,
         tmp_path,
     )
@@ -290,6 +294,36 @@ def test_browser_pdf_redacts_signed_url_when_response_is_not_pdf(
     assert "fetched https://pdf.example.org/main.pdf but it was not a PDF" in joined
     assert "token=secret" not in joined
     assert "#viewer" not in joined
+
+
+def test_browser_pdf_redacts_signed_url_in_manifest(tmp_path: Path) -> None:
+    signed_url = "https://pdf.example.org/main.pdf?token=secret#viewer"
+    page = PageResult(
+        url="https://example.org/article",
+        status=200,
+        title="Article",
+        html="<main>Article</main>",
+        links=[],
+        challenged=False,
+    )
+    manifest: dict[str, object] = {}
+
+    rc = _browser_pdf(
+        argparse.Namespace(pdf_url=signed_url),
+        PaperMeta(doi="10.1234/example"),
+        manifest,
+        PdfBrowser(),
+        _rendered(page),
+        [],
+        tmp_path,
+    )
+
+    assert rc == EXIT_OK
+    assert manifest["pdf"] == {
+        "url": "https://pdf.example.org/main.pdf",
+        "via": "explicit",
+        "path": str(tmp_path / "10.1234_example.pdf"),
+    }
 
 
 def test_browser_pdf_writes_output_atomically(
@@ -330,7 +364,7 @@ def test_browser_pdf_writes_output_atomically(
             PaperMeta(doi="10.1234/example"),
             {},
             PdfBrowser(),
-            page,
+            _rendered(page),
             [],
             tmp_path,
         )
