@@ -21,7 +21,7 @@ flag** it only prints a manifest (a probe - metadata + whether an OA PDF exists)
   (native arXiv, Europe PMC / PMC OA, OpenAlex, and direct Unpaywall when a
   contact email is configured, no browser); if paywalled or OA-bot-blocked it renders the article
   page and pulls the institutional PDF through the browser (covers Cell, Science,
-  Nature, and ScienceDirect/Elsevier journals). `--pdf-url URL` forces an
+  Nature, and best-effort ScienceDirect/Elsevier journals). `--pdf-url URL` forces an
   explicit URL and skips discovery. If a PMC direct PDF URL serves HTML, the
   browser fallback keeps the Europe PMC/PMC landing instead of dropping back to
   DOI-only resolution.
@@ -83,8 +83,7 @@ discarded on exit. `--cookies FILE` / `--profile DIR` are an escape hatch for
 off-campus / EZproxy cases, set once via `paperfetch-cli setup`; never per call.
 Never log credentials.
 
-On a host **without Xvfb** (e.g. macOS) the headful browser is visible and
-Cloudflare does not auto-clear, so ScienceDirect needs a one-time warmed
-`--profile`: `render` the article once and solve the "are you a robot" prompt by
-hand, then reuse that `--profile` for unattended `get --pdf` runs until the
-cookie expires. On the Linux host (Xvfb) this is unnecessary.
+ScienceDirect can fail to return PDF bytes even on Linux/Xvfb after the article
+challenge clears. Use `render --profile DIR` only when manually operating the
+browser on that host is acceptable; otherwise treat ScienceDirect failures as a
+manual handoff case.

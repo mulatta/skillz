@@ -6,11 +6,14 @@ integration-tested against a real browser on the deploy host, not here.
 
 from __future__ import annotations
 
+import argparse
+import json
 from typing import TYPE_CHECKING
 
 import pytest
 
 from paperfetch_cli import main as main_mod
+from paperfetch_cli.browser import Browser, FetchResult, PageResult
 from paperfetch_cli.config import (
     config_path,
     load_file_config,
@@ -18,7 +21,7 @@ from paperfetch_cli.config import (
     unpaywall_email_from_args,
 )
 from paperfetch_cli.errors import EXIT_OK, EXIT_UNRESOLVED, EXIT_USAGE, CLIError
-from paperfetch_cli.main import build_parser, main
+from paperfetch_cli.main import _browser_pdf, _page_diagnostics, build_parser, main
 from paperfetch_cli.resolve import PaperMeta, arxiv_paper_meta
 
 if TYPE_CHECKING:
@@ -160,6 +163,106 @@ def test_get_keeps_europepmc_landing_when_direct_pdf_returns_html(
     assert rc == EXIT_OK
     assert seen["landing"] == "https://europepmc.org/articles/PMC1817623"
     assert "OA link returned an HTML page" in out
+
+
+def test_build_parser_has_no_warm_escape_hatch() -> None:
+    help_text = build_parser().format_help()
+    assert "warm" not in help_text
+
+
+def test_page_diagnostics_redact_url_query_and_body_excerpt() -> None:
+    page = PageResult(
+        url="https://user:password@example.org/article?token=secret#viewer",
+        status=403,
+        title="Are you a robot?",
+        html="<main>secret token body</main>",
+        links=["https://example.org/paper.pdf?download=secret"],
+        challenged=True,
+        pdf_link_count=1,
+    )
+    warnings = _page_diagnostics(page)
+    joined = "\n".join(warnings)
+    assert "Cloudflare challenge did not clear" in warnings
+    assert "url=https://example.org/article" in joined
+    assert "user:password" not in joined
+    assert "token=secret" not in joined
+    assert "#viewer" not in joined
+    assert "secret token body" not in joined
+    assert "rendered page excerpt" not in joined
+    assert "pdf_selector_links=1" in joined
+    assert "body_excerpt" not in PageResult.__dataclass_fields__
+
+
+class HtmlBrowser(Browser):
+    def __init__(self) -> None:
+        self.calls: list[tuple[str, str | None]] = []
+
+    def fetch_pdf(self, url: str, *, context_url: str | None = None) -> FetchResult:
+        self.calls.append((url, context_url))
+        return FetchResult(status=200, content_type="text/html", data=b"<html></html>")
+
+
+def test_browser_pdf_redacts_candidate_url_queries_when_pdf_is_missing(
+    tmp_path: Path,
+) -> None:
+    page = PageResult(
+        url="https://example.org/article?session=secret",
+        status=200,
+        title="Article",
+        html="<main>Article</main>",
+        links=["https://example.org/download/paper.pdf?token=secret#frag"],
+        challenged=False,
+    )
+    manifest: dict[str, object] = {}
+    warnings: list[str] = []
+    rc = _browser_pdf(
+        argparse.Namespace(pdf_url=None),
+        PaperMeta(doi="10.1234/example"),
+        manifest,
+        HtmlBrowser(),
+        page,
+        warnings,
+        tmp_path,
+    )
+    joined = json.dumps({"manifest": manifest, "warnings": warnings})
+    assert rc == EXIT_UNRESOLVED
+    assert manifest["candidates"] == {
+        "pdf_links": ["https://example.org/download/paper.pdf"]
+    }
+    assert "token=secret" not in joined
+    assert "#frag" not in joined
+    assert "session=secret" not in joined
+
+
+def test_browser_pdf_redacts_signed_url_when_response_is_not_pdf(
+    tmp_path: Path,
+) -> None:
+    signed_url = "https://pdf.example.org/main.pdf?token=secret#viewer"
+    page = PageResult(
+        url="https://example.org/article?session=secret",
+        status=200,
+        title="Article",
+        html="<main>Article</main>",
+        links=[],
+        challenged=False,
+    )
+    warnings: list[str] = []
+    browser = HtmlBrowser()
+    rc = _browser_pdf(
+        argparse.Namespace(pdf_url=signed_url),
+        PaperMeta(doi="10.1234/example"),
+        {},
+        browser,
+        page,
+        warnings,
+        tmp_path,
+    )
+    joined = "\n".join(warnings)
+    assert rc == EXIT_UNRESOLVED
+    assert browser.calls == [(signed_url, page.url)]
+    assert "fetched https://pdf.example.org/main.pdf but it was not a PDF" in joined
+    assert "token=secret" not in joined
+    assert "#viewer" not in joined
 
 
 def test_parse_headers_round_trip() -> None:

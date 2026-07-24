@@ -727,18 +727,25 @@ def pdf_candidates(links: list[str]) -> list[str]:
     return out
 
 
+def _redact_url(url: str) -> str:
+    parts = urllib.parse.urlsplit(url)
+    netloc = parts.netloc.rsplit("@", 1)[-1]
+    return urllib.parse.urlunsplit((parts.scheme, netloc, parts.path, "", ""))
+
+
 def _download_pdf_once(url: str, dest: Path) -> None:
     request = urllib.request.Request(url, headers={"User-Agent": _UA})  # noqa: S310
     with urllib.request.urlopen(request, timeout=_TIMEOUT) as response:  # noqa: S310
         ctype = response.headers.get("content-type", "").lower()
         if "html" in ctype:
             msg = (
-                f"OA link returned an HTML page, not a PDF (likely bot-blocked): {url}"
+                "OA link returned an HTML page, not a PDF (likely bot-blocked): "
+                f"{_redact_url(url)}"
             )
             raise CLIError(msg, EXIT_UNRESOLVED)
         prefix = response.read(5)
         if prefix != b"%PDF-":
-            msg = f"OA link returned bytes that are not a PDF: {url}"
+            msg = f"OA link returned bytes that are not a PDF: {_redact_url(url)}"
             raise CLIError(msg, EXIT_UNRESOLVED)
         with dest.open("wb") as handle:
             handle.write(prefix)

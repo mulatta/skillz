@@ -382,8 +382,15 @@ def test_download_file_rejects_non_pdf_bytes(
         return FakeResponse(b"not a pdf", "application/pdf")
 
     monkeypatch.setattr("paperfetch_cli.resolve.urllib.request.urlopen", fake_urlopen)
-    with pytest.raises(CLIError, match="not a PDF"):
-        download_file("https://example.org/paper.pdf", dest)
+    with pytest.raises(CLIError, match="not a PDF") as exc_info:
+        download_file(
+            "https://user:password@example.org/paper.pdf?token=secret#viewer", dest
+        )
+    message = str(exc_info.value)
+    assert "https://example.org/paper.pdf" in message
+    assert "user:password" not in message
+    assert "token=secret" not in message
+    assert "#viewer" not in message
     assert not dest.exists()
 
 

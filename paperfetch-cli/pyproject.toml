@@ -7,7 +7,7 @@ name = "paperfetch-cli"
 version = "0.1.0"
 description = "On-demand academic paper full-text and PDF fetcher"
 requires-python = ">=3.12"
-dependencies = ["defusedxml"]
+dependencies = ["defusedxml", "markdownify", "patchright", "pyvirtualdisplay"]
 
 [project.scripts]
 paperfetch-cli = "paperfetch_cli.main:main"
