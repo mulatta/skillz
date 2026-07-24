@@ -21,7 +21,13 @@ from paperfetch_cli.config import (
     unpaywall_email_from_args,
 )
 from paperfetch_cli.errors import EXIT_OK, EXIT_UNRESOLVED, EXIT_USAGE, CLIError
-from paperfetch_cli.main import _browser_pdf, _page_diagnostics, build_parser, main
+from paperfetch_cli.main import (
+    _browser_pdf,
+    _page_diagnostics,
+    _slug,
+    build_parser,
+    main,
+)
 from paperfetch_cli.resolve import PaperMeta, arxiv_paper_meta
 
 if TYPE_CHECKING:
@@ -109,6 +115,14 @@ def test_get_accepts_pubmed_identifiers(
     assert rc == EXIT_OK
     assert expected in out
     assert '"via": "europepmc"' in out
+
+
+def test_url_input_uses_stable_slug_instead_of_generic_paper_name() -> None:
+    meta = PaperMeta(
+        doi="",
+        landing_url="https://www.example.org/articles/main.paper?token=secret",
+    )
+    assert _slug(meta) == "www.example.org_articles_main.paper"
 
 
 def test_get_keeps_europepmc_landing_when_direct_pdf_returns_html(
@@ -202,6 +216,19 @@ class HtmlBrowser(Browser):
         return FetchResult(status=200, content_type="text/html", data=b"<html></html>")
 
 
+class PdfBrowser(Browser):
+    def __init__(self) -> None:
+        self.calls: list[tuple[str, str | None]] = []
+
+    def fetch_pdf(self, url: str, *, context_url: str | None = None) -> FetchResult:
+        self.calls.append((url, context_url))
+        return FetchResult(
+            status=200,
+            content_type="application/pdf",
+            data=b"%PDF- new",
+        )
+
+
 def test_browser_pdf_redacts_candidate_url_queries_when_pdf_is_missing(
     tmp_path: Path,
 ) -> None:
@@ -263,6 +290,52 @@ def test_browser_pdf_redacts_signed_url_when_response_is_not_pdf(
     assert "fetched https://pdf.example.org/main.pdf but it was not a PDF" in joined
     assert "token=secret" not in joined
     assert "#viewer" not in joined
+
+
+def test_browser_pdf_writes_output_atomically(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    signed_url = "https://pdf.example.org/main.pdf"
+    page = PageResult(
+        url="https://example.org/article",
+        status=200,
+        title="Article",
+        html="<main>Article</main>",
+        links=[],
+        challenged=False,
+    )
+    dest = tmp_path / "10.1234_example.pdf"
+    dest.write_bytes(b"old-pdf")
+
+    class FailingPath:
+        def __init__(self) -> None:
+            self.unlinked = False
+
+        def replace(self, _target: Path) -> None:
+            msg = "replace failed"
+            raise OSError(msg)
+
+        def unlink(self) -> None:
+            self.unlinked = True
+
+        def write_bytes(self, _data: bytes) -> int:
+            return 0
+
+    failing_path = FailingPath()
+    monkeypatch.setattr(main_mod, "_temporary_output_path", lambda _dest: failing_path)
+    with pytest.raises(OSError, match="replace failed"):
+        _browser_pdf(
+            argparse.Namespace(pdf_url=signed_url),
+            PaperMeta(doi="10.1234/example"),
+            {},
+            PdfBrowser(),
+            page,
+            [],
+            tmp_path,
+        )
+    assert dest.read_bytes() == b"old-pdf"
+    assert failing_path.unlinked
 
 
 def test_parse_headers_round_trip() -> None:
