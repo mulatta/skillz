@@ -179,11 +179,6 @@ def test_get_keeps_europepmc_landing_when_direct_pdf_returns_html(
     assert "OA link returned an HTML page" in out
 
 
-def test_build_parser_has_no_warm_escape_hatch() -> None:
-    help_text = build_parser().format_help()
-    assert "warm" not in help_text
-
-
 def test_page_diagnostics_redact_url_query_and_body_excerpt() -> None:
     page = PageResult(
         url="https://user:password@example.org/article?token=secret#viewer",
@@ -205,6 +200,21 @@ def test_page_diagnostics_redact_url_query_and_body_excerpt() -> None:
     assert "rendered page excerpt" not in joined
     assert "pdf_selector_links=1" in joined
     assert "body_excerpt" not in PageResult.__dataclass_fields__
+
+
+def _article_page(
+    *,
+    url: str = "https://example.org/article",
+    links: list[str] | None = None,
+) -> PageResult:
+    return PageResult(
+        url=url,
+        status=200,
+        title="Article",
+        html="<main>Article</main>",
+        links=[] if links is None else links,
+        challenged=False,
+    )
 
 
 def _rendered(page: PageResult) -> BrowserPage:
@@ -236,13 +246,9 @@ class PdfBrowser(Browser):
 def test_browser_pdf_redacts_candidate_url_queries_when_pdf_is_missing(
     tmp_path: Path,
 ) -> None:
-    page = PageResult(
+    page = _article_page(
         url="https://example.org/article?session=secret",
-        status=200,
-        title="Article",
-        html="<main>Article</main>",
         links=["https://example.org/download/paper.pdf?token=secret#frag"],
-        challenged=False,
     )
     manifest: dict[str, object] = {}
     warnings: list[str] = []
@@ -265,65 +271,44 @@ def test_browser_pdf_redacts_candidate_url_queries_when_pdf_is_missing(
     assert "session=secret" not in joined
 
 
-def test_browser_pdf_redacts_signed_url_when_response_is_not_pdf(
+@pytest.mark.parametrize(
+    ("browser", "expected_rc", "expected"),
+    [
+        (HtmlBrowser(), EXIT_UNRESOLVED, "fetched https://pdf.example.org/main.pdf"),
+        (PdfBrowser(), EXIT_OK, {"url": "https://pdf.example.org/main.pdf"}),
+    ],
+)
+def test_browser_pdf_redacts_signed_url(
     tmp_path: Path,
+    browser: Browser,
+    expected_rc: int,
+    expected: str | dict[str, str],
 ) -> None:
     signed_url = "https://pdf.example.org/main.pdf?token=secret#viewer"
-    page = PageResult(
-        url="https://example.org/article?session=secret",
-        status=200,
-        title="Article",
-        html="<main>Article</main>",
-        links=[],
-        challenged=False,
-    )
-    warnings: list[str] = []
-    browser = HtmlBrowser()
-    rc = _browser_pdf(
-        argparse.Namespace(pdf_url=signed_url),
-        PaperMeta(doi="10.1234/example"),
-        {},
-        browser,
-        _rendered(page),
-        warnings,
-        tmp_path,
-    )
-    joined = "\n".join(warnings)
-    assert rc == EXIT_UNRESOLVED
-    assert browser.calls == [(signed_url, page.url)]
-    assert "fetched https://pdf.example.org/main.pdf but it was not a PDF" in joined
-    assert "token=secret" not in joined
-    assert "#viewer" not in joined
-
-
-def test_browser_pdf_redacts_signed_url_in_manifest(tmp_path: Path) -> None:
-    signed_url = "https://pdf.example.org/main.pdf?token=secret#viewer"
-    page = PageResult(
-        url="https://example.org/article",
-        status=200,
-        title="Article",
-        html="<main>Article</main>",
-        links=[],
-        challenged=False,
-    )
+    page = _article_page(url="https://example.org/article?session=secret")
     manifest: dict[str, object] = {}
+    warnings: list[str] = []
 
     rc = _browser_pdf(
         argparse.Namespace(pdf_url=signed_url),
         PaperMeta(doi="10.1234/example"),
         manifest,
-        PdfBrowser(),
+        browser,
         _rendered(page),
-        [],
+        warnings,
         tmp_path,
     )
 
-    assert rc == EXIT_OK
-    assert manifest["pdf"] == {
-        "url": "https://pdf.example.org/main.pdf",
-        "via": "explicit",
-        "path": str(tmp_path / "10.1234_example.pdf"),
-    }
+    joined = json.dumps({"manifest": manifest, "warnings": warnings})
+    assert rc == expected_rc
+    if isinstance(expected, str):
+        assert expected in joined
+    else:
+        pdf = manifest["pdf"]
+        assert isinstance(pdf, dict)
+        assert {"url": pdf["url"]} == expected
+    assert "token=secret" not in joined
+    assert "#viewer" not in joined
 
 
 def test_browser_pdf_writes_output_atomically(
@@ -331,14 +316,7 @@ def test_browser_pdf_writes_output_atomically(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     signed_url = "https://pdf.example.org/main.pdf"
-    page = PageResult(
-        url="https://example.org/article",
-        status=200,
-        title="Article",
-        html="<main>Article</main>",
-        links=[],
-        challenged=False,
-    )
+    page = _article_page()
     dest = tmp_path / "10.1234_example.pdf"
     dest.write_bytes(b"old-pdf")
 

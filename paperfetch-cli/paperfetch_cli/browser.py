@@ -23,13 +23,14 @@ from dataclasses import dataclass
 from http.cookiejar import MozillaCookieJar
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Self
-from urllib.parse import urlsplit, urlunsplit
+from urllib.parse import urlsplit
 
 from patchright.sync_api import Error as PlaywrightError
 from patchright.sync_api import sync_playwright
 from pyvirtualdisplay import Display
 
 from paperfetch_cli.errors import EXIT_FETCH, CLIError
+from paperfetch_cli.sanitize import redact_url
 
 if TYPE_CHECKING:
     from types import TracebackType
@@ -338,9 +339,7 @@ class Browser:
         page = self._ctx.new_page()
         try:
             if not self._goto(page, landing):
-                msg = (
-                    f"could not load {_redact_url(landing)} (DNS or navigation failed)"
-                )
+                msg = f"could not load {redact_url(landing)} (DNS or navigation failed)"
                 raise CLIError(msg, EXIT_FETCH)
             if _is_challenge(str(page.title()), str(page.content())):
                 page.wait_for_timeout(_CHALLENGE_WAIT_MS)
@@ -362,17 +361,6 @@ class Browser:
         data = base64.b64decode(payload) if payload else b""
         _check_expect(expect, ctype, status)
         return FetchResult(status=status, content_type=ctype, data=data)
-
-    def fetch_pdf(self, url: str, *, context_url: str | None = None) -> FetchResult:
-        # Most publishers (Cell/Nature/Science) serve the PDF bytes at the URL,
-        # so the in-page fetch gets them directly. ScienceDirect's pdfft instead
-        # returns an HTML interstitial that meta-refreshes to a download; when the
-        # in-page fetch comes back as non-PDF, navigate to the URL in the live
-        # session and capture the browser download it triggers.
-        result = self.fetch_bytes(url, context_url=context_url)
-        if "pdf" in result.content_type and result.data[:4] == b"%PDF":
-            return result
-        return self._capture_download(url, context_url)
 
     def fetch_pdf_from_page(self, url: str, rendered: BrowserPage) -> FetchResult:
         result = self._fetch_bytes_from_page(rendered.page, url)
@@ -444,7 +432,7 @@ class Browser:
                             data=Path(downloads[0].path()).read_bytes(),
                         )
                     page.wait_for_timeout(1000)
-            msg = f"no PDF reached for {_redact_url(url)}"
+            msg = f"no PDF reached for {redact_url(url)}"
             raise CLIError(msg, EXIT_FETCH)
         finally:
             page.close()
@@ -490,9 +478,3 @@ def _check_expect(expect: str | None, ctype: str, status: int) -> None:
 def _origin(url: str) -> str:
     parts = urlsplit(url)
     return f"{parts.scheme}://{parts.netloc}/"
-
-
-def _redact_url(url: str) -> str:
-    parts = urlsplit(url)
-    netloc = parts.netloc.rsplit("@", 1)[-1]
-    return urlunsplit((parts.scheme, netloc, parts.path, "", ""))
