@@ -24,6 +24,7 @@ from xml.etree.ElementTree import Element, ParseError
 from defusedxml import ElementTree
 
 from paperfetch_cli.errors import EXIT_FETCH, EXIT_UNRESOLVED, CLIError
+from paperfetch_cli.sanitize import redact_url
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -737,12 +738,6 @@ def pdf_candidates(links: list[str]) -> list[str]:
     return out
 
 
-def _redact_url(url: str) -> str:
-    parts = urllib.parse.urlsplit(url)
-    netloc = parts.netloc.rsplit("@", 1)[-1]
-    return urllib.parse.urlunsplit((parts.scheme, netloc, parts.path, "", ""))
-
-
 def _download_pdf_once(url: str, dest: Path) -> None:
     request = urllib.request.Request(url, headers={"User-Agent": _UA})  # noqa: S310
     tmp = dest.with_name(f".{dest.name}.tmp")
@@ -751,12 +746,12 @@ def _download_pdf_once(url: str, dest: Path) -> None:
         if "html" in ctype:
             msg = (
                 "OA link returned an HTML page, not a PDF (likely bot-blocked): "
-                f"{_redact_url(url)}"
+                f"{redact_url(url)}"
             )
             raise CLIError(msg, EXIT_UNRESOLVED)
         prefix = response.read(5)
         if prefix != b"%PDF-":
-            msg = f"OA link returned bytes that are not a PDF: {_redact_url(url)}"
+            msg = f"OA link returned bytes that are not a PDF: {redact_url(url)}"
             raise CLIError(msg, EXIT_UNRESOLVED)
         try:
             with tmp.open("wb") as handle:

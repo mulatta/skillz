@@ -15,7 +15,7 @@ import re
 import sys
 from pathlib import Path
 from typing import TYPE_CHECKING, TextIO
-from urllib.parse import urlsplit, urlunsplit
+from urllib.parse import urlsplit
 
 from paperfetch_cli import __version__
 from paperfetch_cli.config import (
@@ -46,6 +46,7 @@ from paperfetch_cli.resolve import (
     resolve_metadata,
     sciencedirect_pdf_url,
 )
+from paperfetch_cli.sanitize import redact_url
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
@@ -315,7 +316,7 @@ def _browser_pdf(  # noqa: PLR0913
         manifest["candidates"] = {"pdf_links": _redacted_pdf_candidates(page.links)}
         return EXIT_UNRESOLVED
     if result.data[:5] != b"%PDF-":
-        warnings.append(f"fetched {_redact_url(pdf_url)} but it was not a PDF")
+        warnings.append(f"fetched {redact_url(pdf_url)} but it was not a PDF")
         _append_page_diagnostics(warnings, page)
         manifest["candidates"] = {"pdf_links": _redacted_pdf_candidates(page.links)}
         return EXIT_UNRESOLVED
@@ -327,7 +328,7 @@ def _browser_pdf(  # noqa: PLR0913
     finally:
         with contextlib.suppress(OSError):
             tmp.unlink()
-    manifest["pdf"] = {"url": _redact_url(pdf_url), "via": via, "path": str(dest)}
+    manifest["pdf"] = {"url": redact_url(pdf_url), "via": via, "path": str(dest)}
     return EXIT_OK
 
 
@@ -341,7 +342,7 @@ def _page_diagnostics(page: PageResult, *, include_challenge: bool = True) -> li
         warnings.append("Cloudflare challenge did not clear")
     warnings.append(
         f"rendered page diagnostics: status={page.status}, title={page.title!r}, "
-        f"url={_redact_url(page.url)}, pdf_selector_links={page.pdf_link_count}"
+        f"url={redact_url(page.url)}, pdf_selector_links={page.pdf_link_count}"
     )
     return warnings
 
@@ -352,16 +353,10 @@ def _append_page_diagnostics(warnings: list[str], page: PageResult) -> None:
             warnings.append(warning)
 
 
-def _redact_url(url: str) -> str:
-    parts = urlsplit(url)
-    netloc = parts.netloc.rsplit("@", 1)[-1]
-    return urlunsplit((parts.scheme, netloc, parts.path, "", ""))
-
-
 def _redacted_pdf_candidates(links: list[str]) -> list[str]:
     out: list[str] = []
     for link in pdf_candidates(links):
-        redacted = _redact_url(link)
+        redacted = redact_url(link)
         if redacted not in out:
             out.append(redacted)
     return out
