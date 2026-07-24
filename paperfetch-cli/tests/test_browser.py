@@ -55,3 +55,32 @@ def test_render_reports_page_snapshot_closure_as_cli_error() -> None:
     browser.__dict__["_ctx"] = ClosingContext()
     with pytest.raises(CLIError, match="could not read rendered page"):
         browser.render("https://example.org/article")
+
+
+class RecordingChromium:
+    def __init__(self) -> None:
+        self.launch_kwargs: dict[str, object] = {}
+        self.context_kwargs: dict[str, object] = {}
+
+    def launch(self, **kwargs: object) -> RecordingChromium:
+        self.launch_kwargs = kwargs
+        return self
+
+    def new_context(self, **kwargs: object) -> object:
+        self.context_kwargs = kwargs
+        return object()
+
+
+def test_launch_keeps_sandbox_and_tls_verification_enabled() -> None:
+    chromium = RecordingChromium()
+    browser = Browser(BrowserConfig())
+    browser.__dict__["_pw"] = type("PW", (), {"chromium": chromium})()
+
+    Browser.__dict__["_launch"](browser)
+
+    args = chromium.launch_kwargs["args"]
+    assert isinstance(args, list)
+    assert "--no-sandbox" not in args
+    assert "--disable-setuid-sandbox" not in args
+    assert "--ignore-certificate-errors" not in args
+    assert chromium.context_kwargs == {"accept_downloads": True}
