@@ -7,11 +7,9 @@ iframe (the iframe's fetch is pristine, bypassing publisher window.fetch
 bot-detection); an out-of-band HTTP client gets a CF 403, and navigating to the
 PDF directly only opens Chrome's viewer.
 
-ScienceDirect needs a second path: its /pdfft download endpoint sits behind an
-*interactive* Cloudflare challenge that a scripted navigation can never clear,
-so the engine clicks the page's real "View PDF" link (a genuine user gesture
-that CF serves a managed, auto-solving challenge for) and captures the resulting
-popup's PDF response bytes.
+ScienceDirect uses a best-effort second path that clicks the page's real
+"View PDF" link and watches its popup for PDF bytes. Article authentication does
+not guarantee that this interactive path will return a PDF to automation.
 """
 
 from __future__ import annotations
@@ -25,7 +23,7 @@ from dataclasses import dataclass
 from http.cookiejar import MozillaCookieJar
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Self
-from urllib.parse import urlsplit
+from urllib.parse import urlsplit, urlunsplit
 
 from patchright.sync_api import Error as PlaywrightError
 from patchright.sync_api import sync_playwright
@@ -53,6 +51,10 @@ _CHALLENGE_BODY = re.compile(
 
 def _is_challenge(title: str, html: str) -> bool:
     return bool(_CHALLENGE.search(title) or _CHALLENGE_BODY.search(html))
+
+
+def _pdf_link_count(links: list[str]) -> int:
+    return sum(1 for link in links if "pdf" in link.lower())
 
 
 _LAUNCH_ARGS = [
@@ -108,6 +110,7 @@ class PageResult:
     html: str
     links: list[str]
     challenged: bool
+    pdf_link_count: int = 0
 
 
 @dataclass
@@ -260,13 +263,15 @@ class Browser:
                     challenged = _is_challenge(title, html)
                     attempts += 1
                 status = int(resp.status) if resp is not None else 0
+                link_list = [str(link) for link in links]
                 return PageResult(
                     url=str(page.url),
                     status=status,
                     title=title,
                     html=html,
-                    links=[str(link) for link in links],
+                    links=link_list,
                     challenged=challenged,
+                    pdf_link_count=_pdf_link_count(link_list),
                 )
             except CLIError as exc:
                 last = exc
@@ -316,7 +321,9 @@ class Browser:
         page = self._ctx.new_page()
         try:
             if not self._goto(page, landing):
-                msg = f"could not load {landing} (DNS or navigation failed)"
+                msg = (
+                    f"could not load {_redact_url(landing)} (DNS or navigation failed)"
+                )
                 raise CLIError(msg, EXIT_FETCH)
             if _is_challenge(str(page.title()), str(page.content())):
                 page.wait_for_timeout(_CHALLENGE_WAIT_MS)
@@ -345,14 +352,11 @@ class Browser:
         # ScienceDirect gates /pdfft behind a second, *interactive* Cloudflare
         # challenge that a scripted page.goto() can never clear: a scripted nav
         # omits the Sec-Fetch-User user-activation signal, so CF escalates it. A
-        # real click on the publisher's "View PDF" link carries the gesture +
-        # same-origin referer + the warm cf_clearance, so CF serves a managed
-        # challenge that auto-solves (this is how Zotero's translator does it).
-        # The link is target=_blank, so a popup opens and navigates onto the
-        # publisher's pre-signed asset URL. That signed URL is bound to the
-        # popup's own document navigation - re-requesting it out of band returns
-        # an HTML bot page - so capture the popup's *own* PDF response body
-        # (Chrome renders it in the inline viewer; no download event fires).
+        # real click on the publisher's "View PDF" link carries user activation
+        # and same-origin referer, which is the only automation path that has
+        # worked intermittently. Signed asset URLs and viewer resources often
+        # re-request as HTML bot pages, so this path is best-effort and never logs
+        # the signed URL or response body.
         landing = context_url or _origin(url)
         page = self._ctx.new_page()
         downloads: list[Any] = []
@@ -362,11 +366,8 @@ class Browser:
             downloads.append(dl)
 
         def _watch_response(resp: Any) -> None:  # noqa: ANN401
-            # Read the body in the handler, the moment the response completes:
-            # the asset's first response is a tiny HTML viewer stub (its
-            # content-type is still application/pdf), and the real bytes arrive
-            # on a later response that Chrome's PDF viewer consumes - reading it
-            # lazily afterwards races the viewer and fails, so grab it here.
+            # Read immediately because Chrome's PDF viewer can consume response
+            # bodies before polling code sees them.
             if pdfs:
                 return
             with contextlib.suppress(PlaywrightError):
@@ -411,7 +412,7 @@ class Browser:
                             data=Path(downloads[0].path()).read_bytes(),
                         )
                     page.wait_for_timeout(1000)
-            msg = f"no PDF reached for {url}"
+            msg = f"no PDF reached for {_redact_url(url)}"
             raise CLIError(msg, EXIT_FETCH)
         finally:
             page.close()
@@ -457,3 +458,9 @@ def _check_expect(expect: str | None, ctype: str, status: int) -> None:
 def _origin(url: str) -> str:
     parts = urlsplit(url)
     return f"{parts.scheme}://{parts.netloc}/"
+
+
+def _redact_url(url: str) -> str:
+    parts = urlsplit(url)
+    netloc = parts.netloc.rsplit("@", 1)[-1]
+    return urlunsplit((parts.scheme, netloc, parts.path, "", ""))

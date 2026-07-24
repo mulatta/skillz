@@ -13,6 +13,7 @@ import json
 import sys
 from pathlib import Path
 from typing import TYPE_CHECKING, TextIO
+from urllib.parse import urlsplit, urlunsplit
 
 from paperfetch_cli import __version__
 from paperfetch_cli.config import (
@@ -254,7 +255,7 @@ def _browser_get(
                 last_error = exc
                 continue
             if page.challenged:
-                warnings.append("Cloudflare challenge did not clear")
+                warnings.extend(_page_diagnostics(page))
             if args.html:
                 dest = out_dir / (_slug(meta) + ".html")
                 dest.write_text(page.html, encoding="utf-8")
@@ -287,7 +288,8 @@ def _browser_pdf(  # noqa: PLR0913
     pdf_url = args.pdf_url or cited or sd or publisher_pdf_url(page.url)
     if pdf_url is None:
         warnings.append("no PDF URL found on the page")
-        manifest["candidates"] = {"pdf_links": pdf_candidates(page.links)}
+        warnings.extend(_page_diagnostics(page, include_challenge=False))
+        manifest["candidates"] = {"pdf_links": _redacted_pdf_candidates(page.links)}
         return EXIT_UNRESOLVED
     if args.pdf_url:
         via = "explicit"
@@ -301,16 +303,42 @@ def _browser_pdf(  # noqa: PLR0913
         result = browser.fetch_pdf(pdf_url, context_url=page.url)
     except CLIError as exc:
         warnings.append(str(exc))
-        manifest["candidates"] = {"pdf_links": pdf_candidates(page.links)}
+        manifest["candidates"] = {"pdf_links": _redacted_pdf_candidates(page.links)}
         return EXIT_UNRESOLVED
     if result.data[:5] != b"%PDF-":
-        warnings.append(f"fetched {pdf_url} but it was not a PDF")
-        manifest["candidates"] = {"pdf_links": pdf_candidates(page.links)}
+        warnings.append(f"fetched {_redact_url(pdf_url)} but it was not a PDF")
+        manifest["candidates"] = {"pdf_links": _redacted_pdf_candidates(page.links)}
         return EXIT_UNRESOLVED
     dest = out_dir / (_slug(meta) + ".pdf")
     dest.write_bytes(result.data)
     manifest["pdf"] = {"url": pdf_url, "via": via, "path": str(dest)}
     return EXIT_OK
+
+
+def _page_diagnostics(page: PageResult, *, include_challenge: bool = True) -> list[str]:
+    warnings: list[str] = []
+    if include_challenge and page.challenged:
+        warnings.append("Cloudflare challenge did not clear")
+    warnings.append(
+        f"rendered page diagnostics: status={page.status}, title={page.title!r}, "
+        f"url={_redact_url(page.url)}, pdf_selector_links={page.pdf_link_count}"
+    )
+    return warnings
+
+
+def _redact_url(url: str) -> str:
+    parts = urlsplit(url)
+    netloc = parts.netloc.rsplit("@", 1)[-1]
+    return urlunsplit((parts.scheme, netloc, parts.path, "", ""))
+
+
+def _redacted_pdf_candidates(links: list[str]) -> list[str]:
+    out: list[str] = []
+    for link in pdf_candidates(links):
+        redacted = _redact_url(link)
+        if redacted not in out:
+            out.append(redacted)
+    return out
 
 
 def _print_optional_line(manifest: dict[str, object], key: str, stream: TextIO) -> None:

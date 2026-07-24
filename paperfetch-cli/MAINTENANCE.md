@@ -69,14 +69,15 @@ to mypy and `_browser_pdf` still needs many parameters.
 Suggested fix: convert CLI args into a typed `GetOptions` dataclass at the
 command boundary.
 
-### 5. ScienceDirect live coverage is Linux-only
+### 5. ScienceDirect live coverage is host-dependent
 
-The ScienceDirect live test is gated behind Linux/Xvfb because macOS visible
-Chrome often stops at Cloudflare's interactive "Are you a robot" prompt. Runtime
-CLI behavior is unchanged; only the live test is platform-gated.
+The ScienceDirect live test remains opt-in and Linux-only because its supported
+headful automation path needs Xvfb. A current Linux/Xvfb smoke test returned PDF
+bytes, while macOS headless did not; neither result makes this best-effort path a
+portable guarantee.
 
-Suggested fix: run `PAPERFETCH_LIVE_BROWSER=1 PAPERFETCH_LIVE_SCIENCEDIRECT=1`
-on a Linux/Xvfb host before claiming ScienceDirect coverage green.
+Suggested fix: keep a periodic Linux/Xvfb smoke test rather than promoting this
+to a required check until PDF byte return is deterministic.
 
 ### 6. Papercuts
 
@@ -95,6 +96,6 @@ on a Linux/Xvfb host before claiming ScienceDirect coverage green.
 1. Merge unification plus `PaperMeta`/`OaPdf` redesign.
 1. Typed `GetOptions` for `get` internals.
 1. Browser typing cleanup.
-1. Linux/Xvfb ScienceDirect live validation.
+1. Periodic Linux/Xvfb ScienceDirect validation.
 1. Version/config papercuts.
 1. Module split when another source is added.

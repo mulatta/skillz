@@ -6,8 +6,9 @@ for human/agent invocation, not scheduled scraping.
 
 Working: metadata + open-access resolution through OpenAlex, native arXiv,
 Europe PMC / PMC OA, and configured Unpaywall, plus byte-level PDF download for
-arXiv, PMC, Nature, Cell, Science, and ScienceDirect/Elsevier - self-contained,
-no cookie/cache injection.
+arXiv, PMC, Nature, Cell, and Science. ScienceDirect/Elsevier remains
+best-effort because its PDF path can require interactive browser state that does
+not always return bytes to the CLI.
 
 ## Commands
 
@@ -52,11 +53,12 @@ sibling page inside a fresh iframe - the iframe's fetch is pristine, bypassing
 publisher `window.fetch` bot-detection; navigating to the PDF directly only
 opens Chrome's viewer, and an out-of-band client gets a CF 403.
 
-ScienceDirect needs a second path: its `/pdfft` endpoint sits behind an
-*interactive* Cloudflare challenge a scripted navigation can never clear (no
-`Sec-Fetch-User` gesture). The engine clicks the page's real "View PDF" link (a
-gesture, for which CF serves a managed auto-solving challenge) and captures the
-resulting popup's own PDF response bytes.
+ScienceDirect is intentionally treated as best-effort. Even on the Linux/Xvfb
+host where headful Chromium clears the article challenge, a browser-authenticated
+article session can load the article and Chrome PDF viewer while `/pdfft` still
+returns HTML to scripted fetches instead of `%PDF-` bytes. On failure the CLI
+reports sanitized page diagnostics and candidate PDF links so a caller can hand
+off to a human browser session.
 
 The browser is bundled (stock `chromium` on Linux, prebuilt Chrome for Testing
 on macOS, since nixpkgs Chromium is Linux-only); `--executable` / `setup --chromium` override it.
@@ -84,17 +86,16 @@ configured, Unpaywall is skipped and the existing browser fallback still runs.
 | Nature (Springer) | none | yes | `citation_pdf_url` |
 | Cell (Elsevier) | yes, headful passes | yes | `citation_pdf_url` |
 | Science (AAAS) | yes, headful passes | yes | adapter (no `citation_pdf_url`) |
-| ScienceDirect (Elsevier) | yes; `/pdfft` is a 2nd interactive challenge, cleared by clicking "View PDF" | yes | `pdfDownload.urlMetadata` adapter |
+| ScienceDirect (Elsevier) | yes; PDF path may need interactive handoff | yes | `pdfDownload.urlMetadata` adapter, best-effort |
 
 ## Auth
 
 Access is **IP-first**: the host is in the publishers' subscriber IP ranges, so
-paywalled PDFs download with no login and no maintained session - only the
-session the browser builds itself each run, discarded on exit. `--cookies` /
-`--profile` are an escape hatch (off-campus / EZproxy), set once via `setup`. On
-a host without Xvfb (macOS) the headful browser is visible and Cloudflare does
-not auto-clear, so a one-time warmed `--profile` (solve the challenge by hand in
-`render`, then reuse) is needed for ScienceDirect.
+paywalled PDFs usually download with no login and no maintained session - only
+the session the browser builds itself each run, discarded on exit. `--cookies` /
+`--profile` are an escape hatch (off-campus / EZproxy), set once via `setup`.
+Use `render --profile DIR` only when manually operating the browser on that host
+is acceptable; otherwise treat ScienceDirect failures as a manual handoff case.
 
 ## Live tests
 
@@ -107,8 +108,8 @@ PAPERFETCH_LIVE_BROWSER=1 pytest tests/test_live_e2e.py
 PAPERFETCH_LIVE_UNPAYWALL_EMAIL=you@example.org PAPERFETCH_LIVE=1 pytest tests/test_live_e2e.py
 ```
 
-ScienceDirect is gated separately because macOS visible Chrome often stops at
-Cloudflare's interactive "Are you a robot" prompt; run it only on Linux/Xvfb:
+ScienceDirect is gated separately because its PDF byte-return path is
+best-effort even on Linux/Xvfb after the article challenge clears:
 
 ```bash
 PAPERFETCH_LIVE_BROWSER=1 PAPERFETCH_LIVE_SCIENCEDIRECT=1 pytest tests/test_live_e2e.py

@@ -111,6 +111,10 @@ def test_live_get_downloads_browser_pdf_sources(
         "on Linux/Xvfb to test ScienceDirect Cloudflare"
     ),
 )
+@pytest.mark.xfail(
+    reason="ScienceDirect PDF byte return is best-effort and may need manual handoff",
+    strict=False,
+)
 def test_live_sciencedirect_pdf_source(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
