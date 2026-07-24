@@ -58,12 +58,9 @@ def _pdf_link_count(links: list[str]) -> int:
 
 
 _LAUNCH_ARGS = [
-    "--no-sandbox",
-    "--disable-setuid-sandbox",
     "--disable-dev-shm-usage",
     "--disable-gpu",
     "--disable-blink-features=AutomationControlled",
-    "--ignore-certificate-errors",
 ]
 _DEFAULT_SETTLE_MS = 3000
 _CHALLENGE_WAIT_MS = 8000
@@ -157,7 +154,6 @@ class Browser:
                 headless=headless,
                 executable_path=self._cfg.executable,
                 args=_LAUNCH_ARGS,
-                ignore_https_errors=True,
                 accept_downloads=True,
             )
         else:
@@ -166,9 +162,7 @@ class Browser:
                 executable_path=self._cfg.executable,
                 args=_LAUNCH_ARGS,
             )
-            self._ctx = self._browser.new_context(
-                ignore_https_errors=True, accept_downloads=True
-            )
+            self._ctx = self._browser.new_context(accept_downloads=True)
 
     def _teardown(self) -> None:
         for closer in (self._ctx, self._browser):
