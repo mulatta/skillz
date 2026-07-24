@@ -9,7 +9,9 @@ imported lazily so ``--help`` and argument parsing do not require patchright.
 from __future__ import annotations
 
 import argparse
+import contextlib
 import json
+import re
 import sys
 from pathlib import Path
 from typing import TYPE_CHECKING, TextIO
@@ -155,7 +157,20 @@ def _slug(meta: PaperMeta) -> str:
         return "arxiv_" + meta.arxiv_id.replace("/", "_")
     if meta.doi:
         return meta.doi.replace("/", "_")
-    return meta.pmcid or (f"PMID{meta.pmid}" if meta.pmid else "paper")
+    if meta.pmcid:
+        return meta.pmcid
+    if meta.pmid:
+        return f"PMID{meta.pmid}"
+    if meta.landing_url:
+        return _url_slug(meta.landing_url)
+    return "paper"
+
+
+def _url_slug(url: str) -> str:
+    parts = urlsplit(url)
+    stem = f"{parts.netloc.rsplit('@', 1)[-1]}{parts.path}"
+    slug = re.sub(r"[^A-Za-z0-9._-]+", "_", stem).strip("_.-")
+    return slug or "paper"
 
 
 def _manifest(meta: PaperMeta) -> dict[str, object]:
@@ -310,9 +325,19 @@ def _browser_pdf(  # noqa: PLR0913
         manifest["candidates"] = {"pdf_links": _redacted_pdf_candidates(page.links)}
         return EXIT_UNRESOLVED
     dest = out_dir / (_slug(meta) + ".pdf")
-    dest.write_bytes(result.data)
-    manifest["pdf"] = {"url": pdf_url, "via": via, "path": str(dest)}
+    tmp = _temporary_output_path(dest)
+    try:
+        tmp.write_bytes(result.data)
+        tmp.replace(dest)
+    finally:
+        with contextlib.suppress(OSError):
+            tmp.unlink()
+    manifest["pdf"] = {"url": _redact_url(pdf_url), "via": via, "path": str(dest)}
     return EXIT_OK
+
+
+def _temporary_output_path(dest: Path) -> Path:
+    return dest.with_name(f".{dest.name}.tmp")
 
 
 def _page_diagnostics(page: PageResult, *, include_challenge: bool = True) -> list[str]:

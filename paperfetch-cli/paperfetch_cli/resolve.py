@@ -735,6 +735,7 @@ def _redact_url(url: str) -> str:
 
 def _download_pdf_once(url: str, dest: Path) -> None:
     request = urllib.request.Request(url, headers={"User-Agent": _UA})  # noqa: S310
+    tmp = dest.with_name(f".{dest.name}.tmp")
     with urllib.request.urlopen(request, timeout=_TIMEOUT) as response:  # noqa: S310
         ctype = response.headers.get("content-type", "").lower()
         if "html" in ctype:
@@ -747,9 +748,14 @@ def _download_pdf_once(url: str, dest: Path) -> None:
         if prefix != b"%PDF-":
             msg = f"OA link returned bytes that are not a PDF: {_redact_url(url)}"
             raise CLIError(msg, EXIT_UNRESOLVED)
-        with dest.open("wb") as handle:
-            handle.write(prefix)
-            shutil.copyfileobj(response, handle)
+        try:
+            with tmp.open("wb") as handle:
+                handle.write(prefix)
+                shutil.copyfileobj(response, handle)
+            tmp.replace(dest)
+        finally:
+            with contextlib.suppress(OSError):
+                tmp.unlink()
 
 
 def download_file(url: str, dest: Path) -> None:
