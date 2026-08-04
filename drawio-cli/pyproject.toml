@@ -21,7 +21,7 @@ target-version = "py313"
 line-length = 88
 
 [tool.ruff.lint]
-ignore = ["TRY004"]
+ignore = ["TRY004", "EXE001"]
 
 [tool.mypy]
 python_version = "3.13"
