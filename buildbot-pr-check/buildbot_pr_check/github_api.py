@@ -33,12 +33,12 @@ def get_github_token() -> str | None:
 
 
 def _gh_get(url: str) -> Any:
-    req = urllib.request.Request(url)  # noqa: S310
+    req = urllib.request.Request(url)
     req.add_header("Accept", "application/vnd.github.v3+json")
     token = get_github_token()
     if token:
         req.add_header("Authorization", f"token {token}")
-    with urllib.request.urlopen(req) as response:  # noqa: S310
+    with urllib.request.urlopen(req) as response:
         return json.loads(response.read())
 
 

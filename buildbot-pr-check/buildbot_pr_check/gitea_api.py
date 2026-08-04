@@ -10,9 +10,9 @@ from .url_parser import is_nixbot_build_url, is_safe_url
 
 
 def _get(url: str) -> Any:
-    req = urllib.request.Request(url)  # noqa: S310
+    req = urllib.request.Request(url)
     req.add_header("Accept", "application/json")
-    with urllib.request.urlopen(req) as response:  # noqa: S310
+    with urllib.request.urlopen(req) as response:
         return json.loads(response.read())
 
 

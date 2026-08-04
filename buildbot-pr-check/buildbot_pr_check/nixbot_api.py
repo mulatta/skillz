@@ -11,7 +11,6 @@ from typing import Any
 
 from .exceptions import NixbotAPIError
 
-
 BAD_STATUSES = {
     "failed",
     "failed_eval",
@@ -145,7 +144,7 @@ class NixbotClient:
     def _get(self, path: str) -> Any:
         url = f"{self.base_url}/api/{path.lstrip('/')}"
         try:
-            with urllib.request.urlopen(url) as resp:  # noqa: S310
+            with urllib.request.urlopen(url) as resp:
                 body = resp.read()
         except (urllib.error.URLError, urllib.error.HTTPError) as e:
             msg = f"Nixbot request failed: {url}: {e}"
@@ -211,7 +210,7 @@ class NixbotClient:
         attribute.log_url = self.raw_log_url(self._build_number, attribute.attr)
         url = self.raw_log_url(self._build_number, attribute.attr, tail)
         try:
-            with urllib.request.urlopen(url) as resp:  # noqa: S310
+            with urllib.request.urlopen(url) as resp:
                 attribute.log_tail = resp.read().decode(errors="replace")
         except (urllib.error.URLError, urllib.error.HTTPError) as e:
             attribute.log_tail = f"<failed to fetch log: {e}>"

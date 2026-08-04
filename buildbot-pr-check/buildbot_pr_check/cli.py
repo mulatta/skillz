@@ -28,7 +28,6 @@ from .reporting import (
 )
 from .url_parser import PRInfo, get_pr_info, parse_nixbot_url
 
-
 # --------------------------------------------------------------------------- #
 # PR → nixbot build discovery
 # --------------------------------------------------------------------------- #

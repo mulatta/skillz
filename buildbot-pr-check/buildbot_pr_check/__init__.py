@@ -15,8 +15,8 @@ __version__ = "0.2.0"
 __all__ = [
     "APIError",
     "CheckError",
-    "GiteaAPIError",
     "GitHubAPIError",
+    "GiteaAPIError",
     "InvalidPRURLError",
     "NixbotAPIError",
     "main",
