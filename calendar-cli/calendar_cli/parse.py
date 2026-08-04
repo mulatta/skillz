@@ -1,3 +1,5 @@
+# Copyright (c) 2026 Seungwon Lee
+# SPDX-License-Identifier: MIT
 """Parse VEVENT components from icalendar objects into CalendarEvent models."""
 
 from __future__ import annotations

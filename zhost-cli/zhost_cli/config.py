@@ -1,3 +1,5 @@
+# Copyright (c) 2026 Seungwon Lee
+# SPDX-License-Identifier: MIT
 """Configuration and API-key resolution.
 
 zhost speaks the Zotero Web API v3 sync subset. Auth is a single Bearer-style

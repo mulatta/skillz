@@ -20,6 +20,9 @@ packages = ["src/drawio_cli"]
 target-version = "py313"
 line-length = 88
 
+[tool.ruff.lint]
+ignore = ["TRY004", "EXE001", "UP022", "RUF007"]
+
 [tool.mypy]
 python_version = "3.13"
 strict = true

@@ -1,8 +1,11 @@
+# Copyright (c) 2026 Seungwon Lee
+# SPDX-License-Identifier: MIT
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
 import pytest
+
 from biorefs_cli.commands import compound
 from biorefs_cli.errors import CLIError
 from biorefs_cli.main import build_parser
@@ -59,9 +62,9 @@ def property_fixture(cid: int = 2244) -> JsonObject:
                     "TPSA": 63.6,
                     "Charge": 0,
                     "Complexity": 212,
-                }
-            ]
-        }
+                },
+            ],
+        },
     }
 
 
@@ -78,7 +81,10 @@ def test_search_routes_name_cid_smiles_inchikey_and_formula_inputs() -> None:
     ]
     for query_type, query, expected_url in cases:
         http = FixtureHttp(
-            {expected_url: cids_fixture(2244), property_url("2244"): property_fixture()}
+            {
+                expected_url: cids_fixture(2244),
+                property_url("2244"): property_fixture(),
+            },
         )
         client = compound.CompoundClient(http)
 
@@ -129,10 +135,10 @@ def pug_view_fixture() -> JsonObject:
                             "ReferenceNumber": 1,
                             "Value": {
                                 "StringWithMarkup": [
-                                    {"String": "Aspirin is an analgesic."}
-                                ]
+                                    {"String": "Aspirin is an analgesic."},
+                                ],
                             },
-                        }
+                        },
                     ],
                 },
                 {
@@ -145,11 +151,11 @@ def pug_view_fixture() -> JsonObject:
                                     "ReferenceNumber": 2,
                                     "Name": "Signal",
                                     "Value": {
-                                        "StringWithMarkup": [{"String": "Warning"}]
+                                        "StringWithMarkup": [{"String": "Warning"}],
                                     },
-                                }
+                                },
                             ],
-                        }
+                        },
                     ],
                 },
                 {
@@ -159,14 +165,14 @@ def pug_view_fixture() -> JsonObject:
                             "Name": "MeSH",
                             "Value": {
                                 "StringWithMarkup": [
-                                    {"String": "Anti-Inflammatory Agents"}
-                                ]
+                                    {"String": "Anti-Inflammatory Agents"},
+                                ],
                             },
-                        }
+                        },
                     ],
                 },
             ],
-        }
+        },
     }
 
 
@@ -194,14 +200,16 @@ def test_fetch_name_ambiguity_returns_candidate_list() -> None:
                     "Properties": [
                         {"CID": 1, "Title": "Candidate 1"},
                         {"CID": 2, "Title": "Candidate 2"},
-                    ]
-                }
+                    ],
+                },
             },
-        }
+        },
     )
 
     result = compound.CompoundClient(http).fetch(
-        cid=None, name="ambiguous", include=["properties"]
+        cid=None,
+        name="ambiguous",
+        include=["properties"],
     )
 
     assert result["status"] == "ambiguous"
@@ -216,13 +224,13 @@ def test_xrefs_parse_requested_targets_with_provenance() -> None:
         {
             pubmed_url: {
                 "InformationList": {
-                    "Information": [{"CID": 2244, "PubMedID": ["1", "2"]}]
-                }
+                    "Information": [{"CID": 2244, "PubMedID": ["1", "2"]}],
+                },
             },
             gene_url: {
-                "InformationList": {"Information": [{"CID": 2244, "GeneID": ["10"]}]}
+                "InformationList": {"Information": [{"CID": 2244, "GeneID": ["10"]}]},
             },
-        }
+        },
     )
 
     result = compound.CompoundClient(http).xrefs(2244, ["pubmed", "gene"])
@@ -249,7 +257,7 @@ def test_bioactivity_row_parse_and_active_filter() -> None:
                             "Target Name",
                             "GeneID",
                             "Source Name",
-                        ]
+                        ],
                     },
                     "Row": [
                         {
@@ -262,7 +270,7 @@ def test_bioactivity_row_parse_and_active_filter() -> None:
                                 "PTGS1",
                                 "5742",
                                 "PubChem",
-                            ]
+                            ],
                         },
                         {
                             "Cell": [
@@ -274,16 +282,19 @@ def test_bioactivity_row_parse_and_active_filter() -> None:
                                 "PTGS2",
                                 "5743",
                                 "PubChem",
-                            ]
+                            ],
                         },
                     ],
-                }
-            }
-        }
+                },
+            },
+        },
     )
 
     result = compound.CompoundClient(http).bioactivity(
-        2244, target=None, active_only=True, limit=10
+        2244,
+        target=None,
+        active_only=True,
+        limit=10,
     )
 
     assert result["counts"] == {"before_filter": 2, "returned": 1}
@@ -305,7 +316,7 @@ def test_cli_argument_validation() -> None:
     with pytest.raises(CLIError):
         compound.run_command(
             parser.parse_args(
-                ["compound", "fetch", "--cid", "2244", "--include", "bad"]
+                ["compound", "fetch", "--cid", "2244", "--include", "bad"],
             ),
             compound.CompoundClient(FixtureHttp({})),
         )

@@ -1,3 +1,5 @@
+# Copyright (c) 2026 Seungwon Lee
+# SPDX-License-Identifier: MIT
 """Nucleotide command tests."""
 
 from __future__ import annotations
@@ -7,6 +9,7 @@ from typing import cast
 from urllib.parse import parse_qs, urlparse
 
 import pytest
+
 from biorefs_cli.commands import nucleotide
 from biorefs_cli.config import Config
 from biorefs_cli.errors import CLIError, RateLimitError
@@ -17,7 +20,9 @@ from biorefs_cli.ncbi_client import NCBIClient
 
 class FakeHttpClient(HttpClient):
     def __init__(
-        self, json_payloads: list[dict[str, object]], text_payloads: list[str]
+        self,
+        json_payloads: list[dict[str, object]],
+        text_payloads: list[str],
     ) -> None:
         self.json_payloads = json_payloads
         self.text_payloads = text_payloads
@@ -103,7 +108,9 @@ def test_query_construction_for_taxon_kind_and_refseq_filters() -> None:
     assert "srcdb_refseq[PROP]" in refseq
 
     genomic = nucleotide.build_nucleotide_query(
-        "mitochondrion", taxon="9606", kind="genomic"
+        "mitochondrion",
+        taxon="9606",
+        kind="genomic",
     )
     assert "biomol_genomic[PROP]" in genomic
 
@@ -126,7 +133,7 @@ def test_esummary_parse_for_nucleotide_result() -> None:
             "molecule_type": "mRNA",
             "length": 7088,
             "provenance": {"endpoint": "esummary", "database": "nuccore"},
-        }
+        },
     ]
 
 
@@ -138,7 +145,7 @@ def test_search_uses_esearch_and_esummary_with_filters() -> None:
                     "idlist": ["555"],
                     "count": "1",
                     "querytranslation": "BRCA1",
-                }
+                },
             },
             summary_payload(),
         ],
@@ -147,7 +154,11 @@ def test_search_uses_esearch_and_esummary_with_filters() -> None:
     client = make_client(http)
 
     result = nucleotide.search_nucleotide(
-        client, query="BRCA1", taxon="9606", kind="refseq", limit=5
+        client,
+        query="BRCA1",
+        taxon="9606",
+        kind="refseq",
+        limit=5,
     )
 
     search_params = params(http.json_urls[0])
@@ -172,10 +183,14 @@ def test_fasta_and_genbank_passthrough_behavior() -> None:
     client = make_client(http)
 
     fasta = nucleotide.fetch_nucleotide_text(
-        client, accession="nm_007294.4", fetch_format="fasta"
+        client,
+        accession="nm_007294.4",
+        fetch_format="fasta",
     )
     genbank = nucleotide.fetch_nucleotide_text(
-        client, accession="NM_007294.4", fetch_format="genbank"
+        client,
+        accession="NM_007294.4",
+        fetch_format="genbank",
     )
 
     assert fasta["content"] == ">NM_007294.4 BRCA1\nACGT\n"
@@ -193,7 +208,9 @@ def test_xml_passthrough_behavior() -> None:
     client = make_client(http)
 
     xml = nucleotide.fetch_nucleotide_text(
-        client, accession="NM_007294.4", fetch_format="xml"
+        client,
+        accession="NM_007294.4",
+        fetch_format="xml",
     )
 
     xml_params = params(http.text_urls[0])
@@ -223,7 +240,7 @@ def test_cli_argument_validation(capsys: pytest.CaptureFixture[str]) -> None:
             "--limit",
             "5",
             "--json",
-        ]
+        ],
     )
     assert args.command == "nucleotide"
     assert args.nucleotide_command == "search"
@@ -260,12 +277,17 @@ def test_429_handling_surfaces_rate_limited_error() -> None:
 
     with pytest.raises(RateLimitError):
         nucleotide.search_nucleotide(
-            client, query="BRCA1", taxon=None, kind=None, limit=1
+            client,
+            query="BRCA1",
+            taxon=None,
+            kind=None,
+            limit=1,
         )
 
 
 def test_cli_prints_json_when_requested(
-    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
 ) -> None:
     http = FakeHttpClient(
         [

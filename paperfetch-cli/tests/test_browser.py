@@ -1,3 +1,5 @@
+# Copyright (c) 2026 Seungwon Lee
+# SPDX-License-Identifier: MIT
 """Offline tests for browser helper logic."""
 
 from __future__ import annotations

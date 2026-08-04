@@ -36,7 +36,6 @@ in
     ;
 
   biorefs-cli = callPackage ../biorefs-cli { };
-  buildbot-pr-check = callPackage ../buildbot-pr-check { };
   calendar-cli = callPackage ../calendar-cli { inherit python3 vdirsyncer msmtp; };
   context7-cli = callPackage ../context7-cli { };
   crabfit-cli = callPackage ../crabfit-cli { };

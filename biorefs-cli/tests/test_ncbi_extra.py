@@ -1,9 +1,12 @@
+# Copyright (c) 2026 Seungwon Lee
+# SPDX-License-Identifier: MIT
 from __future__ import annotations
 
 import argparse
 from typing import TYPE_CHECKING, cast
 
 import pytest
+
 from biorefs_cli.commands import ncbi
 from biorefs_cli.errors import CLIError
 
@@ -24,7 +27,7 @@ def test_ncbi_markdown_renderers_cover_human_paths() -> None:
             "ids": ["1", "2"],
             "query_translation": "BRCA1[All Fields]",
             "history": {"query_key": "1"},
-        }
+        },
     )
     summary = ncbi.markdown_summary(
         {
@@ -33,11 +36,12 @@ def test_ncbi_markdown_renderers_cover_human_paths() -> None:
                 {"uid": "672", "name": "BRCA1"},
                 {"id": "1", "description": "fallback description"},
             ],
-        }
+        },
     )
     empty_summary = ncbi.markdown_summary({"db": "gene", "records": []})
     fetch = ncbi.markdown_fetch(
-        "<Entrezgene-Set />", ns(db="gene", id="672", format="xml")
+        "<Entrezgene-Set />",
+        ns(db="gene", id="672", format="xml"),
     )
     link = ncbi.markdown_link(
         {
@@ -48,7 +52,7 @@ def test_ncbi_markdown_renderers_cover_human_paths() -> None:
                 {"link_name": "gene_pubmed", "ids": ["1", "2", "3"]},
                 "bad",
             ],
-        }
+        },
     )
     empty_link = ncbi.markdown_link({"dbfrom": "gene", "db": "pubmed", "id": "672"})
 
@@ -97,7 +101,9 @@ def test_ncbi_parse_edge_helpers_and_unknown_command() -> None:
     assert ncbi.parse_elink_linksets({"linksets": "bad"}, "gene", "pubmed") == []
     assert (
         ncbi.parse_elink_linksets(
-            {"linksets": [{"ids": ["1"], "linksetdbs": "bad"}]}, "gene", "pubmed"
+            {"linksets": [{"ids": ["1"], "linksetdbs": "bad"}]},
+            "gene",
+            "pubmed",
         )
         == []
     )

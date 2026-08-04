@@ -1,3 +1,5 @@
+# Copyright (c) 2026 Seungwon Lee
+# SPDX-License-Identifier: MIT
 """biorefs-cli structure: RCSB PDB and AlphaFold structure retrieval.
 
 Completes the protein workflow: `uniprot fetch` emits PDB ids as cross-reference
@@ -201,7 +203,10 @@ def validate_organism(organism: str | None) -> str | None:
 
 
 def build_search_payload(
-    query: SearchQuery, *, limit: int, offset: int
+    query: SearchQuery,
+    *,
+    limit: int,
+    offset: int,
 ) -> dict[str, object]:
     nodes: list[dict[str, object]] = [primary_node(query)]
     nodes.extend(filter_nodes(query))
@@ -253,7 +258,8 @@ def terminal(service: str, parameters: dict[str, object]) -> dict[str, object]:
 
 def text_attr(attribute: str, operator: str, value: object) -> dict[str, object]:
     return terminal(
-        "text", {"attribute": attribute, "operator": operator, "value": value}
+        "text",
+        {"attribute": attribute, "operator": operator, "value": value},
     )
 
 
@@ -294,7 +300,7 @@ def parse_hits(response: dict[str, object]) -> list[Hit]:
                 score=float(score)
                 if isinstance(score, (int, float)) and not isinstance(score, bool)
                 else None,
-            )
+            ),
         )
     return hits
 
@@ -322,12 +328,13 @@ def print_search_table(result: dict[str, object]) -> None:
                 display(record.get("resolution")),
                 display(organism),
                 display(record.get("title")),
-            )
+            ),
         )
     print(
         markdown_table(
-            ("Rank", "PDB ID", "Method", "Resolution", "Organism", "Title"), rows
-        )
+            ("Rank", "PDB ID", "Method", "Resolution", "Organism", "Title"),
+            rows,
+        ),
     )
     print(f"\nShowing {len(records)} of {display(total)} matches.")
 
@@ -355,7 +362,10 @@ class FetchResult:
 
 class FetchBackend(Protocol):
     def rcsb_structure(
-        self, pdb_id: str, fmt: str, assembly: int | None = None
+        self,
+        pdb_id: str,
+        fmt: str,
+        assembly: int | None = None,
     ) -> bytes: ...
 
     def alphafold_structure(self, accession: str, fmt: str) -> AlphaFoldFile: ...
@@ -366,11 +376,16 @@ class FetchClient:
         self.http = http or HttpClient(timeout_seconds=config.timeout_seconds)
 
     def rcsb_structure(
-        self, pdb_id: str, fmt: str, assembly: int | None = None
+        self,
+        pdb_id: str,
+        fmt: str,
+        assembly: int | None = None,
     ) -> bytes:
         url = rcsb_url(pdb_id, fmt, assembly)
         return self.http.get(
-            url, headers={"User-Agent": USER_AGENT}, rate_limit_source="rcsb"
+            url,
+            headers={"User-Agent": USER_AGENT},
+            rate_limit_source="rcsb",
         ).body
 
     def alphafold_structure(self, accession: str, fmt: str) -> AlphaFoldFile:
@@ -386,7 +401,9 @@ class FetchClient:
             msg = f"AlphaFold has no {fmt} model for {accession}"
             raise CLIError(msg)
         content = self.http.get(
-            url, headers={"User-Agent": USER_AGENT}, rate_limit_source="alphafold"
+            url,
+            headers={"User-Agent": USER_AGENT},
+            rate_limit_source="alphafold",
         ).body
         model_id = url.rstrip("/").split("/")[-1].rsplit(".", 1)[0]
         return AlphaFoldFile(content=content, url=url, model_id=model_id)
@@ -397,7 +414,11 @@ class FetchService:
         self.backend = backend
 
     def fetch_rcsb(
-        self, pdb_id: str, fmt: str, *, assembly: int | None = None
+        self,
+        pdb_id: str,
+        fmt: str,
+        *,
+        assembly: int | None = None,
     ) -> FetchResult:
         normalized = normalize_pdb_id(pdb_id)
         validate_assembly(assembly)
@@ -440,7 +461,10 @@ class FetchService:
 
 
 def write_structure(
-    result: FetchResult, *, out_dir: str | None, output: str | None
+    result: FetchResult,
+    *,
+    out_dir: str | None,
+    output: str | None,
 ) -> Path:
     if output is not None:
         path = Path(output)
@@ -641,7 +665,8 @@ def parse_entity(entity_id: str, entity: dict[str, object]) -> EntityRecord:
 
 
 def replace_entities(
-    record: StructureRecord, entities: list[EntityRecord]
+    record: StructureRecord,
+    entities: list[EntityRecord],
 ) -> StructureRecord:
     return StructureRecord(
         pdb_id=record.pdb_id,
@@ -688,8 +713,9 @@ def print_info_table(result: dict[str, object]) -> None:
         print()
         print(
             markdown_table(
-                ("Entity", "Description", "Organism", "UniProt"), entity_rows
-            )
+                ("Entity", "Description", "Organism", "UniProt"),
+                entity_rows,
+            ),
         )
 
 
@@ -733,7 +759,8 @@ def info_provenance() -> dict[str, object]:
 def register(subparsers: argparse._SubParsersAction[argparse.ArgumentParser]) -> None:
     parser = subparsers.add_parser("structure", help="RCSB/AlphaFold structures")
     structure_subcommands = parser.add_subparsers(
-        dest="structure_command", required=True
+        dest="structure_command",
+        required=True,
     )
 
     search = structure_subcommands.add_parser("search", help="Search RCSB PDB")
@@ -754,7 +781,10 @@ def register(subparsers: argparse._SubParsersAction[argparse.ArgumentParser]) ->
     fetch.add_argument("--uniprot", help="UniProt accession (AlphaFold model)")
     fetch.add_argument("--format", choices=tuple(FORMAT_EXTENSION), default="cif")
     fetch.add_argument(
-        "--assembly", type=int, metavar="N", help="biological assembly N"
+        "--assembly",
+        type=int,
+        metavar="N",
+        help="biological assembly N",
     )
     fetch.add_argument("--out-dir", metavar="DIR", help="output directory (default: .)")
     fetch.add_argument("--output", metavar="PATH", help="explicit output file path")
@@ -787,7 +817,8 @@ def handle(args: argparse.Namespace) -> int:
 def handle_search(args: argparse.Namespace, config: Config) -> int:
     query = build_query_from_args(args)
     service = SearchService(
-        RcsbSearchClient(config=config), RcsbGraphQLClient(config=config)
+        RcsbSearchClient(config=config),
+        RcsbGraphQLClient(config=config),
     )
     limit = DEFAULT_LIMIT if args.limit is None else args.limit
     offset = 0 if args.offset is None else args.offset

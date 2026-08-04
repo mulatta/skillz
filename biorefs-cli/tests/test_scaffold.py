@@ -1,6 +1,9 @@
+# Copyright (c) 2026 Seungwon Lee
+# SPDX-License-Identifier: MIT
 from __future__ import annotations
 
 import pytest
+
 from biorefs_cli.main import build_parser, main
 
 TOP_LEVEL_COMMANDS = (

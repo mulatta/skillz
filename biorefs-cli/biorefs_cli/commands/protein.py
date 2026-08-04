@@ -1,3 +1,5 @@
+# Copyright (c) 2026 Seungwon Lee
+# SPDX-License-Identifier: MIT
 """NCBI Protein command implementation."""
 
 from __future__ import annotations
@@ -40,7 +42,9 @@ class ProteinEntrezClient(Protocol):
     def http(self) -> TextHttpClient: ...
 
     def request_json(
-        self, endpoint: str, params: dict[str, str | int]
+        self,
+        endpoint: str,
+        params: dict[str, str | int],
     ) -> JsonObject: ...
 
     def eutils_url(self, endpoint: str, params: dict[str, str | int]) -> str: ...
@@ -328,7 +332,8 @@ def parse_protein_docsum(uid: str, docsum: dict[str, object]) -> ProteinRecord:
     organism = first_string_field(docsum, ("organism", "Organism"))
     length = first_int_field(docsum, ("slen", "Slen", "length", "Length"))
     source_database = first_string_field(
-        docsum, ("sourcedb", "SourceDb", "source_database")
+        docsum,
+        ("sourcedb", "SourceDb", "source_database"),
     )
     tax_id = first_int_field(docsum, ("taxid", "TaxId", "tax_id"))
     return ProteinRecord(
@@ -457,11 +462,11 @@ def print_search_table(result: dict[str, object]) -> None:
                 display(record.get("organism")),
                 display(record.get("length")),
                 display(record.get("source_database")),
-            )
+            ),
         )
     print(
         markdown_table(
             ("Accession", "Name", "Organism", "Length", "Source"),
             rows,
-        )
+        ),
     )

@@ -1,3 +1,5 @@
+# Copyright (c) 2026 Seungwon Lee
+# SPDX-License-Identifier: MIT
 """Shared helpers for calendar-cli tests.
 
 Provides ICS builders, email template builders, MIME extraction, and

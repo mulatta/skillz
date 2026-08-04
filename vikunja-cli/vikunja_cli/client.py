@@ -1,13 +1,15 @@
+# Copyright (c) 2026 Seungwon Lee
+# SPDX-License-Identifier: MIT
 """Minimal Vikunja REST API client."""
 
 from __future__ import annotations
 
 import json
 import mimetypes
-import uuid
 import urllib.error
 import urllib.parse
 import urllib.request
+import uuid
 from collections.abc import Sequence
 from pathlib import Path
 from typing import Any

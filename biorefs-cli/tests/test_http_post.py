@@ -1,8 +1,11 @@
+# Copyright (c) 2026 Seungwon Lee
+# SPDX-License-Identifier: MIT
 from __future__ import annotations
 
 import json
 
 import pytest
+
 from biorefs_cli.errors import HTTPError
 from biorefs_cli.http import HttpClient, HttpResponse, RetryPolicy
 
@@ -15,7 +18,12 @@ class PostEchoHttpClient(HttpClient):
         self.calls: list[tuple[str, bytes | None]] = []
 
     def _once(
-        self, method: str, url: str, *, body: bytes | None, headers: dict[str, str]
+        self,
+        method: str,
+        url: str,
+        *,
+        body: bytes | None,
+        headers: dict[str, str],
     ) -> HttpResponse:
         assert headers is not None
         self.calls.append((method, body))
@@ -31,7 +39,12 @@ class PostRedirectHttpClient(HttpClient):
         self.calls: list[tuple[str, str, bytes | None]] = []
 
     def _once(
-        self, method: str, url: str, *, body: bytes | None, headers: dict[str, str]
+        self,
+        method: str,
+        url: str,
+        *,
+        body: bytes | None,
+        headers: dict[str, str],
     ) -> HttpResponse:
         assert headers is not None
         self.calls.append((method, url, body))
@@ -89,7 +102,12 @@ class PostKeepRedirectHttpClient(HttpClient):
         self.calls: list[tuple[str, bytes | None]] = []
 
     def _once(
-        self, method: str, url: str, *, body: bytes | None, headers: dict[str, str]
+        self,
+        method: str,
+        url: str,
+        *,
+        body: bytes | None,
+        headers: dict[str, str],
     ) -> HttpResponse:
         self.calls.append((method, body))
         if len(self.calls) == 1:
@@ -119,12 +137,19 @@ class HeaderCapturingRedirectHttpClient(HttpClient):
         self.header_hops: list[dict[str, str]] = []
 
     def _once(
-        self, method: str, url: str, *, body: bytes | None, headers: dict[str, str]
+        self,
+        method: str,
+        url: str,
+        *,
+        body: bytes | None,
+        headers: dict[str, str],
     ) -> HttpResponse:
         self.header_hops.append(dict(headers))
         if len(self.header_hops) == 1:
             return HttpResponse(
-                status=303, headers={"location": "https://example.org/x"}, body=b""
+                status=303,
+                headers={"location": "https://example.org/x"},
+                body=b"",
             )
         return HttpResponse(status=200, headers={}, body=b'{"ok": true}')
 
@@ -147,7 +172,12 @@ class StatusHttpClient(HttpClient):
         self.attempts = 0
 
     def _once(
-        self, method: str, url: str, *, body: bytes | None, headers: dict[str, str]
+        self,
+        method: str,
+        url: str,
+        *,
+        body: bytes | None,
+        headers: dict[str, str],
     ) -> HttpResponse:
         self.attempts += 1
         return HttpResponse(status=self.status, headers={}, body=b"")
@@ -171,7 +201,12 @@ def test_204_no_content_decodes_to_empty_object() -> None:
             super().__init__(timeout_seconds=3)
 
         def _once(
-            self, method: str, url: str, *, body: bytes | None, headers: dict[str, str]
+            self,
+            method: str,
+            url: str,
+            *,
+            body: bytes | None,
+            headers: dict[str, str],
         ) -> HttpResponse:
             return HttpResponse(status=204, headers={}, body=b"")
 

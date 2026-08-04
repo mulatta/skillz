@@ -1,9 +1,12 @@
+# Copyright (c) 2026 Seungwon Lee
+# SPDX-License-Identifier: MIT
 from __future__ import annotations
 
 import argparse
 from typing import Any, cast
 
 import pytest
+
 from biorefs_cli.commands.paper import (
     PaperClient,
     PaperInputError,
@@ -77,7 +80,9 @@ SAMPLE_RECORD = {
 
 class ResolvingClient:
     def resolve_pmid(
-        self, kind: str, value: str
+        self,
+        kind: str,
+        value: str,
     ) -> tuple[str | None, list[str], dict[str, Any] | None]:
         if value == "missing":
             return (
@@ -100,7 +105,9 @@ class FulltextNoPmcidClient:
         return {"status": "unresolved", "identifiers": {"doi": value}}
 
     def resolve_pmid(
-        self, kind: str, value: str
+        self,
+        kind: str,
+        value: str,
     ) -> tuple[str | None, list[str], dict[str, Any] | None]:
         assert (kind, value) == ("doi", "10.1000/missing")
         return None, ["doi-not-found-in-pubmed"], None
@@ -146,10 +153,16 @@ def ns(**kwargs: object) -> argparse.Namespace:
 
 def test_fetch_record_unresolved_and_warning_paths() -> None:
     unresolved = fetch_record(
-        cast("PaperClient", ResolvingClient()), "doi", "missing", {"ids"}
+        cast("PaperClient", ResolvingClient()),
+        "doi",
+        "missing",
+        {"ids"},
     )
     warned = fetch_record(
-        cast("PaperClient", ResolvingClient()), "doi", "warn", {"ids"}
+        cast("PaperClient", ResolvingClient()),
+        "doi",
+        "warn",
+        {"ids"},
     )
 
     assert unresolved["status"] == "unresolved"
@@ -234,7 +247,7 @@ def test_crossref_and_idconv_normalizers_cover_missing_fields() -> None:
             "issued": {"date-parts": [[2024, 1, 2]]},
             "publisher": "Publisher",
             "URL": "https://doi.org/10.1000/example",
-        }
+        },
     )
     unresolved = normalize_idconv("10.1000/missing", {"records": []})
     no_pmcid = normalize_idconv("123", {"records": [{"pmid": "123", "status": "ok"}]})
@@ -285,7 +298,7 @@ def test_human_printers_cover_markdown_paths(
         "fulltext": {
             "status": "full-text",
             "sections": [{"title": "Methods", "text": "Body"}],
-        }
+        },
     }
     unsupported_related = {"status": "unsupported", "reason": "not now"}
     related = {"records": [SAMPLE_RECORD]}
@@ -293,7 +306,7 @@ def test_human_printers_cover_markdown_paths(
     print_search(search)
     print_fetch(SAMPLE_RECORD | {"abstract": {"text": "Abstract"}})
     print_convert(
-        {"status": "resolved", "identifiers": {"pmid": "123"}, "warnings": ["warn"]}
+        {"status": "resolved", "identifiers": {"pmid": "123"}, "warnings": ["warn"]},
     )
     print_fulltext(fulltext)
     print_related(unsupported_related)

@@ -1,3 +1,5 @@
+# Copyright (c) 2026 Seungwon Lee
+# SPDX-License-Identifier: MIT
 """Tests for the calendar-cli invite command (send meeting invitations)."""
 
 import email

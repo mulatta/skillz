@@ -1,3 +1,5 @@
+# Copyright (c) 2026 Seungwon Lee
+# SPDX-License-Identifier: MIT
 """Runtime configuration: CLI flags layered over a saved config file.
 
 ``setup`` writes ``$XDG_CONFIG_HOME/paperfetch-cli/config.json`` once (profile

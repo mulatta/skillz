@@ -1,9 +1,12 @@
+# Copyright (c) 2026 Seungwon Lee
+# SPDX-License-Identifier: MIT
 from __future__ import annotations
 
 import argparse
 from typing import TYPE_CHECKING, cast
 
 import pytest
+
 from biorefs_cli.commands.structure import (
     SearchQuery,
     SearchService,
@@ -32,7 +35,9 @@ class FakeBackend:
 
 class FakeEnricher:
     def __init__(
-        self, meta: dict[str, EntryMeta] | None = None, error: Exception | None = None
+        self,
+        meta: dict[str, EntryMeta] | None = None,
+        error: Exception | None = None,
     ) -> None:
         self.meta = meta or {}
         self.error = error
@@ -47,7 +52,11 @@ class FakeEnricher:
 
 def meta(pdb_id: str) -> EntryMeta:
     return EntryMeta(
-        pdb_id, f"Structure {pdb_id}", "X-RAY DIFFRACTION", 1.85, ["Homo sapiens"]
+        pdb_id,
+        f"Structure {pdb_id}",
+        "X-RAY DIFFRACTION",
+        1.85,
+        ["Homo sapiens"],
     )
 
 
@@ -80,7 +89,9 @@ def test_pdb_and_uniprot_id_normalization() -> None:
 
 def test_full_text_payload_uses_minimal_verbosity() -> None:
     payload = build_search_payload(
-        build_query_from_args(args(query="BRCA1 BRCT")), limit=5, offset=0
+        build_query_from_args(args(query="BRCA1 BRCT")),
+        limit=5,
+        offset=0,
     )
     assert payload["query"] == {
         "type": "terminal",
@@ -94,7 +105,9 @@ def test_full_text_payload_uses_minimal_verbosity() -> None:
 
 def test_offset_and_uniprot_node() -> None:
     payload = build_search_payload(
-        build_query_from_args(args(uniprot="p38398")), limit=10, offset=20
+        build_query_from_args(args(uniprot="p38398")),
+        limit=10,
+        offset=20,
     )
     options = cast("dict[str, object]", payload["request_options"])
     paginate = cast("dict[str, object]", options["paginate"])
@@ -106,10 +119,11 @@ def test_offset_and_uniprot_node() -> None:
 
 def test_filters_compose_into_group() -> None:
     built = build_query_from_args(
-        args(query="kinase", method="xray", max_resolution=2.5, organism="9606")
+        args(query="kinase", method="xray", max_resolution=2.5, organism="9606"),
     )
     node = cast(
-        "dict[str, object]", build_search_payload(built, limit=3, offset=0)["query"]
+        "dict[str, object]",
+        build_search_payload(built, limit=3, offset=0)["query"],
     )
     assert node["type"] == "group"
     assert len(cast("list[object]", node["nodes"])) == 4
@@ -130,7 +144,7 @@ def test_clean_sequence_strips_header() -> None:
 
 def test_parse_hits_reads_score() -> None:
     hits = parse_hits(
-        {"result_set": [{"identifier": "3COJ", "score": 1.0}, {"identifier": "1T2V"}]}
+        {"result_set": [{"identifier": "3COJ", "score": 1.0}, {"identifier": "1T2V"}]},
     )
     assert hits[0].pdb_id == "3COJ"
     assert hits[0].score == 1.0
@@ -139,7 +153,7 @@ def test_parse_hits_reads_score() -> None:
 
 def test_run_enriches_hits() -> None:
     backend = FakeBackend(
-        {"total_count": 145, "result_set": [{"identifier": "3COJ", "score": 1.0}]}
+        {"total_count": 145, "result_set": [{"identifier": "3COJ", "score": 1.0}]},
     )
     enricher = FakeEnricher({"3COJ": meta("3COJ")})
     result = SearchService(backend, enricher).run(query(), limit=1, offset=0)
@@ -161,7 +175,7 @@ def test_run_empty_results_no_enrich_no_warning() -> None:
 
 def test_run_degrades_when_enrichment_fails() -> None:
     backend = FakeBackend(
-        {"total_count": 1, "result_set": [{"identifier": "3COJ", "score": 1.0}]}
+        {"total_count": 1, "result_set": [{"identifier": "3COJ", "score": 1.0}]},
     )
     enricher = FakeEnricher(error=HTTPError("boom"))
     result = SearchService(backend, enricher).run(query(), limit=1, offset=0)

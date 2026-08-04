@@ -1,3 +1,5 @@
+# Copyright (c) 2026 Seungwon Lee
+# SPDX-License-Identifier: MIT
 """Setup command."""
 
 from __future__ import annotations
@@ -52,7 +54,7 @@ def handle(args: argparse.Namespace) -> int:
                 "status": "ok",
                 "config_path": str(path),
                 "checked": [result.name for result in results if result.ok],
-            }
+            },
         )
         return 0
     if changed:

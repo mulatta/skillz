@@ -1,3 +1,5 @@
+# Copyright (c) 2026 Seungwon Lee
+# SPDX-License-Identifier: MIT
 """PubChem compound commands."""
 
 from __future__ import annotations
@@ -39,7 +41,11 @@ XREF_TARGET_CHOICES = {"pubmed", "gene", "protein", "patent", "pathway"}
 JsonDict = dict[str, Any]
 QueryType = Literal["name", "cid", "smiles", "inchikey", "formula"]
 IncludeName = Literal[
-    "properties", "synonyms", "description", "safety", "classification"
+    "properties",
+    "synonyms",
+    "description",
+    "safety",
+    "classification",
 ]
 XrefTarget = Literal["pubmed", "gene", "protein", "patent", "pathway"]
 
@@ -111,7 +117,8 @@ def register(subparsers: argparse._SubParsersAction[argparse.ArgumentParser]) ->
     fetch.set_defaults(handler=handle)
 
     xrefs = compound_subcommands.add_parser(
-        "xrefs", help="Fetch compound cross-references"
+        "xrefs",
+        help="Fetch compound cross-references",
     )
     xrefs.add_argument("--cid", action=PositiveInteger, required=True)
     xrefs.add_argument("--to", default=DEFAULT_XREF_TARGETS)
@@ -119,7 +126,8 @@ def register(subparsers: argparse._SubParsersAction[argparse.ArgumentParser]) ->
     xrefs.set_defaults(handler=handle)
 
     bioactivity = compound_subcommands.add_parser(
-        "bioactivity", help="Fetch compound bioactivity"
+        "bioactivity",
+        help="Fetch compound bioactivity",
     )
     bioactivity.add_argument("--cid", action=PositiveInteger, required=True)
     bioactivity.add_argument("--target")
@@ -132,7 +140,8 @@ def register(subparsers: argparse._SubParsersAction[argparse.ArgumentParser]) ->
 def handle(args: argparse.Namespace) -> int:
     config = load_config()
     client = CompoundClient(
-        HttpClient(timeout_seconds=config.timeout_seconds), email=config.email
+        HttpClient(timeout_seconds=config.timeout_seconds),
+        email=config.email,
     )
     try:
         payload = run_command(args, client)
@@ -160,7 +169,9 @@ def run_command(args: argparse.Namespace, client: CompoundClient) -> JsonDict:
         )
     if command == "fetch":
         includes = parse_csv_choices(
-            cast("str", args.include), INCLUDE_CHOICES, "include"
+            cast("str", args.include),
+            INCLUDE_CHOICES,
+            "include",
         )
         return client.fetch(
             cid=cast("int | None", args.cid),
@@ -257,7 +268,10 @@ class CompoundClient:
         }
 
     def ambiguous_fetch(
-        self, name: str, candidate_cids: list[int], missing: list[str]
+        self,
+        name: str,
+        candidate_cids: list[int],
+        missing: list[str],
     ) -> JsonDict:
         candidates = self.properties(candidate_cids) if candidate_cids else []
         return {
@@ -321,7 +335,9 @@ class CompoundClient:
             for row in parse_assay_rows(self.get_json(url))
         ]
         filtered_rows = filter_bioactivity_rows(
-            all_rows, target=target, active_only=active_only
+            all_rows,
+            target=target,
+            active_only=active_only,
         )
         returned_rows = filtered_rows[:limit]
         return {
@@ -331,13 +347,17 @@ class CompoundClient:
             "counts": {"before_filter": len(all_rows), "returned": len(returned_rows)},
             "sources": [source_json("PubChem PUG-REST", url, f"CID:{cid}")],
             "warnings": [
-                "Assay outcomes are assay-specific evidence; mechanism is not inferred."
+                "Assay outcomes are assay-specific evidence; mechanism is not inferred.",
             ],
             "missing": [] if returned_rows else ["bioactivity"],
         }
 
     def resolve_cids(
-        self, query: str, query_type: QueryType, *, limit: int
+        self,
+        query: str,
+        query_type: QueryType,
+        *,
+        limit: int,
     ) -> tuple[list[int], list[str]]:
         if query_type == "cid":
             try:
@@ -367,14 +387,19 @@ class CompoundClient:
         }
 
     def pug_view_sections(
-        self, cid: int, include: list[IncludeName]
+        self,
+        cid: int,
+        include: list[IncludeName],
     ) -> tuple[dict[str, list[JsonDict]], list[str]]:
         wanted = [str(item) for item in include if item in PUG_VIEW_INCLUDE_HEADINGS]
         if not wanted:
             return {}, []
         url = f"{PUG_VIEW_BASE}/data/compound/{cid}/JSON"
         sections = extract_pug_view_sections(
-            self.get_json(url), wanted, url, f"CID:{cid}"
+            self.get_json(url),
+            wanted,
+            url,
+            f"CID:{cid}",
         )
         missing = [item for item in wanted if not sections.get(item)]
         return sections, missing
@@ -382,7 +407,10 @@ class CompoundClient:
     def pathway_xrefs(self, cid: int) -> list[JsonDict]:
         url = f"{PUG_VIEW_BASE}/data/compound/{cid}/JSON"
         sections = extract_pug_view_sections(
-            self.get_json(url), ["pathway"], url, f"CID:{cid}"
+            self.get_json(url),
+            ["pathway"],
+            url,
+            f"CID:{cid}",
         )
         return [
             {
@@ -509,14 +537,14 @@ def minimal_compound(cid: int) -> JsonDict:
         "cid": cid,
         "name": str(cid),
         "provenance": [
-            source_json("PubChem PUG-REST", public_compound_url(cid), f"CID:{cid}")
+            source_json("PubChem PUG-REST", public_compound_url(cid), f"CID:{cid}"),
         ],
     }
 
 
 def parse_synonyms(data: JsonObject) -> list[str]:
     information = list_or_empty(
-        object_or_empty(data.get("InformationList")).get("Information")
+        object_or_empty(data.get("InformationList")).get("Information"),
     )
     synonyms: list[str] = []
     for item in information:
@@ -527,7 +555,7 @@ def parse_synonyms(data: JsonObject) -> list[str]:
 
 def parse_xref_values(data: JsonObject, operation: str) -> list[str]:
     information = list_or_empty(
-        object_or_empty(data.get("InformationList")).get("Information")
+        object_or_empty(data.get("InformationList")).get("Information"),
     )
     values: list[str] = []
     for item in information:
@@ -542,7 +570,10 @@ def parse_xref_values(data: JsonObject, operation: str) -> list[str]:
 
 
 def extract_pug_view_sections(
-    data: JsonObject, requested: list[str], source_url: str, identifier: str
+    data: JsonObject,
+    requested: list[str],
+    source_url: str,
+    identifier: str,
 ) -> dict[str, list[JsonDict]]:
     record = object_or_empty(data.get("Record"))
     sections = list_or_empty(record.get("Section"))
@@ -551,7 +582,10 @@ def extract_pug_view_sections(
     for section in sections:
         if isinstance(section, dict):
             collect_matching_sections(
-                cast("JsonDict", section), requested, found, context
+                cast("JsonDict", section),
+                requested,
+                found,
+                context,
             )
     return found
 
@@ -568,12 +602,15 @@ def collect_matching_sections(
         candidates = PUG_VIEW_INCLUDE_HEADINGS[normalized_name]
         if heading_matches(heading_key, candidates):
             found[normalized_name].extend(
-                extract_section_items(section, heading, context)
+                extract_section_items(section, heading, context),
             )
     for child in list_or_empty(section.get("Section")):
         if isinstance(child, dict):
             collect_matching_sections(
-                cast("JsonDict", child), requested, found, context
+                cast("JsonDict", child),
+                requested,
+                found,
+                context,
             )
 
 
@@ -587,7 +624,9 @@ def heading_matches(heading_key: str, candidates: tuple[str, ...]) -> bool:
 
 
 def extract_section_items(
-    section: JsonDict, heading: str, context: PugViewContext
+    section: JsonDict,
+    heading: str,
+    context: PugViewContext,
 ) -> list[JsonDict]:
     items: list[JsonDict] = []
     for info in list_or_empty(section.get("Information")):
@@ -622,7 +661,7 @@ def section_item(
                 context.source_url,
                 context.identifier,
                 source_details,
-            )
+            ),
         ],
     }
 
@@ -640,7 +679,9 @@ def reference_map(record: JsonDict) -> dict[int, JsonDict]:
 
 
 def info_source(
-    info: JsonDict, references: dict[int, JsonDict], heading: str
+    info: JsonDict,
+    references: dict[int, JsonDict],
+    heading: str,
 ) -> SourceDetails:
     reference_number = info.get("ReferenceNumber")
     reference = (
@@ -718,20 +759,21 @@ def normalize_bioactivity_row(cid: int, row: JsonDict, source_url: str) -> JsonD
     normalized_keys = {normalize_key(key): value for key, value in row.items()}
     aid = text_value(first_present(normalized_keys, ("aid",)))
     outcome = text_value(
-        first_present(normalized_keys, ("activity_outcome", "outcome", "activity"))
+        first_present(normalized_keys, ("activity_outcome", "outcome", "activity")),
     ).casefold()
     target = {
         "name": text_value(
             first_present(
                 normalized_keys,
                 ("target_name", "target", "protein_name", "gene_symbol"),
-            )
+            ),
         ),
         "gene_id": text_value(first_present(normalized_keys, ("geneid", "gene_id"))),
         "protein_accession": text_value(
             first_present(
-                normalized_keys, ("protein_accession", "accession", "protein_gi")
-            )
+                normalized_keys,
+                ("protein_accession", "accession", "protein_gi"),
+            ),
         ),
     }
     return {
@@ -741,18 +783,20 @@ def normalize_bioactivity_row(cid: int, row: JsonDict, source_url: str) -> JsonD
         "outcome": outcome,
         "activity_name": text_value(
             first_present(
-                normalized_keys, ("activity_name", "activity_type", "readout")
-            )
+                normalized_keys,
+                ("activity_name", "activity_type", "readout"),
+            ),
         ),
         "activity_value": first_present(
-            normalized_keys, ("activity_value", "ac50", "ic50", "ec50", "ki", "kd")
+            normalized_keys,
+            ("activity_value", "ac50", "ic50", "ec50", "ki", "kd"),
         ),
         "activity_unit": text_value(
-            first_present(normalized_keys, ("activity_unit", "unit"))
+            first_present(normalized_keys, ("activity_unit", "unit")),
         ),
         "target": target,
         "assay_source": text_value(
-            first_present(normalized_keys, ("source_name", "source"))
+            first_present(normalized_keys, ("source_name", "source")),
         )
         or "PubChem BioAssay",
         "original": row,
@@ -761,7 +805,10 @@ def normalize_bioactivity_row(cid: int, row: JsonDict, source_url: str) -> JsonD
 
 
 def filter_bioactivity_rows(
-    rows: list[JsonDict], *, target: str | None, active_only: bool
+    rows: list[JsonDict],
+    *,
+    target: str | None,
+    active_only: bool,
 ) -> list[JsonDict]:
     filtered = rows
     if active_only:

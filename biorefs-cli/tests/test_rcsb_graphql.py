@@ -1,3 +1,5 @@
+# Copyright (c) 2026 Seungwon Lee
+# SPDX-License-Identifier: MIT
 from __future__ import annotations
 
 from biorefs_cli.rcsb_graphql import build_query, parse_entries
@@ -15,8 +17,8 @@ def graphql_response() -> dict[str, object]:
                     "polymer_entities": [
                         {
                             "rcsb_entity_source_organism": [
-                                {"scientific_name": "Homo sapiens"}
-                            ]
+                                {"scientific_name": "Homo sapiens"},
+                            ],
                         },
                         {"rcsb_entity_source_organism": [{"scientific_name": None}]},
                     ],
@@ -29,13 +31,13 @@ def graphql_response() -> dict[str, object]:
                     "polymer_entities": [
                         {
                             "rcsb_entity_source_organism": [
-                                {"scientific_name": "Homo sapiens"}
-                            ]
-                        }
+                                {"scientific_name": "Homo sapiens"},
+                            ],
+                        },
                     ],
                 },
-            ]
-        }
+            ],
+        },
     }
 
 
@@ -76,22 +78,22 @@ def test_organisms_dedup_and_order_across_entities() -> None:
                     "polymer_entities": [
                         {
                             "rcsb_entity_source_organism": [
-                                {"scientific_name": "Homo sapiens"}
-                            ]
+                                {"scientific_name": "Homo sapiens"},
+                            ],
                         },
                         {
                             "rcsb_entity_source_organism": [
-                                {"scientific_name": "Homo sapiens"}
-                            ]
+                                {"scientific_name": "Homo sapiens"},
+                            ],
                         },
                         {
                             "rcsb_entity_source_organism": [
-                                {"scientific_name": "Mus musculus"}
-                            ]
+                                {"scientific_name": "Mus musculus"},
+                            ],
                         },
                     ],
-                }
-            ]
-        }
+                },
+            ],
+        },
     }
     assert parse_entries(payload)["9XYZ"].organisms == ["Homo sapiens", "Mus musculus"]

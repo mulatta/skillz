@@ -1,6 +1,9 @@
+# Copyright (c) 2026 Seungwon Lee
+# SPDX-License-Identifier: MIT
 from __future__ import annotations
 
 import pytest
+
 from biorefs_cli.commands.structure import (
     parse_include,
     print_info_table,
@@ -23,7 +26,7 @@ def search_result() -> dict[str, object]:
                 "resolution": 1.85,
                 "organisms": ["Homo sapiens"],
                 "title": "BRCA1 BRCT repeats",
-            }
+            },
         ],
     }
 
@@ -44,7 +47,7 @@ def info_result() -> dict[str, object]:
                 "description": "BRCA1",
                 "organism": "Homo sapiens",
                 "uniprot": ["P38398"],
-            }
+            },
         ],
     }
 

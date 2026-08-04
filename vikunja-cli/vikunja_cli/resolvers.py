@@ -1,3 +1,5 @@
+# Copyright (c) 2026 Seungwon Lee
+# SPDX-License-Identifier: MIT
 """Resolve human-friendly references to Vikunja numeric IDs."""
 
 from __future__ import annotations

@@ -1,3 +1,5 @@
+# Copyright (c) 2026 Seungwon Lee
+# SPDX-License-Identifier: MIT
 """Command line interface for local PyMOL XML-RPC sessions."""
 
 from __future__ import annotations

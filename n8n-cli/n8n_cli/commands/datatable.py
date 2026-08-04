@@ -1,3 +1,5 @@
+# Copyright (c) 2026 Seungwon Lee
+# SPDX-License-Identifier: MIT
 """Data table management commands."""
 
 import json
@@ -16,7 +18,6 @@ from n8n_cli.output import (
     read_json_input,
     ts,
 )
-
 
 # ---------------------------------------------------------------------------
 # Table-level commands

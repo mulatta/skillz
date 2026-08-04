@@ -1,10 +1,12 @@
+# Copyright (c) 2026 Seungwon Lee
+# SPDX-License-Identifier: MIT
 from __future__ import annotations
 
-import pytest
-
+import json
 from pathlib import Path
 from unittest.mock import patch
-import json
+
+import pytest
 
 from vikunja_cli.main import _HANDLERS, _build_parser, main
 

@@ -1,3 +1,5 @@
+# Copyright (c) 2026 Seungwon Lee
+# SPDX-License-Identifier: MIT
 """Date/time helpers for sanitizing and coercing calendar values."""
 
 from __future__ import annotations

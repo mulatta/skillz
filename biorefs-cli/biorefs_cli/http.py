@@ -1,3 +1,5 @@
+# Copyright (c) 2026 Seungwon Lee
+# SPDX-License-Identifier: MIT
 """Small stdlib HTTP helper skeleton."""
 
 from __future__ import annotations
@@ -147,7 +149,8 @@ class HttpClient:
                 continue
             if response.status in self.retry_policy.retry_statuses:
                 last_error = HTTPError(
-                    "remote service returned transient error", status=response.status
+                    "remote service returned transient error",
+                    status=response.status,
                 )
                 if not retryable:
                     raise last_error
@@ -177,10 +180,13 @@ class HttpClient:
         current_url = url
         for _redirect in range(MAX_REDIRECTS + 1):
             self.rate_limiter.acquire(
-                rate_limit_source or infer_rate_limit_source(current_url)
+                rate_limit_source or infer_rate_limit_source(current_url),
             )
             response = self._once(
-                current_method, current_url, body=current_body, headers=current_headers
+                current_method,
+                current_url,
+                body=current_body,
+                headers=current_headers,
             )
             if response.status not in REDIRECT_STATUSES:
                 return response
@@ -224,14 +230,17 @@ class HttpClient:
         if parsed.query:
             target = f"{target}?{parsed.query}"
         connection = http.client.HTTPSConnection(
-            parsed.hostname, timeout=self.timeout_seconds
+            parsed.hostname,
+            timeout=self.timeout_seconds,
         )
         try:
             connection.request(method, target, body=body, headers=headers)
             response = connection.getresponse()
             raw_headers = {key.lower(): value for key, value in response.getheaders()}
             return HttpResponse(
-                status=response.status, headers=raw_headers, body=response.read()
+                status=response.status,
+                headers=raw_headers,
+                body=response.read(),
             )
         finally:
             connection.close()

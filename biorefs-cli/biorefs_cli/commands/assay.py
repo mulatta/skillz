@@ -1,3 +1,5 @@
+# Copyright (c) 2026 Seungwon Lee
+# SPDX-License-Identifier: MIT
 """PubChem BioAssay commands."""
 
 from __future__ import annotations
@@ -323,7 +325,10 @@ def target_lookup_paths(target: str) -> tuple[str, ...]:
 
 
 def parse_assay_summary(
-    row: JsonObject, retrieved_at: str, *, cid: int | None
+    row: JsonObject,
+    retrieved_at: str,
+    *,
+    cid: int | None,
 ) -> JsonObject:
     aid = first_int(row, "AID", "aid")
     if aid is None:
@@ -429,7 +434,8 @@ def parse_concise_activity(payload: JsonObject, *, limit: int) -> JsonObject:
 
 
 def parse_activity_row(
-    row: JsonObject, definitions: dict[int, JsonObject]
+    row: JsonObject,
+    definitions: dict[int, JsonObject],
 ) -> JsonObject:
     values = activity_values(row.get("data"), definitions)
     selected = select_activity_value(values)
@@ -447,7 +453,8 @@ def parse_activity_row(
 
 
 def activity_values(
-    value: JsonValue | None, definitions: dict[int, JsonObject]
+    value: JsonValue | None,
+    definitions: dict[int, JsonObject],
 ) -> list[JsonObject]:
     values: list[JsonObject] = []
     for item in object_list(value):
@@ -462,7 +469,7 @@ def activity_values(
                 "unit": first_str(definition, "unit", "Unit") or "",
                 "value": pubchem_scalar(raw_value),
                 "original": raw_value,
-            }
+            },
         )
     return values
 
@@ -529,7 +536,7 @@ def render_search(result: JsonObject) -> str:
                         row.get("activity_outcome", ""),
                         target_hint_text(row.get("target_hints")),
                         row.get("source", ""),
-                    )
+                    ),
                 )
     if not rows:
         rows = [("-", "No assays found", "-", "-", "-", "-")]
@@ -540,7 +547,7 @@ def render_search(result: JsonObject) -> str:
                 ("AID", "Name", "Assay type", "Activity outcome", "Targets", "Source"),
                 rows,
             ),
-        )
+        ),
     )
 
 
@@ -573,7 +580,7 @@ def render_targets_section(result: JsonObject) -> list[str]:
                     target.get("gene_id", ""),
                     target.get("protein_accession") or target.get("protein_gi", ""),
                     target.get("organism", ""),
-                )
+                ),
             )
     return [
         "",
@@ -612,7 +619,7 @@ def render_activity_section(result: JsonObject) -> list[str]:
                     row.get("activity_name", ""),
                     row.get("activity_value", ""),
                     row.get("activity_unit", ""),
-                )
+                ),
             )
     lines = [
         "",
@@ -626,7 +633,7 @@ def render_activity_section(result: JsonObject) -> list[str]:
             [
                 "",
                 f"Returned {summary.get('returned_rows', 0)} of {summary.get('total_rows', 0)} activity rows.",
-            ]
+            ],
         )
     return lines
 

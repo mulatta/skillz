@@ -1,3 +1,5 @@
+# Copyright (c) 2026 Seungwon Lee
+# SPDX-License-Identifier: MIT
 """OpenAlex commands."""
 
 from __future__ import annotations
@@ -72,7 +74,9 @@ class OpenAlexClient:
     def get(self, path: str, params: dict[str, str]) -> OpenAlexResponse:
         url = self.url(path, params)
         data = self.http.get_json(
-            url, headers={"User-Agent": USER_AGENT}, rate_limit_source="openalex"
+            url,
+            headers={"User-Agent": USER_AGENT},
+            rate_limit_source="openalex",
         )
         return OpenAlexResponse(data=data, url=url)
 
@@ -119,7 +123,8 @@ def register(subparsers: argparse._SubParsersAction[argparse.ArgumentParser]) ->
     trends = openalex_subcommands.add_parser("trends", help="Fetch OpenAlex trends")
     trends.add_argument("query")
     trends.add_argument(
-        "--group-by", choices=("publication-year", "oa-status", "country", "topic")
+        "--group-by",
+        choices=("publication-year", "oa-status", "country", "topic"),
     )
     trends.add_argument("--since", metavar="YEAR", type=int)
     trends.add_argument("--until", metavar="YEAR", type=int)
@@ -174,7 +179,9 @@ def run(args: argparse.Namespace, client: OpenAlexClient) -> JsonObject:
 
 
 def identifier_from_args(
-    args: argparse.Namespace, *, allow_pmcid: bool
+    args: argparse.Namespace,
+    *,
+    allow_pmcid: bool,
 ) -> WorkIdentifier:
     selected: list[tuple[IdentifierKind, str]] = []
     for attr, kind in (
@@ -332,11 +339,13 @@ def require_positive_limit(value: object) -> int:
 
 
 def parse_work_result(
-    response: OpenAlexResponse, identifier: WorkIdentifier
+    response: OpenAlexResponse,
+    identifier: WorkIdentifier,
 ) -> JsonObject:
     work = parse_work(response.data)
     identifiers = merge_identifiers(
-        identifier.identifiers, as_object(work["identifiers"])
+        identifier.identifiers,
+        as_object(work["identifiers"]),
     )
     return as_json_object(
         {
@@ -346,7 +355,7 @@ def parse_work_result(
             "sources": [source_entry(response.url, "openalex.works")],
             "warnings": work_warnings(work),
             "missing": work_missing(work),
-        }
+        },
     )
 
 
@@ -366,7 +375,7 @@ def parse_work(data: JsonObject) -> JsonObject:
             "publication_year": data.get("publication_year"),
             "publication_date": data.get("publication_date"),
             "venue": parse_source(
-                as_object(data.get("primary_location")).get("source")
+                as_object(data.get("primary_location")).get("source"),
             ),
             "authors": parse_authors(data.get("authorships")),
             "institutions": parse_work_institutions(data.get("authorships")),
@@ -389,19 +398,22 @@ def parse_work(data: JsonObject) -> JsonObject:
                 "is_paratext": data.get("is_paratext", False),
             },
             "provenance": {"api": "openalex", "endpoint": "/works/{id}"},
-        }
+        },
     )
 
 
 def parse_oa_result(
-    response: OpenAlexResponse, identifier: WorkIdentifier
+    response: OpenAlexResponse,
+    identifier: WorkIdentifier,
 ) -> JsonObject:
     identifiers = merge_identifiers(
-        identifier.identifiers, identifiers_from_work(response.data)
+        identifier.identifiers,
+        identifiers_from_work(response.data),
     )
     open_access = parse_open_access(response.data.get("open_access"))
     best_locations = parse_oa_locations(
-        [response.data.get("best_oa_location")], "openalex.best_oa_location"
+        [response.data.get("best_oa_location")],
+        "openalex.best_oa_location",
     )
     locations = parse_oa_locations(response.data.get("locations"), "openalex.locations")
     warnings: list[JsonValue] = []
@@ -422,7 +434,7 @@ def parse_oa_result(
             "sources": [source_entry(response.url, "openalex.oa")],
             "warnings": warnings,
             "missing": missing,
-        }
+        },
     )
 
 
@@ -442,7 +454,7 @@ def graph_result(
                 "select": GRAPH_SELECT,
                 "sort": "-cited_by_count",
                 "per_page": str(limit),
-            }
+            },
         )
         works = [parse_work(item) for item in object_list(listed.data.get("results"))]
         edges = [
@@ -470,7 +482,8 @@ def graph_result(
         {
             "kind": "openalex.graph",
             "identifiers": merge_identifiers(
-                identifier.identifiers, as_object(target["identifiers"])
+                identifier.identifiers,
+                as_object(target["identifiers"]),
             ),
             "query": as_json_object(dict(identifier.identifiers)),
             "direction": direction,
@@ -483,7 +496,7 @@ def graph_result(
             "sources": [source_entry(source_url, graph_provenance(direction))],
             "warnings": [],
             "missing": [] if edges else ["edges"],
-        }
+        },
     )
 
 
@@ -519,7 +532,7 @@ def trends_result(
     openalex_group_by = trend_group_to_openalex(group_by)
     filter_value = trend_filter(since, until)
     response = client.list_works(
-        {"search": query, "filter": filter_value, "group_by": openalex_group_by}
+        {"search": query, "filter": filter_value, "group_by": openalex_group_by},
     )
     context = TrendContext(
         query=query,
@@ -531,7 +544,8 @@ def trends_result(
 
 
 def parse_trends_response(
-    response: OpenAlexResponse, context: TrendContext
+    response: OpenAlexResponse,
+    context: TrendContext,
 ) -> JsonObject:
     rows = [
         parse_trend_bucket(item) for item in object_list(response.data.get("group_by"))
@@ -548,7 +562,7 @@ def parse_trends_response(
             "sources": [source_entry(response.url, "openalex.group_by")],
             "warnings": [],
             "missing": [] if rows else ["rows"],
-        }
+        },
     )
 
 
@@ -559,7 +573,7 @@ def parse_trend_bucket(bucket: JsonObject) -> JsonObject:
             "display_name": bucket.get("key_display_name"),
             "count": bucket.get("count", 0),
             "provenance": "openalex.group_by",
-        }
+        },
     )
 
 
@@ -576,8 +590,8 @@ def parse_authors(value: JsonValue) -> list[JsonObject]:
                     "position": authorship.get("author_position"),
                     "is_corresponding": authorship.get("is_corresponding"),
                     "institutions": parse_institutions(authorship.get("institutions")),
-                }
-            )
+                },
+            ),
         )
     return authors
 
@@ -602,7 +616,7 @@ def parse_institutions(value: JsonValue) -> list[JsonObject]:
                 "name": institution.get("display_name"),
                 "ror": institution.get("ror"),
                 "country_code": institution.get("country_code"),
-            }
+            },
         )
         for institution in object_list(value)
     ]
@@ -622,7 +636,7 @@ def parse_topics(data: JsonObject) -> list[JsonObject]:
                 "subfield": topic.get("subfield"),
                 "field": topic.get("field"),
                 "domain": topic.get("domain"),
-            }
+            },
         )
         for topic in raw_topics
     ]
@@ -636,7 +650,7 @@ def parse_concepts(value: JsonValue) -> list[JsonObject]:
                 "display_name": concept.get("display_name"),
                 "score": concept.get("score"),
                 "level": concept.get("level"),
-            }
+            },
         )
         for concept in object_list(value)
     ]
@@ -656,7 +670,7 @@ def parse_source(value: JsonValue) -> JsonObject | None:
             "is_oa": source.get("is_oa"),
             "is_in_doaj": source.get("is_in_doaj"),
             "host_organization_name": source.get("host_organization_name"),
-        }
+        },
     )
 
 
@@ -668,7 +682,7 @@ def parse_open_access(value: JsonValue) -> JsonObject:
             "oa_status": data.get("oa_status"),
             "oa_url": data.get("oa_url"),
             "any_repository_has_fulltext": data.get("any_repository_has_fulltext"),
-        }
+        },
     )
 
 
@@ -686,7 +700,7 @@ def parse_oa_locations(value: JsonValue, provenance: str) -> list[JsonObject]:
             locations.append(oa_location(location, source, pdf_url, "pdf", provenance))
         if landing_url is not None:
             locations.append(
-                oa_location(location, source, landing_url, "landing-page", provenance)
+                oa_location(location, source, landing_url, "landing-page", provenance),
             )
     return locations
 
@@ -708,7 +722,7 @@ def oa_location(
             "version": location.get("version"),
             "source": source,
             "provenance": provenance,
-        }
+        },
     )
 
 
@@ -717,7 +731,7 @@ def identifiers_from_work(data: JsonObject) -> JsonObject:
     openalex_url = first_string(data, ("id",)) or str_or_none(ids.get("openalex"))
     openalex_id = short_openalex_id(openalex_url)
     doi = normalize_output_doi(
-        first_string(data, ("doi",)) or str_or_none(ids.get("doi"))
+        first_string(data, ("doi",)) or str_or_none(ids.get("doi")),
     )
     pmid = normalize_output_pmid(str_or_none(ids.get("pmid")))
     pmcid = normalize_output_pmcid(str_or_none(ids.get("pmcid")))
@@ -745,7 +759,7 @@ def locations_summary(data: JsonObject) -> JsonObject:
             "oa_count": len(oa_locations),
             "has_best_oa_location": best is not None,
             "best_oa_source": parse_source(best.get("source")) if best else None,
-        }
+        },
     )
 
 
@@ -764,7 +778,7 @@ def edge(source: str, target: str, direction: GraphDirection) -> JsonObject:
             "direction": direction,
             "provenance": graph_provenance(direction),
             "evidence": "algorithmic" if direction == "related" else "citation-graph",
-        }
+        },
     )
 
 
@@ -776,7 +790,7 @@ def unavailable_work(work_id: str) -> JsonObject:
             "source": "openalex",
             "openalex_id": work_id,
             "identifiers": {"openalex_id": work_id},
-        }
+        },
     )
 
 
@@ -837,7 +851,8 @@ def work_missing(work: JsonObject) -> list[JsonValue]:
 
 
 def merge_identifiers(
-    first: dict[str, str] | JsonObject, second: JsonObject
+    first: dict[str, str] | JsonObject,
+    second: JsonObject,
 ) -> JsonObject:
     result: JsonObject = dict(first)
     result.update(second)
@@ -939,7 +954,7 @@ def format_work_markdown(result: JsonObject) -> str:
             f"- Cited by: {display(work.get('cited_by_count'))}",
             f"- References: {display(work.get('referenced_works_count'))}",
             f"- OA status: {display(open_access.get('oa_status'))}",
-        ]
+        ],
     )
     authors = object_list(work.get("authors"))
     if authors:
@@ -1009,7 +1024,7 @@ def format_trends_markdown(result: JsonObject) -> str:
             markdown_heading(f"OpenAlex trends: {display(result.get('query'))}"),
             "",
             markdown_table(("Key", "Display name", "Count"), rows),
-        ]
+        ],
     )
 
 

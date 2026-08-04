@@ -1,3 +1,5 @@
+# Copyright (c) 2026 Seungwon Lee
+# SPDX-License-Identifier: MIT
 """Tests for the PDF highlight-geometry locator (the one non-trivial algorithm).
 
 Uses pymupdf (a hard dependency) to synthesize tiny PDFs, including a hyphenated

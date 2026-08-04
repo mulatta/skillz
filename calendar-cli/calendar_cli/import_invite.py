@@ -1,3 +1,5 @@
+# Copyright (c) 2026 Seungwon Lee
+# SPDX-License-Identifier: MIT
 """Import calendar invites from email or .ics files."""
 
 from __future__ import annotations

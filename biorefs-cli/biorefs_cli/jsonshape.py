@@ -1,3 +1,5 @@
+# Copyright (c) 2026 Seungwon Lee
+# SPDX-License-Identifier: MIT
 """Shared JSON-shape extraction helpers for biorefs-cli command modules.
 
 Command modules parse loosely typed JSON payloads (``dict[str, object]``)

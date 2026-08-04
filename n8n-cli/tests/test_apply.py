@@ -1,3 +1,5 @@
+# Copyright (c) 2026 Seungwon Lee
+# SPDX-License-Identifier: MIT
 """Apply command tests."""
 
 import json
@@ -10,7 +12,6 @@ from n8n_cli.commands.apply import (
     _strip_for_update,
     _workflows_differ,
 )
-
 from tests.conftest import WORKFLOW_1, run_fail, run_ok
 
 

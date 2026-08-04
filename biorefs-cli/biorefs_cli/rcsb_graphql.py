@@ -1,3 +1,5 @@
+# Copyright (c) 2026 Seungwon Lee
+# SPDX-License-Identifier: MIT
 """Batch PDB entry metadata from the RCSB Data GraphQL endpoint.
 
 One POST enriches a page of search hits with title, method, resolution, and

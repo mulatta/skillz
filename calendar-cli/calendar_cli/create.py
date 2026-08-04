@@ -1,4 +1,6 @@
 #!/usr/bin/env python3
+# Copyright (c) 2026 Seungwon Lee
+# SPDX-License-Identifier: MIT
 """Generate ICS calendar invites and send them via msmtp.
 
 Supports attendees with names/emails and meeting links.

@@ -1,3 +1,5 @@
+# Copyright (c) 2026 Seungwon Lee
+# SPDX-License-Identifier: MIT
 from __future__ import annotations
 
 import json
@@ -5,6 +7,7 @@ import stat
 from typing import TYPE_CHECKING
 
 import pytest
+
 from biorefs_cli.config import (
     Config,
     check_configured_secrets,
@@ -39,7 +42,12 @@ class SequenceHttpClient(HttpClient):
         self.sleeps: list[tuple[int, float | None]] = []
 
     def _once(
-        self, method: str, url: str, *, body: bytes | None, headers: dict[str, str]
+        self,
+        method: str,
+        url: str,
+        *,
+        body: bytes | None,
+        headers: dict[str, str],
     ) -> HttpResponse:
         assert headers is not None
         self.urls.append(url)
@@ -55,7 +63,12 @@ class NetworkFailHttpClient(HttpClient):
         self.sleeps: list[tuple[int, float | None]] = []
 
     def _once(
-        self, method: str, url: str, *, body: bytes | None, headers: dict[str, str]
+        self,
+        method: str,
+        url: str,
+        *,
+        body: bytes | None,
+        headers: dict[str, str],
     ) -> HttpResponse:
         assert url.startswith("https://")
         assert headers is not None
@@ -70,14 +83,22 @@ class RedirectLoopHttpClient(HttpClient):
         super().__init__(timeout_seconds=3)
 
     def _once(
-        self, method: str, url: str, *, body: bytes | None, headers: dict[str, str]
+        self,
+        method: str,
+        url: str,
+        *,
+        body: bytes | None,
+        headers: dict[str, str],
     ) -> HttpResponse:
         assert headers is not None
         return HttpResponse(status=302, headers={"location": url}, body=b"")
 
 
 def response(
-    body: bytes, *, status: int = 200, headers: dict[str, str] | None = None
+    body: bytes,
+    *,
+    status: int = 200,
+    headers: dict[str, str] | None = None,
 ) -> HttpResponse:
     return HttpResponse(status=status, headers=headers or {}, body=body)
 
@@ -142,7 +163,7 @@ def test_http_json_error_and_status_paths() -> None:
 
 def test_http_transient_retry_network_failure_and_redirect_limit() -> None:
     transient = SequenceHttpClient(
-        [response(b"error", status=500), response(json.dumps({"ok": True}).encode())]
+        [response(b"error", status=500), response(json.dumps({"ok": True}).encode())],
     )
     network = NetworkFailHttpClient()
 
@@ -157,7 +178,8 @@ def test_http_transient_retry_network_failure_and_redirect_limit() -> None:
 
 def test_http_rate_limit_and_invalid_url_paths() -> None:
     limited = SequenceHttpClient(
-        [response(b"limited", status=429, headers={"retry-after": "2"})], attempts=1
+        [response(b"limited", status=429, headers={"retry-after": "2"})],
+        attempts=1,
     )
 
     with pytest.raises(RateLimitError) as exc_info:

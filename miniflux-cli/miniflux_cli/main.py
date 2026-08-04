@@ -1,3 +1,5 @@
+# Copyright (c) 2026 Seungwon Lee
+# SPDX-License-Identifier: MIT
 """Command line interface for Miniflux."""
 
 from __future__ import annotations
@@ -242,7 +244,7 @@ def default_download_dir(entry_id: int) -> Path:
 def download_url(url: str, output_dir: Path) -> Path:
     req = urllib.request.Request(url, headers={"User-Agent": "miniflux-cli/0.1.0"})
     try:
-        with urllib.request.urlopen(req, timeout=60) as resp:  # noqa: S310
+        with urllib.request.urlopen(req, timeout=60) as resp:
             filename = filename_from_response(
                 url, resp.headers.get("Content-Disposition")
             )

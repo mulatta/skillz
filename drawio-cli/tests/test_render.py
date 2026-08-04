@@ -1,3 +1,5 @@
+# Copyright (c) 2026 Seungwon Lee
+# SPDX-License-Identifier: MIT
 from __future__ import annotations
 
 import struct
@@ -6,6 +8,7 @@ from pathlib import Path
 from unittest.mock import patch
 
 import pytest
+
 from drawio_cli.png import PNG_MAGIC, assert_png, repair_png_iend
 from drawio_cli.render import (
     _render_command,

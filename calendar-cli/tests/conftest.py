@@ -1,3 +1,5 @@
+# Copyright (c) 2026 Seungwon Lee
+# SPDX-License-Identifier: MIT
 """Shared pytest fixtures for calendar-cli tests."""
 
 from __future__ import annotations

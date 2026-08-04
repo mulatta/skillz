@@ -1,3 +1,5 @@
+# Copyright (c) 2026 Seungwon Lee
+# SPDX-License-Identifier: MIT
 """Helpers for keeping sensitive request details out of diagnostics."""
 
 from __future__ import annotations

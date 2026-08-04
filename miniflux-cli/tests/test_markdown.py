@@ -1,3 +1,5 @@
+# Copyright (c) 2026 Seungwon Lee
+# SPDX-License-Identifier: MIT
 from miniflux_cli.markdown import entry_to_markdown, html_to_markdown
 
 

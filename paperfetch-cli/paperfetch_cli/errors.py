@@ -1,3 +1,5 @@
+# Copyright (c) 2026 Seungwon Lee
+# SPDX-License-Identifier: MIT
 """Process exit codes and the user-facing error type.
 
 Exit codes are part of the CLI contract: they let a caller that asked for an

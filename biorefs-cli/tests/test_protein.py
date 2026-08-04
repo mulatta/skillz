@@ -1,3 +1,5 @@
+# Copyright (c) 2026 Seungwon Lee
+# SPDX-License-Identifier: MIT
 from __future__ import annotations
 
 import json
@@ -5,6 +7,7 @@ from typing import cast
 from urllib.parse import parse_qs, urlencode, urlparse
 
 import pytest
+
 from biorefs_cli.commands.protein import (
     ProteinService,
     build_search_term,
@@ -18,7 +21,9 @@ from biorefs_cli.main import main
 
 class FakeHttp:
     def __init__(
-        self, response_text: str | None = None, error: Exception | None = None
+        self,
+        response_text: str | None = None,
+        error: Exception | None = None,
     ) -> None:
         self.response_text = response_text or ""
         self.error = error
@@ -99,7 +104,7 @@ def test_search_uses_esearch_taxon_filter_and_fetches_summaries() -> None:
                 },
             },
             protein_summary_payload(),
-        ]
+        ],
     )
 
     result = ProteinService(client).search("BRCA1", taxon="9606", limit=7)

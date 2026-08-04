@@ -1,3 +1,5 @@
+# Copyright (c) 2026 Seungwon Lee
+# SPDX-License-Identifier: MIT
 """Shared fixtures — fake n8n API server and CLI test helpers."""
 
 import json
@@ -153,7 +155,7 @@ EXECUTION_STOPPED = {
 class FakeN8NHandler(BaseHTTPRequestHandler):
     """Route requests to canned responses based on method + path."""
 
-    def log_message(self, format: str, *args: object) -> None:  # noqa: A002
+    def log_message(self, format: str, *args: object) -> None:
         pass  # silence server logs during tests
 
     def _send(self, code: int, body: Any) -> None:
@@ -168,7 +170,7 @@ class FakeN8NHandler(BaseHTTPRequestHandler):
 
     # -- routing -------------------------------------------------------------
 
-    def do_GET(self) -> None:  # noqa: N802
+    def do_GET(self) -> None:
         p = self.path.split("?")[0]  # strip query string for matching
 
         routes: dict[str, Any] = {
@@ -197,7 +199,7 @@ class FakeN8NHandler(BaseHTTPRequestHandler):
         else:
             self._send(404, {"message": f"Not found: {p}"})
 
-    def do_POST(self) -> None:  # noqa: N802
+    def do_POST(self) -> None:
         self._read_body()
         p = self.path.split("?")[0]
 
@@ -235,7 +237,7 @@ class FakeN8NHandler(BaseHTTPRequestHandler):
         else:
             self._send(404, {"message": f"Not found: {p}"})
 
-    def do_PUT(self) -> None:  # noqa: N802
+    def do_PUT(self) -> None:
         raw = self._read_body()
         p = self.path.split("?")[0]
 
@@ -255,7 +257,7 @@ class FakeN8NHandler(BaseHTTPRequestHandler):
         else:
             self._send(404, {"message": f"Not found: {p}"})
 
-    def do_PATCH(self) -> None:  # noqa: N802
+    def do_PATCH(self) -> None:
         raw = self._read_body()
         p = self.path.split("?")[0]
 
@@ -281,7 +283,7 @@ class FakeN8NHandler(BaseHTTPRequestHandler):
         else:
             self._send(404, {"message": f"Not found: {p}"})
 
-    def do_DELETE(self) -> None:  # noqa: N802
+    def do_DELETE(self) -> None:
         p = self.path.split("?")[0]
 
         delete_routes: dict[str, Any] = {

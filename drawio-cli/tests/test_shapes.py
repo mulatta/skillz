@@ -1,3 +1,5 @@
+# Copyright (c) 2026 Seungwon Lee
+# SPDX-License-Identifier: MIT
 from __future__ import annotations
 
 import gzip
@@ -5,6 +7,7 @@ import json
 from pathlib import Path
 
 import pytest
+
 from drawio_cli.shapes import ShapeIndex, load_index, search_shapes, soundex
 
 

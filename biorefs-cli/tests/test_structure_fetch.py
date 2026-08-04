@@ -1,9 +1,12 @@
+# Copyright (c) 2026 Seungwon Lee
+# SPDX-License-Identifier: MIT
 from __future__ import annotations
 
 import json
 from pathlib import Path
 
 import pytest
+
 from biorefs_cli.commands.structure import (
     AlphaFoldFile,
     FetchClient,
@@ -31,7 +34,10 @@ class FakeBackend:
         self.af_calls: list[tuple[str, str]] = []
 
     def rcsb_structure(
-        self, pdb_id: str, fmt: str, assembly: int | None = None
+        self,
+        pdb_id: str,
+        fmt: str,
+        assembly: int | None = None,
     ) -> bytes:
         self.rcsb_calls.append((pdb_id, fmt, assembly))
         return self.rcsb_bytes
@@ -114,7 +120,7 @@ def test_alphafold_client_selects_cif_url_and_derives_model_id() -> None:
         prediction(
             cifUrl="https://alphafold.ebi.ac.uk/files/AF-P38398-F1-model_v4.cif",
             pdbUrl="https://alphafold.ebi.ac.uk/files/AF-P38398-F1-model_v4.pdb",
-        )
+        ),
     )
     client = FetchClient(config=Config(), http=http)
 
@@ -127,7 +133,9 @@ def test_alphafold_client_selects_cif_url_and_derives_model_id() -> None:
 
 def test_alphafold_client_selects_pdb_url() -> None:
     http = StubHttp(
-        prediction(pdbUrl="https://alphafold.ebi.ac.uk/files/AF-P38398-F1-model_v4.pdb")
+        prediction(
+            pdbUrl="https://alphafold.ebi.ac.uk/files/AF-P38398-F1-model_v4.pdb"
+        ),
     )
     client = FetchClient(config=Config(), http=http)
 

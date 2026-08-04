@@ -20,6 +20,9 @@ packages = ["pymol_cli"]
 line-length = 88
 target-version = "py313"
 
+[tool.ruff.lint]
+ignore = ["UP022"]
+
 [tool.mypy]
 python_version = "3.13"
 warn_return_any = true

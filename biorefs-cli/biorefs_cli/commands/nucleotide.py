@@ -1,3 +1,5 @@
+# Copyright (c) 2026 Seungwon Lee
+# SPDX-License-Identifier: MIT
 """NCBI Nucleotide commands."""
 
 from __future__ import annotations
@@ -81,11 +83,13 @@ class ResolvedAccession:
 def register(subparsers: argparse._SubParsersAction[argparse.ArgumentParser]) -> None:
     parser = subparsers.add_parser("nucleotide", help="NCBI nucleotide workflows")
     nucleotide_subcommands = parser.add_subparsers(
-        dest="nucleotide_command", required=True
+        dest="nucleotide_command",
+        required=True,
     )
 
     search = nucleotide_subcommands.add_parser(
-        "search", help="Search nucleotide records"
+        "search",
+        help="Search nucleotide records",
     )
     search.add_argument("query")
     search.add_argument("--taxon")
@@ -152,7 +156,9 @@ def handle_fetch(args: argparse.Namespace, client: NCBIClient) -> int:
 
     text_format = cast("TextFetchFormat", fetch_format)
     result = fetch_nucleotide_text(
-        client, accession=accession, fetch_format=text_format
+        client,
+        accession=accession,
+        fetch_format=text_format,
     )
     if namespace_bool(args, "json"):
         print_json(result)

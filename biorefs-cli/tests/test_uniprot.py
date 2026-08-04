@@ -1,9 +1,12 @@
+# Copyright (c) 2026 Seungwon Lee
+# SPDX-License-Identifier: MIT
 from __future__ import annotations
 
 import json
 from typing import TYPE_CHECKING, cast
 
 import pytest
+
 from biorefs_cli.commands.uniprot import (
     UniProtService,
     build_search_query,
@@ -63,7 +66,7 @@ def brca1_entry() -> dict[str, object]:
         "organism": {"scientificName": "Homo sapiens", "taxonId": 9606},
         "proteinDescription": {
             "recommendedName": {
-                "fullName": {"value": "Breast cancer type 1 susceptibility protein"}
+                "fullName": {"value": "Breast cancer type 1 susceptibility protein"},
             },
             "alternativeNames": [{"fullName": {"value": "RING finger protein 53"}}],
         },
@@ -73,9 +76,9 @@ def brca1_entry() -> dict[str, object]:
             {
                 "commentType": "FUNCTION",
                 "texts": [
-                    {"value": "E3 ubiquitin-protein ligase that specifically..."}
+                    {"value": "E3 ubiquitin-protein ligase that specifically..."},
                 ],
-            }
+            },
         ],
         "uniProtKBCrossReferences": [
             {
@@ -111,7 +114,7 @@ def brca1_entry() -> dict[str, object]:
                         {"database": "PubMed", "id": "7545954"},
                         {"database": "DOI", "id": "10.1126/science.7545954"},
                     ],
-                }
+                },
             },
             {
                 "citation": {
@@ -120,7 +123,7 @@ def brca1_entry() -> dict[str, object]:
                         {"database": "PubMed", "id": "7545954"},
                         {"database": "PubMed", "id": "8896459"},
                     ],
-                }
+                },
             },
         ],
     }
@@ -145,7 +148,10 @@ def test_search_builds_params_and_parses_results() -> None:
     backend = FakeBackend(search_payload={"results": [brca1_entry()]})
 
     result = UniProtService(backend).search(
-        "BRCA1", taxon="9606", reviewed=True, limit=10
+        "BRCA1",
+        taxon="9606",
+        reviewed=True,
+        limit=10,
     )
 
     assert backend.search_params is not None
@@ -216,7 +222,7 @@ def test_entry_parse_handles_unreviewed_and_submission_name() -> None:
         "uniProtkbId": "E7ENB7_HUMAN",
         "organism": {"scientificName": "Homo sapiens", "taxonId": 9606},
         "proteinDescription": {
-            "submissionNames": [{"fullName": {"value": "BRCA1 protein"}}]
+            "submissionNames": [{"fullName": {"value": "BRCA1 protein"}}],
         },
         "sequence": {"length": 699},
     }
@@ -296,7 +302,8 @@ def test_json_roundtrip_of_summary_payload() -> None:
     backend = FakeBackend(entry_payload=brca1_entry())
 
     payload = UniProtService(backend).fetch_summary(
-        "P38398", include=("function", "xrefs", "literature")
+        "P38398",
+        include=("function", "xrefs", "literature"),
     )
     decoded = json.loads(json.dumps(payload))
 

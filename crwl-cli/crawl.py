@@ -1,4 +1,6 @@
 #!/usr/bin/env python3
+# Copyright (c) 2026 Seungwon Lee
+# SPDX-License-Identifier: MIT
 """Crawl public web pages and extract markdown for LLM consumption."""
 
 from __future__ import annotations

@@ -1,3 +1,5 @@
+# Copyright (c) 2026 Seungwon Lee
+# SPDX-License-Identifier: MIT
 """PubMed/PMC-backed paper commands."""
 
 from __future__ import annotations
@@ -119,7 +121,9 @@ class PaperClient:
         return normalize_idconv(identifier, raw)
 
     def resolve_pmid(
-        self, kind: str, value: str
+        self,
+        kind: str,
+        value: str,
     ) -> tuple[str | None, list[str], JsonDict | None]:
         if kind == "pmid":
             return normalize_pmid(value), [], None
@@ -132,13 +136,16 @@ class PaperClient:
         warnings.append("pmc-id-converter:no-pmid")
         if kind == "doi":
             search = self.esearch_pubmed(
-                f"{normalize_doi(value)}[doi]", limit=2, since=None, until=None
+                f"{normalize_doi(value)}[doi]",
+                limit=2,
+                since=None,
+                until=None,
             )
             ids = extract_esearch_ids(search)
             if len(ids) == 1:
                 return ids[0], warnings, converted
             warnings.append(
-                "doi-not-found-in-pubmed" if not ids else "doi-ambiguous-in-pubmed"
+                "doi-not-found-in-pubmed" if not ids else "doi-ambiguous-in-pubmed",
             )
         return None, warnings, converted
 
@@ -150,7 +157,8 @@ class PaperClient:
         query = f"?{urllib.parse.urlencode(params)}" if params else ""
         encoded = urllib.parse.quote(normalized, safe="")
         raw = self.http.get_json(
-            f"{CROSSREF_URL}/{encoded}{query}", rate_limit_source="crossref"
+            f"{CROSSREF_URL}/{encoded}{query}",
+            rate_limit_source="crossref",
         )
         message = raw.get("message")
         if not isinstance(message, dict):
@@ -200,14 +208,17 @@ def register(subparsers: argparse._SubParsersAction[argparse.ArgumentParser]) ->
     fetch.set_defaults(handler=handle)
 
     fulltext = paper_subcommands.add_parser(
-        "fulltext", help="Fetch open-access full text"
+        "fulltext",
+        help="Fetch open-access full text",
     )
     fulltext.add_argument("--pmid")
     fulltext.add_argument("--pmcid")
     fulltext.add_argument("--doi")
     fulltext.add_argument("--sections")
     fulltext.add_argument(
-        "--source", choices=("pmc", "europepmc", "auto"), default="auto"
+        "--source",
+        choices=("pmc", "europepmc", "auto"),
+        default="auto",
     )
     fulltext.add_argument("--json", action="store_true")
     fulltext.set_defaults(handler=handle)
@@ -224,7 +235,9 @@ def register(subparsers: argparse._SubParsersAction[argparse.ArgumentParser]) ->
     cite.add_argument("--pmcid")
     cite.add_argument("--doi")
     cite.add_argument(
-        "--format", choices=("markdown", "bibtex", "ris", "json"), default="markdown"
+        "--format",
+        choices=("markdown", "bibtex", "ris", "json"),
+        default="markdown",
     )
     cite.add_argument("--strict", action="store_true")
     cite.set_defaults(handler=handle)
@@ -233,7 +246,9 @@ def register(subparsers: argparse._SubParsersAction[argparse.ArgumentParser]) ->
     related.add_argument("--pmid")
     related.add_argument("--doi")
     related.add_argument(
-        "--mode", choices=("similar", "references", "cited-by"), default="similar"
+        "--mode",
+        choices=("similar", "references", "cited-by"),
+        default="similar",
     )
     related.add_argument("--limit", type=positive_int, default=DEFAULT_LIMIT)
     related.add_argument("--json", action="store_true")
@@ -282,7 +297,10 @@ def cmd_search(client: PaperClient, args: argparse.Namespace) -> JsonDict:
         )
     query = pubmed_query(str(args.query), args.type)
     raw = client.esearch_pubmed(
-        query, limit=int(args.limit), since=args.since, until=args.until
+        query,
+        limit=int(args.limit),
+        since=args.since,
+        until=args.until,
     )
     ids = extract_esearch_ids(raw)
     records = (
@@ -327,7 +345,10 @@ def cmd_fulltext(client: PaperClient, args: argparse.Namespace) -> JsonDict:
     if pmcid is None:
         converted = client.id_convert(kind, value)
         tried.append(
-            {"source": "pmc-id-converter", "status": converted.get("status", "unknown")}
+            {
+                "source": "pmc-id-converter",
+                "status": converted.get("status", "unknown"),
+            },
         )
         identifiers = as_dict(converted.get("identifiers"))
         converted_pmcid = identifiers.get("pmcid")
@@ -380,7 +401,9 @@ def cmd_related(client: PaperClient, args: argparse.Namespace) -> JsonDict:
     mode = str(args.mode)
     if kind != "pmid" or mode != "similar":
         return unsupported(
-            "related", mode, "only PMID similar is implemented in this MVP"
+            "related",
+            mode,
+            "only PMID similar is implemented in this MVP",
         )
     raw = client.elink_pubmed(value, mode=mode)
     related = parse_elink_ids(raw)[: int(args.limit)]
@@ -400,7 +423,10 @@ def cmd_related(client: PaperClient, args: argparse.Namespace) -> JsonDict:
 
 
 def fetch_record(
-    client: PaperClient, kind: str, value: str, include: set[str]
+    client: PaperClient,
+    kind: str,
+    value: str,
+    include: set[str],
 ) -> JsonDict:
     pmid, warnings, converted = client.resolve_pmid(kind, value)
     if pmid is None:
@@ -438,7 +464,7 @@ def metadata_or_unavailable(client: PaperClient, kind: str, value: str) -> JsonD
 def parse_pubmed_xml(xml_text: str, include: set[str]) -> list[JsonDict]:
     if not xml_text.strip():
         return []
-    root = ET.fromstring(xml_text)  # noqa: S314 - NCBI/PubMed XML; no defusedxml dependency.
+    root = ET.fromstring(xml_text)  # noqa: S314
     return [
         parse_pubmed_article(article, include)
         for article in root.findall(".//PubmedArticle")
@@ -461,7 +487,7 @@ def parse_pubmed_article(article: ET.Element, include: set[str]) -> JsonDict:
         "publication_types": parse_publication_types(article_el),
         "source_urls": source_urls(identifiers),
         "provenance": [
-            {"source": "pubmed", "url": pubmed_url(identifiers.get("pmid"))}
+            {"source": "pubmed", "url": pubmed_url(identifiers.get("pmid"))},
         ],
     }
     if "authors" in include:
@@ -482,7 +508,8 @@ def parse_pubmed_article(article: ET.Element, include: set[str]) -> JsonDict:
 
 
 def parse_pubmed_identifiers(
-    medline: ET.Element | None, pubmed_data: ET.Element | None
+    medline: ET.Element | None,
+    pubmed_data: ET.Element | None,
 ) -> dict[str, str]:
     identifiers: dict[str, str] = {}
     pmid = text_or_none(medline.find("PMID") if medline is not None else None)
@@ -542,7 +569,7 @@ def parse_authors(article_el: ET.Element | None) -> list[JsonDict]:
                 "initials": first_text(author, ("Initials",)),
                 "collective": first_text(author, ("CollectiveName",)),
                 "affiliations": [item for item in affiliations if item],
-            }
+            },
         )
     return authors
 
@@ -559,7 +586,7 @@ def parse_abstract(article_el: ET.Element | None) -> JsonDict:
                         "label": abstract_text.attrib.get("Label"),
                         "nlm_category": abstract_text.attrib.get("NlmCategory"),
                         "text": text,
-                    }
+                    },
                 )
     return {
         "text": "\n".join(str(section["text"]) for section in sections),
@@ -596,7 +623,7 @@ def parse_mesh(medline: ET.Element | None) -> list[JsonDict]:
                 if descriptor is not None
                 else False,
                 "qualifiers": qualifiers,
-            }
+            },
         )
     return headings
 
@@ -618,7 +645,7 @@ def parse_grants(article_el: ET.Element | None) -> list[JsonDict]:
 def parse_jats_xml(xml_text: str, wanted_sections: set[str] | None) -> JsonDict:
     if not xml_text.strip():
         return unavailable("pmc:empty-response")
-    root = ET.fromstring(xml_text)  # noqa: S314 - NCBI/PMC XML; no defusedxml dependency.
+    root = ET.fromstring(xml_text)  # noqa: S314
     article = root if strip_ns(root.tag) == "article" else first(root, "article")
     if article is None:
         return unavailable("pmc:no-article")
@@ -717,7 +744,7 @@ def parse_body_sections(article: ET.Element) -> list[JsonDict]:
                     "title": title,
                     "text": text,
                     "order": order,
-                }
+                },
             )
         for child in children_named(section, "sec"):
             walk(child, current_path)
@@ -771,7 +798,7 @@ def parse_references(article: ET.Element) -> list[JsonDict]:
                 "label": child_text(ref, "label"),
                 "text": flatten(ref),
                 "identifiers": ids,
-            }
+            },
         )
     return refs
 
@@ -781,7 +808,7 @@ def parse_license(article: ET.Element) -> JsonDict:
     if license_el is None:
         return {"type": None, "url": None}
     href = license_el.attrib.get(
-        "{http://www.w3.org/1999/xlink}href"
+        "{http://www.w3.org/1999/xlink}href",
     ) or license_el.attrib.get("href")
     return {"type": license_el.attrib.get("license-type"), "url": href}
 
@@ -974,7 +1001,7 @@ def print_fulltext(record: JsonDict) -> None:
     for section in as_list(fulltext.get("sections")):
         if isinstance(section, dict):
             print(
-                "\n" + markdown_heading(str(section.get("title", "Untitled")), level=2)
+                "\n" + markdown_heading(str(section.get("title", "Untitled")), level=2),
             )
             print(section.get("text", ""))
 
@@ -1004,7 +1031,9 @@ def positive_int(value: str) -> int:
 
 
 def one_identifier(
-    pmid: str | None, pmcid: str | None, doi: str | None
+    pmid: str | None,
+    pmcid: str | None,
+    doi: str | None,
 ) -> tuple[str, str]:
     present = [("pmid", pmid), ("pmcid", pmcid), ("doi", doi)]
     values = [(key, value) for key, value in present if value]
@@ -1353,7 +1382,7 @@ def journal_title(record: JsonDict) -> str | None:
     if not isinstance(journal, Mapping):
         return None
     return optional_str(journal.get("title")) or optional_str(
-        journal.get("iso_abbreviation")
+        journal.get("iso_abbreviation"),
     )
 
 

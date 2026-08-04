@@ -1,3 +1,5 @@
+# Copyright (c) 2026 Seungwon Lee
+# SPDX-License-Identifier: MIT
 """Build and send calendar invite emails via msmtp."""
 
 from __future__ import annotations

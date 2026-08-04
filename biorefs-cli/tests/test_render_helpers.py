@@ -1,9 +1,12 @@
+# Copyright (c) 2026 Seungwon Lee
+# SPDX-License-Identifier: MIT
 from __future__ import annotations
 
 import argparse
 from typing import TYPE_CHECKING, cast
 
 import pytest
+
 from biorefs_cli.commands import assay, compound, gene, nucleotide, openalex, protein
 from biorefs_cli.errors import CLIError, HTTPError, RateLimitError
 
@@ -36,9 +39,9 @@ def test_gene_markdown_error_and_link_helpers() -> None:
                     "target_db": "pubmed",
                     "target_id": "1",
                     "link_name": "gene_pubmed",
-                }
-            ]
-        }
+                },
+            ],
+        },
     )
     candidates = gene.ambiguous_error_payload(ambiguous)["candidates"]
     assert isinstance(candidates, list)
@@ -84,9 +87,9 @@ def test_protein_edge_helpers_and_prints(capsys: pytest.CaptureFixture[str]) -> 
                     "organism": "Human",
                     "length": 1,
                     "source_database": "refseq",
-                }
-            ]
-        }
+                },
+            ],
+        },
     )
     out = capsys.readouterr().out
     assert "No protein records" in out
@@ -126,10 +129,10 @@ def test_nucleotide_edge_helpers_and_prints(capsys: pytest.CaptureFixture[str]) 
                         "molecule_type": "mRNA",
                         "length": 10,
                         "title": "Title",
-                    }
-                ]
+                    },
+                ],
             },
-        )
+        ),
     )
     out = capsys.readouterr().out
     assert "No nucleotide records" in out
@@ -185,7 +188,7 @@ def test_openalex_markdown_and_normalizer_edges() -> None:
     assert openalex.normalize_output_pmid("abc") is None
     assert (
         openalex.normalize_output_pmcid(
-            "https://www.ncbi.nlm.nih.gov/pmc/articles/PMC123/"
+            "https://www.ncbi.nlm.nih.gov/pmc/articles/PMC123/",
         )
         == "PMC123"
     )
@@ -204,26 +207,26 @@ def test_compound_render_and_error_helpers() -> None:
         "description": [{"heading": "Description", "text": "Analgesic"}],
     }
     assert "Aspirin" in compound.render_markdown(
-        {"type": "compound_search", "records": [record]}
+        {"type": "compound_search", "records": [record]},
     )
     assert "Synonyms" in compound.render_markdown(
-        {"type": "compound_fetch", "record": record}
+        {"type": "compound_fetch", "record": record},
     )
     assert "No compound candidates" in compound.render_fetch({"status": "not_found"})
     assert "Name is ambiguous" in compound.render_fetch(
-        {"status": "ambiguous", "candidates": [record]}
+        {"status": "ambiguous", "candidates": [record]},
     )
     assert "PMID" in compound.render_markdown(
         {
             "type": "compound_xrefs",
             "xrefs": [{"relation": "xref", "target": "PMID:1", "url": "u"}],
-        }
+        },
     )
     assert "active" in compound.render_markdown(
         {
             "type": "compound_bioactivity",
             "rows": [{"aid": 1, "outcome": "active", "target": {"name": "T"}}],
-        }
+        },
     )
     assert "Field" in compound.render_markdown({"type": "unknown", "x": "y"})
     assert compound.normalize_key(" Activity-Outcome ") == "activity_outcome"
@@ -241,15 +244,15 @@ def test_assay_render_and_error_helpers() -> None:
                 "activity_outcome": "Active",
                 "target_hints": [{"gene_symbol": "PARP1"}],
                 "source": "PubChem",
-            }
-        ]
+            },
+        ],
     }
     fetch = {
         "aid": 1,
         "name": "Assay",
         "description": "Description",
         "targets": [
-            {"name": "PARP1", "gene_id": "142", "protein_gi": "1", "organism": "Human"}
+            {"name": "PARP1", "gene_id": "142", "protein_gi": "1", "organism": "Human"},
         ],
         "concise": {"assay_type": "confirmatory"},
         "activity": [
@@ -260,7 +263,7 @@ def test_assay_render_and_error_helpers() -> None:
                 "activity_name": "IC50",
                 "activity_value": 1,
                 "activity_unit": "nM",
-            }
+            },
         ],
         "activity_summary": {"returned_rows": 1, "total_rows": 2},
     }

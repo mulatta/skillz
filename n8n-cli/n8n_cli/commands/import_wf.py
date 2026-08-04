@@ -1,3 +1,5 @@
+# Copyright (c) 2026 Seungwon Lee
+# SPDX-License-Identifier: MIT
 """Import command — download workflows from n8n server to local JSON files."""
 
 import json

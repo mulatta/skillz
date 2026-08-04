@@ -1,3 +1,5 @@
+# Copyright (c) 2026 Seungwon Lee
+# SPDX-License-Identifier: MIT
 """Read/write vdirsyncer filesystem calendar stores.
 
 vdirsyncer stores one .ics file per event in a directory per calendar:

@@ -1,3 +1,5 @@
+# Copyright (c) 2026 Seungwon Lee
+# SPDX-License-Identifier: MIT
 """SQLite cache for parsed calendar events.
 
 Avoids re-parsing every .ics file on each invocation.  The cache stores

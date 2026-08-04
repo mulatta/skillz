@@ -1,3 +1,5 @@
+# Copyright (c) 2026 Seungwon Lee
+# SPDX-License-Identifier: MIT
 """Data table command tests."""
 
 import json
@@ -6,7 +8,6 @@ from pathlib import Path
 import pytest
 
 from n8n_cli.commands.datatable import _compact_filter_json
-
 from tests.conftest import run_fail, run_ok
 
 

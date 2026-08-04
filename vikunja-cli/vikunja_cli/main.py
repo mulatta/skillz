@@ -1,3 +1,5 @@
+# Copyright (c) 2026 Seungwon Lee
+# SPDX-License-Identifier: MIT
 """vikunja-cli entry point."""
 
 from __future__ import annotations
@@ -36,12 +38,12 @@ from vikunja_cli.commands import (
     cmd_notification_read_all,
     cmd_project_create,
     cmd_project_delete,
-    cmd_relation_add,
-    cmd_relation_list,
-    cmd_relation_remove,
     cmd_project_list,
     cmd_project_show,
     cmd_project_update,
+    cmd_relation_add,
+    cmd_relation_list,
+    cmd_relation_remove,
     cmd_setup_labels,
     cmd_task_complete,
     cmd_task_create,

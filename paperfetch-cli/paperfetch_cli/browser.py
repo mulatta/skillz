@@ -1,3 +1,5 @@
+# Copyright (c) 2026 Seungwon Lee
+# SPDX-License-Identifier: MIT
 """Headful Chromium engine (patchright) for institutional / Cloudflare fetches.
 
 Validated approach (see README.md): a headful browser under Xvfb with stock

@@ -1,3 +1,5 @@
+# Copyright (c) 2026 Seungwon Lee
+# SPDX-License-Identifier: MIT
 """Tests for the calendar-cli command-line interface.
 
 Only covers CLI-specific logic (arg parsing, output formatting, sync wiring)

@@ -1,3 +1,5 @@
+# Copyright (c) 2026 Seungwon Lee
+# SPDX-License-Identifier: MIT
 """Command-line entry point.
 
 ``get`` resolves native IDs / DOI metadata, tries legal OA PDFs, then falls

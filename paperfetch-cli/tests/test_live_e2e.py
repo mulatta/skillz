@@ -1,3 +1,5 @@
+# Copyright (c) 2026 Seungwon Lee
+# SPDX-License-Identifier: MIT
 """Opt-in live end-to-end tests for paperfetch download sources.
 
 These tests hit public metadata/PDF services and, for publisher paths, launch a
