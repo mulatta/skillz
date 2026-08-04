@@ -19,7 +19,7 @@ EXTENDED_PDB_ID_RE = re.compile(r"^pdb_[0-9a-z]{8}$")
 # UniProtKB accession syntax, optional isoform suffix (e.g. P38398-2).
 UNIPROT_ACCESSION_RE = re.compile(
     r"^(?:[OPQ][0-9][A-Z0-9]{3}[0-9]|[A-NR-Z][0-9](?:[A-Z][A-Z0-9]{2}[0-9]){1,2})"
-    r"(?:-[0-9]+)?$"
+    r"(?:-[0-9]+)?$",
 )
 
 

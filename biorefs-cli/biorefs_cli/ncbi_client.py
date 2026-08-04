@@ -31,7 +31,8 @@ class NCBIClient:
     @classmethod
     def from_config(cls, config: Config) -> NCBIClient:
         return cls(
-            config=config, http=HttpClient(timeout_seconds=config.timeout_seconds)
+            config=config,
+            http=HttpClient(timeout_seconds=config.timeout_seconds),
         )
 
     def eutils_url(self, endpoint: str, params: dict[str, str | int]) -> str:

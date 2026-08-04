@@ -27,7 +27,9 @@ LINK_TARGETS = {
 
 class GeneClient(Protocol):
     def request_json(
-        self, endpoint: str, params: dict[str, str | int]
+        self,
+        endpoint: str,
+        params: dict[str, str | int],
     ) -> JsonObject: ...
 
 
@@ -238,7 +240,7 @@ def resolve_symbol(
         candidate
         for candidate in candidates
         if str(
-            candidate.get("official_symbol") or candidate.get("symbol") or ""
+            candidate.get("official_symbol") or candidate.get("symbol") or "",
         ).upper()
         == symbol.upper()
     ]
@@ -333,7 +335,7 @@ def parse_elink(
                         "provider": "ncbi-elink",
                         "identifiers": link_identifiers(target_db, target_id),
                         "sources": [source("elink", target_db)],
-                    }
+                    },
                 )
     return links
 

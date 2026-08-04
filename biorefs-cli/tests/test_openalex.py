@@ -6,6 +6,7 @@ import argparse
 from typing import TYPE_CHECKING, cast
 
 import pytest
+
 from biorefs_cli.commands import openalex
 from biorefs_cli.config import Config
 from biorefs_cli.http import HttpClient
@@ -41,9 +42,9 @@ WORK_FIXTURE: JsonObject = {
                     "display_name": "Example Institute",
                     "ror": "https://ror.org/12345",
                     "country_code": "US",
-                }
+                },
             ],
-        }
+        },
     ],
     "primary_location": {
         "source": {
@@ -54,7 +55,7 @@ WORK_FIXTURE: JsonObject = {
             "type": "journal",
             "is_oa": True,
             "is_in_doaj": True,
-        }
+        },
     },
     "open_access": {
         "is_oa": True,
@@ -79,7 +80,7 @@ WORK_FIXTURE: JsonObject = {
             "license": "cc-by",
             "version": "publishedVersion",
             "source": {"display_name": "PeerJ", "type": "journal"},
-        }
+        },
     ],
     "referenced_works": ["https://openalex.org/W1", "https://openalex.org/W2"],
     "referenced_works_count": 2,
@@ -90,7 +91,7 @@ WORK_FIXTURE: JsonObject = {
             "id": "https://openalex.org/T1",
             "display_name": "Bioinformatics",
             "score": 0.9,
-        }
+        },
     ],
     "concepts": [
         {
@@ -98,7 +99,7 @@ WORK_FIXTURE: JsonObject = {
             "display_name": "Biology",
             "level": 0,
             "score": 0.8,
-        }
+        },
     ],
     "is_retracted": False,
     "is_paratext": False,
@@ -122,7 +123,7 @@ OA_MISSING_PDF_FIXTURE: JsonObject = {
             "license": "cc-by-nc",
             "version": "acceptedVersion",
             "source": {"display_name": "Repository", "type": "repository"},
-        }
+        },
     ],
 }
 
@@ -138,7 +139,7 @@ TRENDS_FIXTURE: JsonObject = {
     "group_by": [
         {"key": "2024", "key_display_name": "2024", "count": 12},
         {"key": "2023", "key_display_name": "2023", "count": 8},
-    ]
+    ],
 }
 
 
@@ -168,10 +169,12 @@ class FakeOpenAlexClient(openalex.OpenAlexClient):
     def get_work(self, request_id: str, _select: str) -> openalex.OpenAlexResponse:
         if request_id == "W1":
             return openalex.OpenAlexResponse(
-                REFERENCE_FIXTURE, "https://api.openalex.org/works/W1"
+                REFERENCE_FIXTURE,
+                "https://api.openalex.org/works/W1",
             )
         return openalex.OpenAlexResponse(
-            WORK_FIXTURE, "https://api.openalex.org/works/W2741809807"
+            WORK_FIXTURE,
+            "https://api.openalex.org/works/W2741809807",
         )
 
     def list_works(self, params: dict[str, str]) -> openalex.OpenAlexResponse:
@@ -191,12 +194,14 @@ def parse(argv: list[str]) -> argparse.Namespace:
 
 def test_identifier_normalization() -> None:
     doi = openalex.normalize_work_identifier(
-        "doi", "https://doi.org/10.1158/2159-8290.CD-12-0049"
+        "doi",
+        "https://doi.org/10.1158/2159-8290.CD-12-0049",
     )
     assert doi.request_id == "doi:10.1158/2159-8290.cd-12-0049"
 
     pmid = openalex.normalize_work_identifier(
-        "pmid", "https://pubmed.ncbi.nlm.nih.gov/23103855/"
+        "pmid",
+        "https://pubmed.ncbi.nlm.nih.gov/23103855/",
     )
     assert pmid.request_id == "pmid:23103855"
 
@@ -204,7 +209,8 @@ def test_identifier_normalization() -> None:
     assert pmcid.request_id == "pmcid:PMC3525065"
 
     work = openalex.normalize_work_identifier(
-        "openalex", "https://openalex.org/W2741809807"
+        "openalex",
+        "https://openalex.org/W2741809807",
     )
     assert work.request_id == "W2741809807"
 
@@ -235,7 +241,8 @@ def as_json_object_list(value: object) -> list[JsonObject]:
 def test_work_parse() -> None:
     identifier = openalex.normalize_work_identifier("doi", "10.7717/peerj.4375")
     response = openalex.OpenAlexResponse(
-        WORK_FIXTURE, "https://api.openalex.org/works/W2741809807"
+        WORK_FIXTURE,
+        "https://api.openalex.org/works/W2741809807",
     )
 
     result = openalex.parse_work_result(response, identifier)
@@ -255,7 +262,8 @@ def test_work_parse() -> None:
 def test_oa_location_parse_missing_pdf_url() -> None:
     identifier = openalex.normalize_work_identifier("pmid", "29456894")
     response = openalex.OpenAlexResponse(
-        OA_MISSING_PDF_FIXTURE, "https://api.openalex.org/works/W2741809807"
+        OA_MISSING_PDF_FIXTURE,
+        "https://api.openalex.org/works/W2741809807",
     )
 
     result = openalex.parse_oa_result(response, identifier)
@@ -278,7 +286,7 @@ def test_graph_references_response_parse() -> None:
             "references",
             "--limit",
             "1",
-        ]
+        ],
     )
 
     result = openalex.run(args, FakeOpenAlexClient())
@@ -301,7 +309,7 @@ def test_graph_cited_by_response_parse() -> None:
             "cited-by",
             "--limit",
             "5",
-        ]
+        ],
     )
 
     result = openalex.run(args, FakeOpenAlexClient())
@@ -314,7 +322,8 @@ def test_graph_cited_by_response_parse() -> None:
 
 def test_trends_group_by_parse() -> None:
     response = openalex.OpenAlexResponse(
-        TRENDS_FIXTURE, "https://api.openalex.org/works?group_by=publication_year"
+        TRENDS_FIXTURE,
+        "https://api.openalex.org/works?group_by=publication_year",
     )
     context = openalex.TrendContext(
         query="spatial transcriptomics",
@@ -339,7 +348,7 @@ def test_cli_argument_validation_requires_exactly_one_identifier() -> None:
             "10.7717/peerj.4375",
             "--pmid",
             "29456894",
-        ]
+        ],
     )
     with pytest.raises(ValueError, match="exactly one"):
         openalex.run(too_many, FakeOpenAlexClient())
@@ -359,7 +368,7 @@ def test_cli_argument_validation_for_graph_limit_and_trends_range() -> None:
             "related",
             "--limit",
             "0",
-        ]
+        ],
     )
     with pytest.raises(ValueError, match="limit"):
         openalex.run(bad_limit, FakeOpenAlexClient())
@@ -374,7 +383,7 @@ def test_cli_argument_validation_for_graph_limit_and_trends_range() -> None:
             "2024",
             "--until",
             "2020",
-        ]
+        ],
     )
     with pytest.raises(ValueError, match="since"):
         openalex.run(bad_range, FakeOpenAlexClient())

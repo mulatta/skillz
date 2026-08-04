@@ -39,7 +39,12 @@ class RecordingHttpClient(HttpClient):
         self.urls: list[str] = []
 
     def _once(
-        self, method: str, url: str, *, body: bytes | None, headers: dict[str, str]
+        self,
+        method: str,
+        url: str,
+        *,
+        body: bytes | None,
+        headers: dict[str, str],
     ) -> HttpResponse:
         assert headers is not None
         self.urls.append(url)
@@ -52,7 +57,12 @@ class RedirectHttpClient(HttpClient):
         self.urls: list[str] = []
 
     def _once(
-        self, method: str, url: str, *, body: bytes | None, headers: dict[str, str]
+        self,
+        method: str,
+        url: str,
+        *,
+        body: bytes | None,
+        headers: dict[str, str],
     ) -> HttpResponse:
         assert headers is not None
         self.urls.append(url)
@@ -142,7 +152,8 @@ def test_http_client_allows_explicit_rate_limit_source() -> None:
     client = RecordingHttpClient(limiter)
 
     response = client.get_json(
-        "https://www.ncbi.nlm.nih.gov/pmc/utils/idconv/v1.0/", rate_limit_source="pmc"
+        "https://www.ncbi.nlm.nih.gov/pmc/utils/idconv/v1.0/",
+        rate_limit_source="pmc",
     )
 
     assert response == {"ok": True}
@@ -166,7 +177,7 @@ def test_http_client_follows_redirects_and_rechecks_rate_source() -> None:
 def test_infer_rate_limit_source_for_supported_hosts() -> None:
     assert (
         infer_rate_limit_source(
-            "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esearch.fcgi"
+            "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esearch.fcgi",
         )
         == "ncbi"
     )
@@ -175,7 +186,7 @@ def test_infer_rate_limit_source_for_supported_hosts() -> None:
     )
     assert (
         infer_rate_limit_source(
-            "https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/name/aspirin/cids/JSON"
+            "https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/name/aspirin/cids/JSON",
         )
         == "pubchem"
     )
@@ -185,7 +196,7 @@ def test_infer_rate_limit_source_for_supported_hosts() -> None:
     )
     assert (
         infer_rate_limit_source(
-            "https://www.ebi.ac.uk/europepmc/webservices/rest/search"
+            "https://www.ebi.ac.uk/europepmc/webservices/rest/search",
         )
         == "europepmc"
     )

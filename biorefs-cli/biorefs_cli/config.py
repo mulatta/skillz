@@ -100,7 +100,7 @@ def merge_config(config: Config, updates: dict[str, object]) -> Config:
 
 def run_secret_command(command: str, *, timeout_seconds: int) -> str:
     try:
-        completed = subprocess.run(  # noqa: S602 - config intentionally stores shell commands.
+        completed = subprocess.run(  # noqa: S602
             command,
             shell=True,
             check=False,

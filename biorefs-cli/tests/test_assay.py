@@ -5,6 +5,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, cast
 
 import pytest
+
 from biorefs_cli.commands.assay import (
     PubChemAssayClient,
     handle_http_error,
@@ -58,9 +59,9 @@ ASSAY_SUMMARY: JsonObject = {
                 "TargetName": "poly(ADP-ribose) polymerase 1",
                 "ActiveCount": 7,
                 "TestedSIDCount": 12,
-            }
-        ]
-    }
+            },
+        ],
+    },
 }
 ASSAY_DESCRIPTION: JsonObject = {
     "PC_AssayContainer": [
@@ -72,7 +73,7 @@ ASSAY_DESCRIPTION: JsonObject = {
                     "description": ["Measures inhibition of PARP1."],
                     "activity_outcome_method": "confirmatory",
                     "aid_source": {
-                        "db": {"name": "ChEMBL", "source_id": {"str": "CHEMBL-A1"}}
+                        "db": {"name": "ChEMBL", "source_id": {"str": "CHEMBL-A1"}},
                     },
                     "xref": [{"xref": {"pmid": 23103855}}],
                     "target": [
@@ -84,12 +85,12 @@ ASSAY_DESCRIPTION: JsonObject = {
                                 {"xref": {"gene": 142}},
                                 {"xref": {"protein_gi": 156523970}},
                             ],
-                        }
+                        },
                     ],
-                }
-            }
-        }
-    ]
+                },
+            },
+        },
+    ],
 }
 
 
@@ -104,10 +105,10 @@ def concise_fixture(row_count: int) -> JsonObject:
                         {"tid": 1, "name": "PUBCHEM_ACTIVITY_OUTCOME"},
                         {"tid": 2, "name": "IC50", "unit": "nM", "type": "float"},
                     ],
-                }
+                },
             },
             "data": rows,
-        }
+        },
     }
 
 
@@ -138,7 +139,7 @@ def test_compound_name_routes_to_cid_before_assay_summary() -> None:
         {
             "/compound/name/olaparib/cids/JSON": COMPOUND_CIDS,
             "/compound/cid/23725625/assaysummary/JSON": ASSAY_SUMMARY,
-        }
+        },
     )
 
     result = client.search_assays(target=None, compound="olaparib", limit=5)
@@ -155,7 +156,7 @@ def test_compound_name_routes_to_cid_before_assay_summary() -> None:
 
 def test_assay_summary_parse_preserves_activity_and_target_hints() -> None:
     client, _http = client_with(
-        {"/compound/cid/23725625/assaysummary/JSON": ASSAY_SUMMARY}
+        {"/compound/cid/23725625/assaysummary/JSON": ASSAY_SUMMARY},
     )
 
     rows = client.compound_assay_summary(23725625, "2026-05-21T00:00:00Z")
@@ -202,7 +203,7 @@ def test_fetch_includes_requested_sections() -> None:
         {
             "/assay/aid/504526/description/JSON": ASSAY_DESCRIPTION,
             "/assay/aid/504526/concise/JSON": concise_fixture(2),
-        }
+        },
     )
 
     result = client.fetch_assay(

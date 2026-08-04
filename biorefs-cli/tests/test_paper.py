@@ -9,6 +9,7 @@ if TYPE_CHECKING:
     from collections.abc import Sequence
 
 import pytest
+
 from biorefs_cli.commands.paper import (
     PaperClient,
     PaperInputError,
@@ -123,7 +124,8 @@ class RateLimitedConvertClient:
 
 def test_pubmed_xml_uses_only_top_level_article_ids() -> None:
     records = parse_pubmed_xml(
-        PUBMED_XML, {"abstract", "authors", "mesh", "grants", "ids"}
+        PUBMED_XML,
+        {"abstract", "authors", "mesh", "grants", "ids"},
     )
 
     record = records[0]
@@ -175,7 +177,7 @@ def test_cli_identifier_validation_fails_before_network(
     capsys: pytest.CaptureFixture[str],
 ) -> None:
     status = main(
-        ["paper", "fetch", "--pmid", "123", "--doi", "10.1000/example", "--json"]
+        ["paper", "fetch", "--pmid", "123", "--doi", "10.1000/example", "--json"],
     )
 
     captured = capsys.readouterr()
@@ -217,7 +219,7 @@ def test_pubmed_search_uses_stable_json_shape(monkeypatch: pytest.MonkeyPatch) -
                     "count": "1",
                     "idlist": ["12345"],
                     "querytranslation": "BRCA1 AND review[Publication Type]",
-                }
+                },
             }
 
         def efetch_pubmed(self, pmids: Sequence[str]) -> str:
@@ -226,7 +228,8 @@ def test_pubmed_search_uses_stable_json_shape(monkeypatch: pytest.MonkeyPatch) -
 
     monkeypatch.setattr("biorefs_cli.commands.paper.load_config", lambda: None)
     monkeypatch.setattr(
-        "biorefs_cli.commands.paper.PaperClient", lambda _config: FakePaperClient()
+        "biorefs_cli.commands.paper.PaperClient",
+        lambda _config: FakePaperClient(),
     )
 
     status = main(
@@ -245,7 +248,7 @@ def test_pubmed_search_uses_stable_json_shape(monkeypatch: pytest.MonkeyPatch) -
             "--limit",
             "1",
             "--json",
-        ]
+        ],
     )
 
     assert status == 0

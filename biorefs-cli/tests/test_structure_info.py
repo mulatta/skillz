@@ -5,6 +5,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, cast
 
 import pytest
+
 from biorefs_cli.commands.structure import (
     InfoService,
     build_info_result,
@@ -52,13 +53,13 @@ def brca1_entity() -> dict[str, object]:
     return {
         "rcsb_polymer_entity": {"pdbx_description": "BRCA1"},
         "rcsb_entity_source_organism": [
-            {"scientific_name": "Homo sapiens", "ncbi_taxonomy_id": 9606}
+            {"scientific_name": "Homo sapiens", "ncbi_taxonomy_id": 9606},
         ],
         "rcsb_polymer_entity_align": [
             {
                 "reference_database_name": "UniProt",
                 "reference_database_accession": "P38398",
-            }
+            },
         ],
     }
 

@@ -63,7 +63,9 @@ class UniProtClient:
     def search(self, params: dict[str, str]) -> JsonObject:
         url = f"{UNIPROT_BASE_URL}/uniprotkb/search?{urlencode(params)}"
         return self.http.get_json(
-            url, headers={"User-Agent": USER_AGENT}, rate_limit_source=RATE_LIMIT_SOURCE
+            url,
+            headers={"User-Agent": USER_AGENT},
+            rate_limit_source=RATE_LIMIT_SOURCE,
         )
 
     def entry(self, accession: str, fields: str) -> JsonObject:
@@ -71,14 +73,18 @@ class UniProtClient:
         params = urlencode({"format": "json", "fields": fields})
         url = f"{UNIPROT_BASE_URL}/uniprotkb/{path_id}?{params}"
         return self.http.get_json(
-            url, headers={"User-Agent": USER_AGENT}, rate_limit_source=RATE_LIMIT_SOURCE
+            url,
+            headers={"User-Agent": USER_AGENT},
+            rate_limit_source=RATE_LIMIT_SOURCE,
         )
 
     def fasta(self, accession: str) -> str:
         path_id = quote(accession, safe="")
         url = f"{UNIPROT_BASE_URL}/uniprotkb/{path_id}.fasta"
         response = self.http.get(
-            url, headers={"User-Agent": USER_AGENT}, rate_limit_source=RATE_LIMIT_SOURCE
+            url,
+            headers={"User-Agent": USER_AGENT},
+            rate_limit_source=RATE_LIMIT_SOURCE,
         )
         try:
             return response.body.decode("utf-8")
@@ -164,7 +170,7 @@ class UniProtService:
                     "format": "json",
                     "size": str(limit),
                     "fields": SEARCH_FIELDS,
-                }
+                },
             ),
         )
         records = [parse_entry(entry) for entry in result_entries(payload)]
@@ -178,7 +184,10 @@ class UniProtService:
         }
 
     def fetch_summary(
-        self, accession: str, *, include: tuple[str, ...]
+        self,
+        accession: str,
+        *,
+        include: tuple[str, ...],
     ) -> dict[str, object]:
         normalized = normalize_accession(accession)
         fields = build_fields(include)
@@ -208,7 +217,9 @@ def register(subparsers: argparse._SubParsersAction[argparse.ArgumentParser]) ->
     search.add_argument("query")
     search.add_argument("--taxon", metavar="TAXID")
     search.add_argument(
-        "--reviewed", action="store_true", help="Restrict to Swiss-Prot entries"
+        "--reviewed",
+        action="store_true",
+        help="Restrict to Swiss-Prot entries",
     )
     search.add_argument("--limit", type=int, default=DEFAULT_LIMIT)
     search.add_argument("--json", action="store_true")
@@ -217,7 +228,9 @@ def register(subparsers: argparse._SubParsersAction[argparse.ArgumentParser]) ->
     fetch = uniprot_subcommands.add_parser("fetch", help="Fetch a UniProtKB entry")
     fetch.add_argument("--accession")
     fetch.add_argument(
-        "--format", choices=("summary", "fasta", "json"), default="summary"
+        "--format",
+        choices=("summary", "fasta", "json"),
+        default="summary",
     )
     fetch.add_argument(
         "--include",
@@ -242,7 +255,10 @@ def handle(args: argparse.Namespace) -> int:
 def handle_search(args: argparse.Namespace, service: UniProtService) -> int:
     limit = DEFAULT_LIMIT if args.limit is None else args.limit
     result = service.search(
-        args.query, taxon=args.taxon, reviewed=args.reviewed, limit=limit
+        args.query,
+        taxon=args.taxon,
+        reviewed=args.reviewed,
+        limit=limit,
     )
     if args.json:
         print_json(result)
@@ -433,7 +449,7 @@ def pdb_structures(entry: dict[str, object]) -> list[PdbStructure]:
                 method=props.get("Method"),
                 resolution=props.get("Resolution"),
                 chains=props.get("Chains"),
-            )
+            ),
         )
     return structures
 
@@ -528,11 +544,11 @@ def print_search_table(result: dict[str, object]) -> None:
                 display(record.get("protein_name")),
                 display(record.get("organism")),
                 display(record.get("length")),
-            )
+            ),
         )
     print(
         markdown_table(
             ("Accession", "Status", "Genes", "Protein", "Organism", "Length"),
             rows,
-        )
+        ),
     )

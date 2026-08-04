@@ -443,7 +443,7 @@ def markdown_link(payload: dict[str, object]) -> str:
                 linkset.get("link_name") or "",
                 len(id_list),
                 ", ".join(map(str, id_list[:10])),
-            )
+            ),
         )
     table = markdown_table(("Link name", "Count", "IDs"), rows) if rows else "No links."
     return "\n".join(

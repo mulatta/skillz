@@ -30,7 +30,7 @@ def test_setup_writes_config_without_secret_values(tmp_path: Path) -> None:
             "7",
             "--config",
             str(config_path),
-        ]
+        ],
     )
 
     assert status == 0
@@ -64,7 +64,7 @@ def test_setup_check_runs_secret_commands_without_printing_stdout(
     config_path = tmp_path / "config.json"
     config_path.write_text(
         json.dumps(
-            {"ncbi_api_key_command": "printf 'TOPSECRET\\n'", "timeout_seconds": 3}
+            {"ncbi_api_key_command": "printf 'TOPSECRET\\n'", "timeout_seconds": 3},
         ),
         encoding="utf-8",
     )
@@ -96,7 +96,7 @@ def test_setup_check_with_updates_writes_then_validates(
             "--ncbi-api-key-command",
             "printf shell-secret | tr a-z A-Z",
             "--check",
-        ]
+        ],
     )
 
     captured = capsys.readouterr()

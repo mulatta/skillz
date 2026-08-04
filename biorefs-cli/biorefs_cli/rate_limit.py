@@ -136,7 +136,10 @@ class RateLimiter:
         return 0.0
 
     def _wait_for_rule(
-        self, policy_name: str, rule: RateLimitRule, now: float
+        self,
+        policy_name: str,
+        rule: RateLimitRule,
+        now: float,
     ) -> float:
         bucket = self._bucket(policy_name, rule)
         while bucket and now - bucket[0] >= rule.period_seconds:

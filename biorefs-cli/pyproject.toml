@@ -14,3 +14,6 @@ biorefs-cli = "biorefs_cli.main:main"
 
 [tool.hatch.build.targets.wheel]
 packages = ["biorefs_cli"]
+
+[tool.ruff.lint]
+ignore = ["RUF100"]

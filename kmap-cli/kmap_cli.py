@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+import itertools
 import json
 import os
 import shlex
@@ -151,8 +152,7 @@ def _run_secret_command(command: str) -> str | None:
         result = subprocess.run(
             args,
             check=True,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
+            capture_output=True,
             text=True,
             timeout=10,
         )
@@ -175,7 +175,8 @@ def load_config(path: Path | None = None) -> Credentials:
     tmap_app_key = os.environ.get("TMAP_APP_KEY")
     if not tmap_app_key:
         command = os.environ.get("TMAP_APP_KEY_COMMAND") or _string_value(
-            cfg, "tmap_app_key_command"
+            cfg,
+            "tmap_app_key_command",
         )
         if command:
             tmap_app_key = _run_secret_command(command)
@@ -243,7 +244,7 @@ def _format_tmap_address(item: dict[str, Any]) -> str:
             str(item.get("middleAddrName", "")),
             str(item.get("lowerAddrName", "")),
             str(item.get("detailAddrName", "")),
-        ]
+        ],
     )
 
 
@@ -260,7 +261,7 @@ def _format_tmap_road_address(item: dict[str, Any]) -> str:
             str(item.get("middleAddrName", "")),
             road,
             number,
-        ]
+        ],
     )
 
 
@@ -322,7 +323,7 @@ def places_from_tmap_response(response: dict[str, Any]) -> list[Place]:
                 y=y,
                 distance=_tmap_distance_meters(item),
                 url=build_tmap_search_url(name),
-            )
+            ),
         )
     return places
 
@@ -346,7 +347,7 @@ def transit_routes_from_response(response: dict[str, Any]) -> list[TransitRoute]
         regular = fare_node.get("regular", {}) if isinstance(fare_node, dict) else {}
         fare = (
             _optional_int(
-                regular.get("totalFare") if isinstance(regular, dict) else None
+                regular.get("totalFare") if isinstance(regular, dict) else None,
             )
             or 0
         )
@@ -356,7 +357,7 @@ def transit_routes_from_response(response: dict[str, Any]) -> list[TransitRoute]
                 total_time_seconds=_optional_int(itinerary.get("totalTime")) or 0,
                 transfer_count=_optional_int(itinerary.get("transferCount")) or 0,
                 total_walk_distance_meters=_optional_int(
-                    itinerary.get("totalWalkDistance")
+                    itinerary.get("totalWalkDistance"),
                 )
                 or 0,
                 total_distance_meters=_optional_int(itinerary.get("totalDistance"))
@@ -366,7 +367,7 @@ def transit_routes_from_response(response: dict[str, Any]) -> list[TransitRoute]
                 fare=fare,
                 path_type=_optional_int(itinerary.get("pathType")),
                 legs=legs,
-            )
+            ),
         )
     return routes
 
@@ -409,7 +410,7 @@ def _transit_legs_from_itinerary(itinerary: dict[str, Any]) -> list[TransitLeg]:
                 duration_seconds=_optional_int(leg.get("sectionTime")) or 0,
                 distance_meters=_optional_int(leg.get("distance")) or 0,
                 stops=_station_names(leg.get("passStopList")),
-            )
+            ),
         )
     return legs
 
@@ -553,7 +554,7 @@ def geocode_places_from_response(response: dict[str, Any], query: str) -> list[P
                 x=x,
                 y=y,
                 url=build_tmap_search_url(address),
-            )
+            ),
         )
     return places
 
@@ -639,7 +640,7 @@ def save_saved_places(places: dict[str, SavedPlace], path: Path | None = None) -
     data_path = path or places_file()
     data_path.parent.mkdir(parents=True, exist_ok=True)
     payload = {
-        "places": {alias: asdict(place) for alias, place in sorted(places.items())}
+        "places": {alias: asdict(place) for alias, place in sorted(places.items())},
     }
     data_path.write_text(json.dumps(payload, ensure_ascii=False, indent=2) + "\n")
 
@@ -710,7 +711,7 @@ def _validate_radius_km(value: int) -> None:
         raise ResolveError("radius-km must be between 1 and 33")
 
 
-def format_distance(meters: int | float) -> str:
+def format_distance(meters: float) -> str:
     if meters < 1000:
         return f"{meters:.0f} m"
     return f"{meters / 1000:.1f} km"
@@ -728,8 +729,10 @@ def emit_places(places: list[Place], *, use_json: bool) -> None:
     if use_json:
         print(
             json.dumps(
-                [asdict(place) for place in places], ensure_ascii=False, indent=2
-            )
+                [asdict(place) for place in places],
+                ensure_ascii=False,
+                indent=2,
+            ),
         )
         return
     if not places:
@@ -760,8 +763,10 @@ def emit_transit_routes(routes: list[TransitRoute], *, use_json: bool) -> None:
     if use_json:
         print(
             json.dumps(
-                [asdict(route) for route in routes], ensure_ascii=False, indent=2
-            )
+                [asdict(route) for route in routes],
+                ensure_ascii=False,
+                indent=2,
+            ),
         )
         return
     if not routes:
@@ -778,7 +783,7 @@ def emit_transit_routes(routes: list[TransitRoute], *, use_json: bool) -> None:
             print(
                 f"   - {leg.mode}{route_label}: {leg.start} -> {leg.end} "
                 f"({format_duration(leg.duration_seconds)}, "
-                f"{format_distance(leg.distance_meters)})"
+                f"{format_distance(leg.distance_meters)})",
             )
             if leg.stops:
                 shown = " → ".join(leg.stops[:5])
@@ -812,7 +817,7 @@ def cmd_place(args: argparse.Namespace) -> int:
                     {"provider": args.provider, "query": args.query, "url": url},
                     ensure_ascii=False,
                     indent=2,
-                )
+                ),
             )
         else:
             print(url)
@@ -851,7 +856,7 @@ def cmd_nearby(args: argparse.Namespace) -> int:
                     },
                     ensure_ascii=False,
                     indent=2,
-                )
+                ),
             )
         else:
             print(url)
@@ -883,7 +888,7 @@ def cmd_transit(args: argparse.Namespace) -> int:
     ]
     segments: list[dict[str, object]] = []
     has_routes = False
-    for origin, destination in zip(places, places[1:]):
+    for origin, destination in itertools.pairwise(places):
         routes = client.transit_routes(
             Point(origin.x, origin.y),
             Point(destination.x, destination.y),
@@ -897,7 +902,7 @@ def cmd_transit(args: argparse.Namespace) -> int:
                 "origin": origin,
                 "destination": destination,
                 "routes": routes,
-            }
+            },
         )
     if args.use_json:
         print(
@@ -910,12 +915,13 @@ def cmd_transit(args: argparse.Namespace) -> int:
                         {
                             "origin": asdict(cast("Place", segment["origin"])),
                             "destination": asdict(
-                                cast("Place", segment["destination"])
+                                cast("Place", segment["destination"]),
                             ),
                             "routes": [
                                 asdict(route)
                                 for route in cast(
-                                    "list[TransitRoute]", segment["routes"]
+                                    "list[TransitRoute]",
+                                    segment["routes"],
                                 )
                             ],
                         }
@@ -924,7 +930,7 @@ def cmd_transit(args: argparse.Namespace) -> int:
                 },
                 ensure_ascii=False,
                 indent=2,
-            )
+            ),
         )
     else:
         for index, segment in enumerate(segments, 1):
@@ -974,7 +980,7 @@ def cmd_saved(args: argparse.Namespace) -> int:
                     [asdict(place) for place in saved.values()],
                     ensure_ascii=False,
                     indent=2,
-                )
+                ),
             )
             return 0
         if not saved:
@@ -1037,7 +1043,7 @@ def cmd_route_url(args: argparse.Namespace) -> int:
                 },
                 ensure_ascii=False,
                 indent=2,
-            )
+            ),
         )
     else:
         print(url)
@@ -1058,7 +1064,7 @@ def add_json_option(parser: argparse.ArgumentParser) -> None:
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
-        description="Use TMAP APIs for Korean places and transit"
+        description="Use TMAP APIs for Korean places and transit",
     )
     parser.add_argument("--config", type=Path, default=config_file())
     parser.add_argument("--places", type=Path, default=places_file())
@@ -1070,28 +1076,36 @@ def build_parser() -> argparse.ArgumentParser:
     setup_parser.add_argument("--tmap-app-key-command", required=True)
 
     place_parser = subparsers.add_parser(
-        "place", help="Search places or map search URLs"
+        "place",
+        help="Search places or map search URLs",
     )
     add_json_option(place_parser)
     place_parser.add_argument("query")
     place_parser.add_argument("-n", "--limit", type=int, default=10)
     place_parser.add_argument(
-        "--provider", choices=["tmap", "naver", "kakao"], default="tmap"
+        "--provider",
+        choices=["tmap", "naver", "kakao"],
+        default="tmap",
     )
     place_parser.add_argument("--open", action="store_true")
 
     nearby_parser = subparsers.add_parser(
-        "nearby", help="Search places near a location"
+        "nearby",
+        help="Search places near a location",
     )
     add_json_option(nearby_parser)
     nearby_parser.add_argument("query")
     nearby_parser.add_argument(
-        "--near", required=True, help="Saved alias, lng,lat, or place query"
+        "--near",
+        required=True,
+        help="Saved alias, lng,lat, or place query",
     )
     nearby_parser.add_argument("--radius-km", type=int, default=1)
     nearby_parser.add_argument("-n", "--limit", type=int, default=10)
     nearby_parser.add_argument(
-        "--provider", choices=["tmap", "naver", "kakao"], default="tmap"
+        "--provider",
+        choices=["tmap", "naver", "kakao"],
+        default="tmap",
     )
     nearby_parser.add_argument("--open", action="store_true")
 
@@ -1109,14 +1123,16 @@ def build_parser() -> argparse.ArgumentParser:
     transit_parser.add_argument("--at", help="Search time as yyyymmddhhmi")
 
     geocode_parser = subparsers.add_parser(
-        "geocode", help="Convert address to coordinates"
+        "geocode",
+        help="Convert address to coordinates",
     )
     add_json_option(geocode_parser)
     geocode_parser.add_argument("address")
     geocode_parser.add_argument("-n", "--limit", type=int, default=5)
 
     reverse_parser = subparsers.add_parser(
-        "reverse", help="Convert coordinates to address"
+        "reverse",
+        help="Convert coordinates to address",
     )
     add_json_option(reverse_parser)
     reverse_parser.add_argument("coords", help="Coordinates as longitude,latitude")
@@ -1135,18 +1151,23 @@ def build_parser() -> argparse.ArgumentParser:
     open_parser = subparsers.add_parser("open", help="Print or open map search URL")
     open_parser.add_argument("query")
     open_parser.add_argument(
-        "--provider", choices=["tmap", "naver", "kakao"], default="tmap"
+        "--provider",
+        choices=["tmap", "naver", "kakao"],
+        default="tmap",
     )
     open_parser.add_argument("--open", action="store_true")
 
     route_url_parser = subparsers.add_parser(
-        "route-url", help="Print or open NAVER/Kakao route URL"
+        "route-url",
+        help="Print or open NAVER/Kakao route URL",
     )
     add_json_option(route_url_parser)
     route_url_parser.add_argument("origin")
     route_url_parser.add_argument("destination")
     route_url_parser.add_argument(
-        "--provider", choices=["naver", "kakao"], default="kakao"
+        "--provider",
+        choices=["naver", "kakao"],
+        default="kakao",
     )
     route_url_parser.add_argument(
         "--mode",

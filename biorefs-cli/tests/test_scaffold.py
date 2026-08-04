@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import pytest
+
 from biorefs_cli.main import build_parser, main
 
 TOP_LEVEL_COMMANDS = (

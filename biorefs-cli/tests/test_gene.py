@@ -7,6 +7,7 @@ from typing import cast
 from urllib.parse import parse_qs, urlparse
 
 import pytest
+
 from biorefs_cli.commands import gene
 from biorefs_cli.config import Config
 from biorefs_cli.errors import CLIError, RateLimitError
@@ -33,7 +34,7 @@ GENE_SUMMARY: JsonObject = {
                 "taxid": 9606,
             },
         },
-    }
+    },
 }
 
 ELINK: JsonObject = {
@@ -50,8 +51,8 @@ ELINK: JsonObject = {
                     "links": ["20"],
                 },
             ],
-        }
-    ]
+        },
+    ],
 }
 
 
@@ -86,7 +87,7 @@ def test_ambiguous_symbol_resolution_outputs_candidates() -> None:
         records=[
             {"gene_id": "1", "official_symbol": "ABC1", "description": "first"},
             {"gene_id": "2", "official_symbol": "ABC1", "description": "second"},
-        ]
+        ],
     )
 
     with pytest.raises(gene.AmbiguousGeneError) as excinfo:
@@ -158,7 +159,8 @@ def test_429_handling_does_not_silently_fallback() -> None:
 
     with pytest.raises(RateLimitError):
         client.request_json(
-            "esearch", {"db": "gene", "term": "BRCA1", "retmode": "json"}
+            "esearch",
+            {"db": "gene", "term": "BRCA1", "retmode": "json"},
         )
 
     assert http.urls
@@ -191,7 +193,8 @@ class FakeGeneClient:
         if endpoint == "esearch":
             ids = [str(record["gene_id"]) for record in self.records]
             return cast(
-                "JsonObject", {"esearchresult": {"idlist": ids, "count": str(len(ids))}}
+                "JsonObject",
+                {"esearchresult": {"idlist": ids, "count": str(len(ids))}},
             )
         if endpoint == "esummary":
             ids = str(params["id"]).split(",")
@@ -219,10 +222,10 @@ class FakeGeneClient:
                                     "dbto": target_db,
                                     "linkname": f"gene_{target_db}",
                                     "links": ["1"],
-                                }
+                                },
                             ],
-                        }
-                    ]
+                        },
+                    ],
                 },
             )
         raise AssertionError(endpoint)
@@ -238,7 +241,12 @@ class Always429HttpClient(HttpClient):
         self.urls: list[str] = []
 
     def _once(
-        self, method: str, url: str, *, body: bytes | None, headers: dict[str, str]
+        self,
+        method: str,
+        url: str,
+        *,
+        body: bytes | None,
+        headers: dict[str, str],
     ) -> HttpResponse:
         assert headers is not None
         self.urls.append(url)
@@ -259,10 +267,17 @@ class RecordingHttpClient(HttpClient):
         self.urls: list[str] = []
 
     def _once(
-        self, method: str, url: str, *, body: bytes | None, headers: dict[str, str]
+        self,
+        method: str,
+        url: str,
+        *,
+        body: bytes | None,
+        headers: dict[str, str],
     ) -> HttpResponse:
         assert headers is not None
         self.urls.append(url)
         return HttpResponse(
-            status=200, headers={}, body=json.dumps({"ok": True}).encode()
+            status=200,
+            headers={},
+            body=json.dumps({"ok": True}).encode(),
         )

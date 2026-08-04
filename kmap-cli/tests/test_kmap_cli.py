@@ -39,7 +39,7 @@ def test_setup_writes_tmap_secret_command() -> None:
         kmap_cli.setup(config_path, "printf tmap-key")
 
         assert json.loads(config_path.read_text()) == {
-            "tmap_app_key_command": "printf tmap-key"
+            "tmap_app_key_command": "printf tmap-key",
         }
         credentials = kmap_cli.load_config(config_path)
         assert credentials.tmap_app_key == "tmap-key"
@@ -81,10 +81,10 @@ def test_places_from_tmap_response_maps_poi_documents() -> None:
                         "middleBizName": "일식",
                         "lowerBizName": "돈까스",
                         "radius": "0.1205",
-                    }
-                ]
-            }
-        }
+                    },
+                ],
+            },
+        },
     }
 
     places = kmap_cli.places_from_tmap_response(response)
@@ -132,14 +132,14 @@ def test_transit_routes_from_response_maps_summary_and_legs() -> None:
                                     "stationList": [
                                         {"stationName": "수유역"},
                                         {"stationName": "신일병원"},
-                                    ]
+                                    ],
                                 },
                             },
                         ],
-                    }
-                ]
-            }
-        }
+                    },
+                ],
+            },
+        },
     }
 
     routes = kmap_cli.transit_routes_from_response(response)
@@ -163,9 +163,9 @@ def test_geocode_places_from_response_maps_coordinates() -> None:
                     "newLon": "126.9783882",
                     "newLat": "37.5666103",
                     "newAddressList": "서울 중구 세종대로 110",
-                }
-            ]
-        }
+                },
+            ],
+        },
     }
 
     places = kmap_cli.geocode_places_from_response(response, "서울시청")
@@ -188,7 +188,7 @@ def test_saved_places_roundtrip() -> None:
                 address="서울",
                 provider="tmap",
                 provider_id="123",
-            )
+            ),
         }
 
         kmap_cli.save_saved_places(saved, path)
@@ -199,13 +199,13 @@ def test_saved_places_roundtrip() -> None:
 
 def test_build_search_urls_quote_query() -> None:
     assert kmap_cli.build_tmap_search_url("정돈 강남점").endswith(
-        "%EC%A0%95%EB%8F%88%20%EA%B0%95%EB%82%A8%EC%A0%90"
+        "%EC%A0%95%EB%8F%88%20%EA%B0%95%EB%82%A8%EC%A0%90",
     )
     assert kmap_cli.build_naver_search_url("정돈 강남점").startswith(
-        "https://map.naver.com/p/search/"
+        "https://map.naver.com/p/search/",
     )
     assert kmap_cli.build_kakao_search_url("정돈 강남점").startswith(
-        "https://map.kakao.com/link/search/"
+        "https://map.kakao.com/link/search/",
     )
 
 
@@ -286,7 +286,7 @@ def test_parser_has_transit_and_route_url() -> None:
             "--count",
             "2",
             "--json",
-        ]
+        ],
     )
 
     assert args.command == "transit"
@@ -294,7 +294,7 @@ def test_parser_has_transit_and_route_url() -> None:
     assert args.count == 2
     assert args.use_json is True
     route_url_args = parser.parse_args(
-        ["route-url", "서울역", "강남역", "--provider", "kakao", "--json"]
+        ["route-url", "서울역", "강남역", "--provider", "kakao", "--json"],
     )
 
     assert route_url_args.command == "route-url"

@@ -9,6 +9,7 @@ import urllib.parse
 from typing import TYPE_CHECKING
 
 import pytest
+
 from biorefs_cli.commands import ncbi
 from biorefs_cli.config import Config
 from biorefs_cli.http import HttpClient, HttpResponse, RetryPolicy
@@ -47,7 +48,12 @@ class RecordingHttpClient(HttpClient):
         self.sleep_calls: list[tuple[int, float | None]] = []
 
     def _once(
-        self, method: str, url: str, *, body: bytes | None, headers: dict[str, str]
+        self,
+        method: str,
+        url: str,
+        *,
+        body: bytes | None,
+        headers: dict[str, str],
     ) -> HttpResponse:
         assert headers is not None
         self.urls.append(url)
@@ -342,7 +348,7 @@ def test_credential_command_output_not_leaked(
     config_dir = tmp_path / "biorefs-cli"
     config_dir.mkdir()
     command = f"{shlex.quote(sys.executable)} -c " + shlex.quote(
-        "import sys; print('credential-output'); sys.exit(1)"
+        "import sys; print('credential-output'); sys.exit(1)",
     )
     (config_dir / "config.json").write_text(
         json.dumps(

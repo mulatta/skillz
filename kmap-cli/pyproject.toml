@@ -14,3 +14,6 @@ kmap-cli = "kmap_cli:main"
 
 [tool.hatch.build.targets.wheel]
 only-include = ["kmap_cli.py", "py.typed"]
+
+[tool.ruff.lint]
+ignore = ["RUF100"]
