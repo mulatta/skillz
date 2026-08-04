@@ -31,4 +31,4 @@ warn_unused_configs = true
 pythonpath = ["."]
 
 [tool.ruff.lint]
-ignore = ["RUF012", "RUF015"]
+ignore = ["RUF012", "RUF015", "SIM115"]
