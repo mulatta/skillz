@@ -1,3 +1,5 @@
+# Copyright (c) 2026 Seungwon Lee
+# SPDX-License-Identifier: MIT
 """Error handling tests."""
 
 from unittest.mock import patch

@@ -1,3 +1,5 @@
+# Copyright (c) 2026 Seungwon Lee
+# SPDX-License-Identifier: MIT
 """Test (webhook trigger) command tests."""
 
 import json

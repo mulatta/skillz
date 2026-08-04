@@ -1,3 +1,5 @@
+# Copyright (c) 2026 Seungwon Lee
+# SPDX-License-Identifier: MIT
 """Filter request bodies to only include fields the n8n public API accepts.
 
 The n8n public API validates requests against its OpenAPI spec using

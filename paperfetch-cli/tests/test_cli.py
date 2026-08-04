@@ -1,3 +1,5 @@
+# Copyright (c) 2026 Seungwon Lee
+# SPDX-License-Identifier: MIT
 """Tests for the command surface, config, and the metadata path of ``get``.
 
 Browser orchestration is unit-tested with deterministic page objects here; live

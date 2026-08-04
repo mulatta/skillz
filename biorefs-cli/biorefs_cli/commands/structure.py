@@ -1,3 +1,5 @@
+# Copyright (c) 2026 Seungwon Lee
+# SPDX-License-Identifier: MIT
 """biorefs-cli structure: RCSB PDB and AlphaFold structure retrieval.
 
 Completes the protein workflow: `uniprot fetch` emits PDB ids as cross-reference

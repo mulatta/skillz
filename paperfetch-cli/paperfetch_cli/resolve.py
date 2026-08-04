@@ -1,3 +1,5 @@
+# Copyright (c) 2026 Seungwon Lee
+# SPDX-License-Identifier: MIT
 """Paper metadata + open-access resolution via keyless JSON APIs.
 
 OpenAlex returns DOI metadata and broad open-access hints. Europe PMC / PMC OA

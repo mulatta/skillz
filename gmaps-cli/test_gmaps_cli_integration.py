@@ -1,4 +1,6 @@
 #!/usr/bin/env python3
+# Copyright (c) 2026 Seungwon Lee
+# SPDX-License-Identifier: MIT
 """Integration tests for gmaps-cli using pytest."""
 
 import importlib.util

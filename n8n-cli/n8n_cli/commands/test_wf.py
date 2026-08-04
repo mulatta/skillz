@@ -1,3 +1,5 @@
+# Copyright (c) 2026 Seungwon Lee
+# SPDX-License-Identifier: MIT
 """Test command — trigger a workflow via its webhook and check results."""
 
 import json
@@ -51,8 +53,7 @@ def _build_webhook_url(api_url: str, webhook_path: str) -> str:
     """Build the production webhook URL from the API URL and webhook path."""
     # Strip /api/v1 suffix to get the base n8n URL
     base = api_url.rstrip("/")
-    if base.endswith("/api/v1"):
-        base = base[: -len("/api/v1")]
+    base = base.removesuffix("/api/v1")
     webhook_path = webhook_path.lstrip("/")
     return f"{base}/webhook/{webhook_path}"
 

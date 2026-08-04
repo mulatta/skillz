@@ -1,3 +1,5 @@
+# Copyright (c) 2026 Seungwon Lee
+# SPDX-License-Identifier: MIT
 from __future__ import annotations
 
 import json
@@ -258,7 +260,7 @@ class Handler(BaseHTTPRequestHandler):
 
 
 @pytest.fixture()
-def server(monkeypatch: pytest.MonkeyPatch) -> Generator[str, None, None]:
+def server(monkeypatch: pytest.MonkeyPatch) -> Generator[str]:
     State.version, State.collections, State.items, State.requests, State.counter = (
         10,
         {},

@@ -1,3 +1,5 @@
+# Copyright (c) 2026 Seungwon Lee
+# SPDX-License-Identifier: MIT
 """Raw API command — escape hatch for any endpoint."""
 
 import sys

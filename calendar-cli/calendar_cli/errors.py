@@ -1,3 +1,5 @@
+# Copyright (c) 2026 Seungwon Lee
+# SPDX-License-Identifier: MIT
 """Error hierarchy for calendar-cli.
 
 All user-facing errors inherit from ``CalendarCliError`` so the top-level

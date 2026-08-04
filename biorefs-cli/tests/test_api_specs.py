@@ -1,3 +1,5 @@
+# Copyright (c) 2026 Seungwon Lee
+# SPDX-License-Identifier: MIT
 """Validate vendored API specs used by biorefs-cli reference docs."""
 
 from __future__ import annotations

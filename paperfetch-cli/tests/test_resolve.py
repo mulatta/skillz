@@ -1,3 +1,5 @@
+# Copyright (c) 2026 Seungwon Lee
+# SPDX-License-Identifier: MIT
 """Tests for identifier normalization and OA metadata parsing (no network)."""
 
 from __future__ import annotations

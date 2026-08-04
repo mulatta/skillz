@@ -1,4 +1,6 @@
 #!/usr/bin/env python3
+# Copyright (c) 2026 Seungwon Lee
+# SPDX-License-Identifier: MIT
 """pexpect-cli: Client for pexpect sessions."""
 
 import argparse

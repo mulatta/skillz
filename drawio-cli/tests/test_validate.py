@@ -1,8 +1,11 @@
+# Copyright (c) 2026 Seungwon Lee
+# SPDX-License-Identifier: MIT
 from __future__ import annotations
 
 from pathlib import Path
 
 import pytest
+
 from drawio_cli.document import DrawioDocument
 from drawio_cli.validate import validate_document
 

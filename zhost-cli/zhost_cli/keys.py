@@ -1,3 +1,5 @@
+# Copyright (c) 2026 Seungwon Lee
+# SPDX-License-Identifier: MIT
 """Zotero object-key helpers.
 
 A Zotero object key is exactly 8 characters from a 32-symbol alphabet that omits

@@ -1,3 +1,5 @@
+# Copyright (c) 2026 Seungwon Lee
+# SPDX-License-Identifier: MIT
 """zhost-cli entry point.
 
 Noun > verb commands for a self-hosted Zotero library (zhost):

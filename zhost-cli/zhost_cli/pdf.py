@@ -1,3 +1,5 @@
+# Copyright (c) 2026 Seungwon Lee
+# SPDX-License-Identifier: MIT
 """PDF geometry for highlight annotations.
 
 Zotero stores a highlight's `annotationPosition` as a JSON string with rects in

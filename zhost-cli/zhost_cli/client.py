@@ -1,3 +1,5 @@
+# Copyright (c) 2026 Seungwon Lee
+# SPDX-License-Identifier: MIT
 """zhost (Zotero sync) API client over stdlib urllib.
 
 Implements the subset the agent workflow needs, matching the protocol verified

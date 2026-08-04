@@ -1,3 +1,5 @@
+# Copyright (c) 2026 Seungwon Lee
+# SPDX-License-Identifier: MIT
 from __future__ import annotations
 
 import json
@@ -19,13 +21,13 @@ class Handler(BaseHTTPRequestHandler):
     response_content_type = "application/json"
     seen: dict[str, Any] = {}
 
-    def do_GET(self) -> None:  # noqa: N802
+    def do_GET(self) -> None:
         self._handle()
 
-    def do_POST(self) -> None:  # noqa: N802
+    def do_POST(self) -> None:
         self._handle()
 
-    def do_PUT(self) -> None:  # noqa: N802
+    def do_PUT(self) -> None:
         self._handle()
 
     def _handle(self) -> None:
@@ -53,7 +55,7 @@ class Handler(BaseHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(encoded)
 
-    def log_message(self, format: str, *args: object) -> None:  # noqa: A002
+    def log_message(self, format: str, *args: object) -> None:
         return
 
 

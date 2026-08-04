@@ -1,3 +1,5 @@
+# Copyright (c) 2026 Seungwon Lee
+# SPDX-License-Identifier: MIT
 """Shared structure/protein identifier validation.
 
 PDB ids and UniProt accessions are validated the same way wherever they appear

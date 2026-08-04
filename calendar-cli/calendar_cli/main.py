@@ -1,3 +1,5 @@
+# Copyright (c) 2026 Seungwon Lee
+# SPDX-License-Identifier: MIT
 """calendar-cli — manage local vdirsyncer calendars from the command line."""
 
 from __future__ import annotations

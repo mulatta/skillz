@@ -1,3 +1,5 @@
+# Copyright (c) 2026 Seungwon Lee
+# SPDX-License-Identifier: MIT
 """Small Miniflux API client."""
 
 from __future__ import annotations
@@ -36,7 +38,7 @@ class MinifluxClient:
             },
         )
         try:
-            with urllib.request.urlopen(req, timeout=30) as resp:  # noqa: S310
+            with urllib.request.urlopen(req, timeout=30) as resp:
                 body = resp.read().decode("utf-8")
         except urllib.error.HTTPError as exc:
             error_body = exc.read().decode("utf-8", errors="replace")

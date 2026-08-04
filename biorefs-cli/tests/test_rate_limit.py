@@ -1,3 +1,5 @@
+# Copyright (c) 2026 Seungwon Lee
+# SPDX-License-Identifier: MIT
 from __future__ import annotations
 
 from biorefs_cli.http import HttpClient, HttpResponse, infer_rate_limit_source

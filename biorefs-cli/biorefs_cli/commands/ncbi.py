@@ -1,3 +1,5 @@
+# Copyright (c) 2026 Seungwon Lee
+# SPDX-License-Identifier: MIT
 """Generic NCBI Entrez escape-hatch commands."""
 
 from __future__ import annotations

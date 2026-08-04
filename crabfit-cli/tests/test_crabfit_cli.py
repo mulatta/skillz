@@ -1,3 +1,5 @@
+# Copyright (c) 2026 Seungwon Lee
+# SPDX-License-Identifier: MIT
 """Regression tests for Crab.fit time slot handling."""
 
 import datetime as dt

@@ -1,3 +1,5 @@
+# Copyright (c) 2026 Seungwon Lee
+# SPDX-License-Identifier: MIT
 """UniProtKB command implementation.
 
 Identifier-first protein annotation: canonical accession, function, entity

@@ -1,10 +1,12 @@
+# Copyright (c) 2026 Seungwon Lee
+# SPDX-License-Identifier: MIT
 from __future__ import annotations
 
 import json
 import threading
+from collections.abc import Generator
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
-from collections.abc import Generator
 from typing import Any
 from unittest.mock import patch
 from urllib.parse import parse_qs, urlparse

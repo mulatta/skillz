@@ -1,3 +1,5 @@
+# Copyright (c) 2026 Seungwon Lee
+# SPDX-License-Identifier: MIT
 """Agent-friendly wrapper for Cherri and macOS Shortcuts."""
 
 from __future__ import annotations

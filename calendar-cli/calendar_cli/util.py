@@ -1,3 +1,5 @@
+# Copyright (c) 2026 Seungwon Lee
+# SPDX-License-Identifier: MIT
 """Shared utilities used across calendar-cli modules."""
 
 from __future__ import annotations

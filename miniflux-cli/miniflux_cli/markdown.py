@@ -1,3 +1,5 @@
+# Copyright (c) 2026 Seungwon Lee
+# SPDX-License-Identifier: MIT
 """HTML-to-Markdown rendering for Miniflux entries."""
 
 from __future__ import annotations
@@ -47,9 +49,14 @@ class _MarkdownParser(HTMLParser):
             self.parts.append(f"![{alt}]({src})")
 
     def handle_endtag(self, tag: str) -> None:
-        if tag in {"p", "div", "section", "article", "blockquote"}:
-            self._blank_line()
-        elif tag in {"h1", "h2", "h3", "h4", "h5", "h6"}:
+        if tag in {"p", "div", "section", "article", "blockquote"} or tag in {
+            "h1",
+            "h2",
+            "h3",
+            "h4",
+            "h5",
+            "h6",
+        }:
             self._blank_line()
         elif tag in {"strong", "b"}:
             self.parts.append("**")

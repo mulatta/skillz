@@ -1,3 +1,5 @@
+# Copyright (c) 2026 Seungwon Lee
+# SPDX-License-Identifier: MIT
 """Configuration utilities for vcal."""
 
 from __future__ import annotations

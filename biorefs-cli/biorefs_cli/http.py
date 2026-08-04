@@ -1,3 +1,5 @@
+# Copyright (c) 2026 Seungwon Lee
+# SPDX-License-Identifier: MIT
 """Small stdlib HTTP helper skeleton."""
 
 from __future__ import annotations

@@ -1,3 +1,5 @@
+# Copyright (c) 2026 Seungwon Lee
+# SPDX-License-Identifier: MIT
 """Tests for the calendar store (direct ics file manipulation)."""
 
 from datetime import UTC, date, datetime, timedelta

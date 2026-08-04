@@ -1,3 +1,5 @@
+# Copyright (c) 2026 Seungwon Lee
+# SPDX-License-Identifier: MIT
 """NCBI E-utilities client skeleton."""
 
 from __future__ import annotations
@@ -19,7 +21,7 @@ _API_KEY_UNSET = object()
 class NCBIClient:
     config: Config
     http: HttpClient
-    _api_key_cache: str | None | object = field(
+    _api_key_cache: str | object | None = field(
         default=_API_KEY_UNSET,
         init=False,
         repr=False,

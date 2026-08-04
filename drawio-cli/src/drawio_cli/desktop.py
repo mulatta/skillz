@@ -1,3 +1,5 @@
+# Copyright (c) 2026 Seungwon Lee
+# SPDX-License-Identifier: MIT
 from __future__ import annotations
 
 import os
@@ -21,7 +23,7 @@ def handoff_to_desktop(source: Path, *, drawio: str | None = None) -> None:
         raise RuntimeError("draw.io Desktop handoff requires a GUI session")
     drawio_bin = drawio or os.environ.get("DRAWIO_CLI_DRAWIO", "drawio")
     try:
-        subprocess.Popen(  # noqa: S603
+        subprocess.Popen(
             [drawio_bin, str(source)],
             stdin=subprocess.DEVNULL,
             stdout=subprocess.DEVNULL,

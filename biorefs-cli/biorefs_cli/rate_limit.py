@@ -1,3 +1,5 @@
+# Copyright (c) 2026 Seungwon Lee
+# SPDX-License-Identifier: MIT
 """Generic API rate-limit policies and limiter."""
 
 from __future__ import annotations

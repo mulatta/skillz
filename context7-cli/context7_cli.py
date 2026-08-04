@@ -1,4 +1,6 @@
 #!/usr/bin/env python3
+# Copyright (c) 2026 Seungwon Lee
+# SPDX-License-Identifier: MIT
 """
 context7-cli - CLI for the Context7 documentation API
 

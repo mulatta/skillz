@@ -1,3 +1,5 @@
+# Copyright (c) 2026 Seungwon Lee
+# SPDX-License-Identifier: MIT
 """User-facing errors for vikunja-cli."""
 
 from http import HTTPStatus

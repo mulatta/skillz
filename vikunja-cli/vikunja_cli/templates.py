@@ -1,3 +1,5 @@
+# Copyright (c) 2026 Seungwon Lee
+# SPDX-License-Identifier: MIT
 """Task template rendering for vikunja-cli."""
 
 from __future__ import annotations

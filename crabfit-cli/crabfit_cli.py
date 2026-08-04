@@ -1,4 +1,6 @@
 #!/usr/bin/env python3
+# Copyright (c) 2026 Seungwon Lee
+# SPDX-License-Identifier: MIT
 """CLI to create and manage Crab.fit events."""
 
 from __future__ import annotations

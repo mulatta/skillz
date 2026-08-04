@@ -1,3 +1,5 @@
+# Copyright (c) 2026 Seungwon Lee
+# SPDX-License-Identifier: MIT
 """Custom error types for user-facing messages."""
 
 from http import HTTPStatus

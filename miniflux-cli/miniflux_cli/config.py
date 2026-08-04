@@ -1,3 +1,5 @@
+# Copyright (c) 2026 Seungwon Lee
+# SPDX-License-Identifier: MIT
 """Configuration loading for miniflux-cli."""
 
 from __future__ import annotations
