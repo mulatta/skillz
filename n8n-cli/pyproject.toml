@@ -26,4 +26,4 @@ warn_return_any = true
 warn_unused_configs = true
 
 [tool.ruff.lint]
-ignore = ["SIM102", "SIM103"]
+ignore = ["SIM102", "SIM103", "SIM117"]
