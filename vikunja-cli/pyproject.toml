@@ -25,3 +25,6 @@ python_version = "3.13"
 warn_return_any = true
 warn_unused_configs = true
 strict = true
+
+[tool.ruff.lint]
+ignore = ["RUF012"]
