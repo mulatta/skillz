@@ -1,9 +1,9 @@
 {
   lib,
   stdenv,
-  callPackage,
   python3Packages,
   patchright,
+  chromeForTesting,
   xvfb,
   chromium,
   dejavu_fonts,
@@ -15,7 +15,6 @@
 let
   # nixpkgs Chromium is Linux-only; google-chrome (the darwin alternative) is
   # unfree and frequently broken, so on macOS use prebuilt Chrome for Testing.
-  chromeForTesting = callPackage ./chromium-cft.nix { };
   defaultChromium =
     if stdenv.hostPlatform.isLinux then lib.getExe chromium else lib.getExe chromeForTesting;
   fontsConf = makeFontsConf {

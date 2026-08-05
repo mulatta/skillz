@@ -1,35 +1,22 @@
-# Pre-built Chrome for Testing for macOS, matching the nixpkgs Chromium
-# milestone. nixpkgs Chromium is Linux-only (built from source), so on darwin we
-# pull Google's official prebuilt CfT binary from the CDN to stay self-contained.
-# 149.0.7827.115 is the CfT build for the same 149.0.7827 milestone as nixpkgs
-# Chromium 149.0.7827.114 (CfT does not publish that exact patch).
+# Pre-built Chrome for Testing for macOS, matching nixpkgs Chromium.
+# nixpkgs Chromium is Linux-only, so fetch Google's official Darwin binary to
+# keep paperfetch-cli self-contained on every supported platform.
 {
   lib,
   stdenvNoCC,
   fetchzip,
 }:
 let
-  version = "149.0.7827.115";
-  platforms = {
-    "aarch64-darwin" = {
-      dir = "mac-arm64";
-      hash = "sha256-Pg8tE6BunHoUbZA50yJq3bY4OwH2OHFNmkpA/F76p40=";
-    };
-    "x86_64-darwin" = {
-      dir = "mac-x64";
-      hash = "sha256-QhiXGltZ/e7xtKdFbYGZsC+yskzrxn7Ba+zw/Iny0pw=";
-    };
-  };
-  system = stdenvNoCC.hostPlatform.system;
-  p = platforms.${system} or (throw "chrome-for-testing: unsupported system ${system}");
+  version = "151.0.7922.71";
+  dir = "mac-arm64";
 in
 stdenvNoCC.mkDerivation {
   pname = "chrome-for-testing";
   inherit version;
 
   src = fetchzip {
-    url = "https://storage.googleapis.com/chrome-for-testing-public/${version}/${p.dir}/chrome-${p.dir}.zip";
-    hash = p.hash;
+    url = "https://storage.googleapis.com/chrome-for-testing-public/${version}/${dir}/chrome-${dir}.zip";
+    hash = "sha256-AWw9eArW1d+zdyfJiDFJ8SjQrI/IMcbpEeTRVj9A9AA=";
     stripRoot = false;
   };
 
@@ -43,7 +30,7 @@ stdenvNoCC.mkDerivation {
   installPhase = ''
     runHook preInstall
     mkdir -p "$out/Applications" "$out/bin"
-    cp -R "chrome-${p.dir}/Google Chrome for Testing.app" "$out/Applications/"
+    cp -R "chrome-${dir}/Google Chrome for Testing.app" "$out/Applications/"
     binpath="$out/Applications/Google Chrome for Testing.app/Contents/MacOS/Google Chrome for Testing"
     printf '#!/bin/sh\nexec "%s" "$@"\n' "$binpath" > "$out/bin/chromium"
     chmod +x "$out/bin/chromium"
@@ -53,10 +40,7 @@ stdenvNoCC.mkDerivation {
   meta = {
     description = "Chrome for Testing ${version} (prebuilt, macOS)";
     homepage = "https://googlechromelabs.github.io/chrome-for-testing/";
-    platforms = [
-      "aarch64-darwin"
-      "x86_64-darwin"
-    ];
+    platforms = [ "aarch64-darwin" ];
     sourceProvenance = [ lib.sourceTypes.binaryNativeCode ];
     mainProgram = "chromium";
   };
