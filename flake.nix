@@ -42,7 +42,7 @@
     {
       packages = eachSystem (
         { pkgs, system, ... }:
-        pkgs.callPackages ./nix/packages.nix {
+        pkgs.callPackages ./nix/packages {
           cherri = cherri.packages.${system}.cherri;
         }
       );
