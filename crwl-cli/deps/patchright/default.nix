@@ -7,14 +7,11 @@
   pyee,
   python,
   nodejs,
-  callPackage,
   stdenv,
 }:
 buildPythonPackage (
   finalAttrs:
   let
-    patchright-driver = callPackage ./driver.nix { };
-
     # py3-none wheels with non-standard platform tags — fetchurl required
     wheels = {
       x86_64-linux = {
@@ -24,10 +21,6 @@ buildPythonPackage (
       aarch64-linux = {
         url = "https://files.pythonhosted.org/packages/b9/b1/7094545c805a31235ef69316ccc910aa5ff5e940c41e85df588ca660f00d/patchright-1.58.0-py3-none-manylinux_2_17_aarch64.manylinux2014_aarch64.whl";
         hash = "sha256-Qxsd+JZ7SRnTJqMSFEXEfxV2m8ahDc66ppkHPrfRJfk=";
-      };
-      x86_64-darwin = {
-        url = "https://files.pythonhosted.org/packages/61/c6/b1d685ccce237e280d8549454a8b5760e58ab5ee88af9ef875fad2282845/patchright-1.58.0-py3-none-macosx_10_13_x86_64.whl";
-        hash = "sha256-yq3uxbSBLxLbXiReeLfBvdnGs40sFaWfowR7BOM6PmA=";
       };
       aarch64-darwin = {
         url = "https://files.pythonhosted.org/packages/61/13/e5726d38be9ecf9ed714346433f2536eb6423748836f4a22a6701b992ba0/patchright-1.58.0-py3-none-macosx_11_0_arm64.whl";
@@ -68,10 +61,6 @@ buildPythonPackage (
     doCheck = false;
 
     pythonImportsCheck = [ "patchright" ];
-
-    passthru = {
-      inherit (patchright-driver) browsers;
-    };
 
     meta = {
       description = "Undetected Python version of Playwright";
