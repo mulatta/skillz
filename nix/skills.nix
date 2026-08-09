@@ -23,7 +23,6 @@
   nmap-cli = { };
   n8n-cli = { };
   pexpect-cli = { };
-  pymol-cli = { };
   shortcuts-cli = { };
   vikunja-cli = { };
   weather-cli = { };
