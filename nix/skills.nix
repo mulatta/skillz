@@ -13,8 +13,6 @@
   calendar-cli = { };
   context7-cli = { };
   crabfit-cli = { };
-  crwl-cli = { };
-  drawio-cli = { };
   gmaps-cli = { };
   kmap-cli = { };
   linkwarden-cli = { };
@@ -25,6 +23,5 @@
   pexpect-cli = { };
   queue = { };
   shortcuts-cli = { };
-  vikunja-cli = { };
   weather-cli = { };
 }
