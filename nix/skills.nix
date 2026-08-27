@@ -23,6 +23,7 @@
   nmap-cli = { };
   n8n-cli = { };
   pexpect-cli = { };
+  queue = { };
   shortcuts-cli = { };
   vikunja-cli = { };
   weather-cli = { };
