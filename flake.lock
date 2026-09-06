@@ -6,11 +6,11 @@
         "nixpkgs": "nixpkgs"
       },
       "locked": {
-        "lastModified": 1785353042,
-        "narHash": "sha256-mnK0y2/hEG0jL+rjppi/4VMa87D8ihSkA4F99md3ahc=",
+        "lastModified": 1787874298,
+        "narHash": "sha256-gyIdPGdqecJqpzODHmAK8PJ17/nDjpNjtVZwmTiC/mY=",
         "owner": "electrikmilk",
         "repo": "cherri",
-        "rev": "951c0bb3c34ef4e3d6cb2ce9a1bff35071c9a7a2",
+        "rev": "dc82114f346f77e5cf04987cb0ee4e781302fc32",
         "type": "github"
       },
       "original": {
