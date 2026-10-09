@@ -63,6 +63,7 @@ fn main() {
         "kill" => kill(&mut parser),
         "restart" => restart(&mut parser),
         "ps" => ps(&mut parser),
+        "_notify" => notify(&mut parser),
         "help" => {
             println!("{USAGE}");
             return;
@@ -161,11 +162,20 @@ impl Daemon {
             .ok_or_else(|| format!("task {id} does not exist").into())
     }
 
-    /// Best-effort removal of a delivered task. The daemon refuses to remove
-    /// tasks that others depend on, which is exactly what we want for
-    /// `--after` pipelines, so failures are ignored.
-    fn auto_clean(&mut self, id: usize) {
-        let _ = self.request(Request::Remove(vec![id]));
+    /// Remove finished own tasks older than `keep`. `keep` must stay because
+    /// pueue allocates ids as max+1 and would otherwise recycle it. Removal
+    /// of `--after` dependencies is refused by the daemon, which is fine.
+    fn auto_clean(&mut self, keep: usize, session: &Option<String>) {
+        let Ok(state) = self.state() else { return };
+        let stale: Vec<usize> = state
+            .tasks
+            .values()
+            .filter(|task| task.id < keep && task.is_done() && owned(task, session))
+            .map(|task| task.id)
+            .collect();
+        if !stale.is_empty() {
+            let _ = self.request(Request::Remove(stale));
+        }
     }
 }
 
@@ -287,26 +297,98 @@ fn timeout_from(flag: Option<u64>) -> Duration {
     Duration::from_secs(secs)
 }
 
+/// If the calling agent has an inbox socket ($PI_INBOX), fork a background
+/// `queue _notify` per task that reports completion there, so the agent
+/// doesn't have to poll with `queue wait`.
+fn spawn_notifiers(ids: &[usize]) -> bool {
+    let Ok(inbox) = env::var("PI_INBOX") else {
+        return false;
+    };
+    let Ok(exe) = env::current_exe() else {
+        return false;
+    };
+    let mut any = false;
+    for id in ids {
+        let mut cmd = process::Command::new(&exe);
+        cmd.args(["_notify", &id.to_string(), &inbox])
+            .stdin(process::Stdio::null())
+            .stdout(process::Stdio::null())
+            .stderr(process::Stdio::null());
+        #[cfg(unix)]
+        {
+            use std::os::unix::process::CommandExt;
+            cmd.process_group(0);
+        }
+        any |= cmd.spawn().is_ok();
+    }
+    any
+}
+
+/// Hidden subcommand: wait for task ID, then post its result to SOCKET.
+fn notify(parser: &mut Parser) -> Result<i32, Error> {
+    let id: usize = parser.value()?.parse()?;
+    let socket: PathBuf = parser.value()?.into();
+    let mut daemon = Daemon::connect()?;
+    let task = loop {
+        let task = daemon.task(id)?;
+        if task.is_done() {
+            break task;
+        }
+        thread::sleep(Duration::from_secs(2));
+    };
+    let (summary, _) = task_summary(&task);
+    let log = fs::read_to_string(daemon.pueue_dir.join("task_logs").join(format!("{id}.log")))
+        .unwrap_or_default();
+    let lines: Vec<&str> = log.lines().collect();
+    let tail = lines[lines.len().saturating_sub(20)..].join("\n");
+    let mut text = format!("task={id} {summary}\n$ {}\n", task.original_command.trim());
+    if lines.len() > 20 {
+        text.push_str(&format!("[... full log: queue log {id}]\n"));
+    }
+    text.push_str(&tail);
+    let msg = serde_json::json!({"source": "queue", "text": text}).to_string();
+    #[cfg(unix)]
+    {
+        let mut stream = std::os::unix::net::UnixStream::connect(&socket)?;
+        stream.write_all(msg.as_bytes())?;
+    }
+    Ok(0)
+}
+
 /// Detach watchdog: reads on the daemon stream block indefinitely while a
 /// task is silent, so a plain read timeout would corrupt protocol framing
 /// mid-frame. Exiting the process instead is safe by design: the task lives
 /// in the daemon and detaching performs no cleanup.
-fn spawn_watchdog(deadline: Duration, ids: Vec<usize>) {
+/// `notify`: first detach of a task (run/restart) arms an inbox notifier;
+/// re-detaching from `wait` must not arm another one.
+fn spawn_watchdog(deadline: Duration, ids: Vec<usize>, notify: bool) {
     thread::spawn(move || {
         thread::sleep(deadline);
+        let notified = notify && spawn_notifiers(&ids);
         let ids = ids
             .iter()
             .map(|id| id.to_string())
             .collect::<Vec<_>>()
             .join(" ");
+        if notified {
+            eprintln!(
+                "\nstill running. You will get an [inbox] message when it finishes (or: queue wait {ids})"
+            );
+            process::exit(EXIT_PENDING);
+        }
         eprintln!("\nstill running, resume with: queue wait {ids}");
         process::exit(EXIT_PENDING);
     });
 }
 
-/// Stream one task to completion, print its status line, auto-clean it and
-/// return its exit code.
-fn attach(daemon: &mut Daemon, id: usize, tail_ok: Option<usize>) -> Result<i32, Error> {
+/// Stream one task to completion, print its status line, garbage-collect
+/// older finished tasks and return its exit code.
+fn attach(
+    daemon: &mut Daemon,
+    id: usize,
+    tail_ok: Option<usize>,
+    session: &Option<String>,
+) -> Result<i32, Error> {
     send_request(
         Request::Stream(StreamRequest {
             tasks: TaskSelection::TaskIds(vec![id]),
@@ -347,7 +429,7 @@ fn attach(daemon: &mut Daemon, id: usize, tail_ok: Option<usize>) -> Result<i32,
         }
     }
     println!("task={id} {summary}");
-    daemon.auto_clean(id);
+    daemon.auto_clean(id, session);
     Ok(code)
 }
 
@@ -414,10 +496,11 @@ fn run(parser: &mut Parser) -> Result<i32, Error> {
         return Ok(EXIT_PENDING);
     }
     if detach {
+        spawn_notifiers(&[id]);
         return Ok(0);
     }
-    spawn_watchdog(timeout_from(timeout), vec![id]);
-    attach(&mut daemon, id, tail_ok)
+    spawn_watchdog(timeout_from(timeout), vec![id], true);
+    attach(&mut daemon, id, tail_ok, &session)
 }
 
 fn wait(parser: &mut Parser) -> Result<i32, Error> {
@@ -435,8 +518,8 @@ fn wait(parser: &mut Parser) -> Result<i32, Error> {
     }
 
     let mut daemon = Daemon::connect()?;
+    let session = session();
     if ids.is_empty() {
-        let session = session();
         let state = daemon.state()?;
         ids = state
             .tasks
@@ -444,16 +527,17 @@ fn wait(parser: &mut Parser) -> Result<i32, Error> {
             .filter(|task| owned(task, &session))
             .map(|task| task.id)
             .collect();
+        ids.sort_unstable();
         if ids.is_empty() {
             println!("no tasks");
             return Ok(0);
         }
     }
 
-    spawn_watchdog(timeout_from(timeout), ids.clone());
+    spawn_watchdog(timeout_from(timeout), ids.clone(), false);
     let mut first_failure = 0;
     for id in ids {
-        let code = attach(&mut daemon, id, tail_ok)?;
+        let code = attach(&mut daemon, id, tail_ok, &session)?;
         if first_failure == 0 {
             first_failure = code;
         }
@@ -633,8 +717,8 @@ fn restart(parser: &mut Parser) -> Result<i32, Error> {
         other => return Err(format!("unexpected response: {other:?}").into()),
     }
     eprintln!("task={id}");
-    spawn_watchdog(timeout_from(timeout), vec![id]);
-    attach(&mut daemon, id, None)
+    spawn_watchdog(timeout_from(timeout), vec![id], true);
+    attach(&mut daemon, id, None, &session)
 }
 
 fn ps(parser: &mut Parser) -> Result<i32, Error> {
