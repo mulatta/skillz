@@ -17,10 +17,7 @@
   kmap-cli = { };
   linkwarden-cli = { };
   miniflux-cli = { };
-  paperfetch-cli = { };
   nmap-cli = { };
-  n8n-cli = { };
-  pexpect-cli = { };
   queue = { };
   shortcuts-cli = { };
   weather-cli = { };

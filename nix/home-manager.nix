@@ -39,8 +39,8 @@ in
       '';
       example = [
         "context7-cli"
-        "n8n-cli"
-        "pexpect-cli"
+        "calendar-cli"
+        "linkwarden-cli"
       ];
     };
 

@@ -72,8 +72,3 @@ ignore_missing_imports = true
 [[tool.mypy.overrides]]
 module = "pytest.*"
 ignore_missing_imports = true
-
-[[tool.mypy.overrides]]
-module = ["patchright.*", "pyvirtualdisplay.*", "markdownify.*"]
-ignore_missing_imports = true
-implicit_reexport = true

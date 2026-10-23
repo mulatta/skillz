@@ -38,17 +38,6 @@
         pytest
       ];
     };
-    "n8n-cli" = {
-      extraPythonPackages = with pkgs.python3.pkgs; [
-        pytest
-      ];
-    };
-    "pexpect-cli" = {
-      extraPythonPackages = with pkgs.python3.pkgs; [
-        pexpect
-        pytest
-      ];
-    };
   };
 
   settings.formatter.prettier.excludes = [
